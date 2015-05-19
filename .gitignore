@@ -1,0 +1,17 @@
+Makefile
+autom4te*
+bin/*
+lib/*
+*.a
+*.so
+*.o
+*.orig
+*.log
+*.bak
+config.log
+config.status
+doc/html
+*.rej
+cov-int
+*~
+.git/

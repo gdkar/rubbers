@@ -54,7 +54,6 @@ T *allocate(size_t count)
 {
     void *ptr = 0;
     // 32-byte alignment is required for at least OpenMAX
-    static const int alignment = 32;
 #ifdef USE_OWN_ALIGNED_MALLOC
     // Alignment must be a power of two, bigger than the pointer
     // size. Stuff the actual malloc'd pointer in just before the
@@ -69,6 +68,8 @@ T *allocate(size_t count)
         ((void **)ptr)[-1] = buf;
     }
 #else /* !USE_OWN_ALIGNED_MALLOC */
+#ifndef MALLOC_IS_ALIGNED
+    static const int alignment = 32;
 #ifdef HAVE_POSIX_MEMALIGN
     if (posix_memalign(&ptr, alignment, count * sizeof(T))) {
         ptr = malloc(count * sizeof(T));
@@ -77,13 +78,14 @@ T *allocate(size_t count)
 #ifdef __MSVC__
     ptr = _aligned_malloc(count * sizeof(T), alignment);
 #else /* !__MSVC__ */
-#ifndef MALLOC_IS_ALIGNED
 #warning "No aligned malloc available or defined"
-#endif
     // Note that malloc always aligns to 16 byte boundaries on OS/X
     ptr = malloc(count * sizeof(T));
 #endif /* !__MSVC__ */
 #endif /* !HAVE_POSIX_MEMALIGN */
+#else /* MALLOC_IS_ALIGNED */
+    ptr = malloc(count * sizeof(T));
+#endif /* MALLOC_IS_ALIGNED */
 #endif /* !USE_OWN_ALIGNED_MALLOC */
     if (!ptr) {
 #ifndef NO_EXCEPTIONS
@@ -92,7 +94,7 @@ T *allocate(size_t count)
         abort();
 #endif
     }
-    return (T *)ptr;
+    return reinterpret_cast<T*>(ptr);
 }
 
 #ifdef HAVE_IPP
@@ -141,12 +143,16 @@ void deallocate(double *);
 template <typename T>
 T *reallocate(T *ptr, size_t oldcount, size_t count)
 {
+#ifdef MALLOC_IS_ALIGNED
+    return reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(ptr),count*sizeof(T)));
+#else /* !MALLOC_IS_ALIGNED */
     T *newptr = allocate<T>(count);
     if (oldcount && ptr) {
         v_copy(newptr, ptr, oldcount < count ? oldcount : count);
     }
     if (ptr) deallocate<T>(ptr);
     return newptr;
+#endif /* !MALLOC_IS_ALIGNED */
 }
 
 /// Reallocate, zeroing all contents
@@ -202,12 +208,26 @@ T **reallocate_channels(T **ptr,
                         size_t oldchannels, size_t oldcount,
                         size_t channels, size_t count)
 {
+#ifdef MALLOC_IS_ALIGNED
+    for(size_t c = channels; c < oldchannels; c++){
+        deallocate<T>(ptr[c]);
+    }
+    ptr = reallocate<T*>(ptr,oldchannels,channels);
+    for(size_t c = oldchannels; c < channels; c++){
+        ptr[c] = 0;
+    }
+    for(size_t c = 0; c < channels; ++c){
+        ptr[c] = reallocate<T>(ptr[c], oldcount, count);
+    }
+    return ptr;
+#else
     T **newptr = allocate_channels<T>(channels, count);
     if (oldcount && ptr) {
         v_copy_channels(newptr, ptr, channels, oldcount < count ? oldcount : count);
     } 
     if (ptr) deallocate_channels<T>(ptr, channels);
     return newptr;
+#endif
 }
 	
 template <typename T>
@@ -215,12 +235,26 @@ T **reallocate_and_zero_extend_channels(T **ptr,
                                         size_t oldchannels, size_t oldcount,
                                         size_t channels, size_t count)
 {
+#ifdef MALLOC_IS_ALIGNED
+    for(size_t c = oldchannels; c < channels; c++){
+        deallocate<T>(ptr[c]);
+    }
+    ptr = reallocate<T*>(ptr, oldchannels, channels);
+    for(size_t c = 0; c < channels; c++){
+        ptr[c] = reallocate_and_zero_extension<T>(ptr[c], oldcount, count);
+    }
+    for(size_t c = channels; c < oldchannels; c++){
+        ptr[c] = allocate_and_zero<T>(ptr[c],oldcount,count);
+    }
+    return ptr;
+#else
     T **newptr = allocate_and_zero_channels<T>(channels, count);
     if (oldcount && ptr) {
         v_copy_channels(newptr, ptr, channels, oldcount < count ? oldcount : count);
     } 
     if (ptr) deallocate_channels<T>(ptr, channels);
     return newptr;
+#endif
 }
 
 /// RAII class to call deallocate() on destruction

@@ -37,37 +37,6 @@
 
 namespace RubberBand {
 
-#ifdef USE_APPROXIMATE_ATAN2
-float approximate_atan2f(float real, float imag)
-{
-    static const float pi = M_PI;
-    static const float pi2 = M_PI / 2;
-
-    float atan;
-
-    if (real == 0.f) {
-
-        if (imag > 0.0f) atan = pi2;
-        else if (imag == 0.0f) atan = 0.0f;
-        else atan = -pi2;
-
-    } else {
-
-        float z = imag/real;
-
-        if (fabsf(z) < 1.f) {
-            atan = z / (1.f + 0.28f * z * z);
-            if (real < 0.f) {
-                if (imag < 0.f) atan -= pi;
-                else atan += pi;
-            }
-        } else {
-            atan = pi2 - z / (z * z + 0.28f);
-            if (imag < 0.f) atan -= pi;
-        }
-    }
-}
-#endif
 
 #if defined USE_POMMIER_MATHFUN
 

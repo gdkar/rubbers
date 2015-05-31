@@ -36,7 +36,9 @@
 #include <Accelerate/Accelerate.h>
 #endif
 
+#include <string.h>
 #include <cstring>
+#include <cmath>
 #include "sysutils.h"
 
 namespace RubberBand {
@@ -53,10 +55,7 @@ template<typename T>
 inline void v_zero(T *const R__ ptr,
                    const int count)
 {
-    const T value = T(0);
-    for (int i = 0; i < count; ++i) {
-        ptr[i] = value;
-    }
+    memset(ptr, 0, count*sizeof(T));
 }
 
 #if defined HAVE_IPP
@@ -112,9 +111,7 @@ inline void v_copy(T *const R__ dst,
                    const T *const R__ src,
                    const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = src[i];
-    }
+    memmove(dst, src, count*sizeof(T));
 }
 
 #if defined HAVE_IPP
@@ -181,21 +178,10 @@ inline void v_convert(U *const R__ dst,
     }
 }
 
-template<>
-inline void v_convert(float *const R__ dst,
-                      const float *const R__ src,
-                      const int count)
-{
-    v_copy(dst, src, count);
+template<typename T>
+inline void v_convert(T *const R__ dst, const T * R__ const src, const int count){
+    memmove(dst, src, count*sizeof(T));
 }
-template<>
-inline void v_convert(double *const R__ dst,
-                      const double *const R__ src,
-                      const int count)
-{
-    v_copy(dst, src, count);
-}
-
 #if defined HAVE_IPP
 template<>
 inline void v_convert(double *const R__ dst,

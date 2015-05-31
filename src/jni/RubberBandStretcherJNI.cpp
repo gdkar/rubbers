@@ -20,15 +20,12 @@
     under terms other than those of the GNU General Public License,
     you must obtain a valid commercial licence before doing so.
 */
-
 #include "rubberband/RubberBandStretcher.h"
 
 #include "system/Allocators.h"
-
 #include <jni.h>
 
 using namespace RubberBand;
-
 extern "C" {
 
 /*
@@ -329,7 +326,6 @@ Java_com_breakfastquay_rubberband_RubberBandStretcher_study(JNIEnv *env, jobject
     int channels = env->GetArrayLength(data);
     float **arr = allocate<float *>(channels);
     float **input = allocate<float *>(channels);
-    int samples = 0;
     for (int c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         arr[c] = env->GetFloatArrayElements(cdata, 0);
@@ -350,7 +346,6 @@ Java_com_breakfastquay_rubberband_RubberBandStretcher_process(JNIEnv *env, jobje
     int channels = env->GetArrayLength(data);
     float **arr = allocate<float *>(channels);
     float **input = allocate<float *>(channels);
-    int samples = 0;
     for (int c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         arr[c] = env->GetFloatArrayElements(cdata, 0);

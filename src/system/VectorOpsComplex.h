@@ -67,30 +67,56 @@ inline void c_phasor(T *real, T *imag, T phase)
 #endif
 }
 
+
+#ifdef USE_APPROXIMATE_ATAN2
+template<typename T>
+inline T approximate_atan2(T  imag, T  real)
+{
+//    static const float pi = M_PI;
+//    static const float pi2 = M_PI / 2;
+
+    T atan;
+
+    if (real == 0) {
+
+        if (imag > 0.0) atan = (M_PI/2);
+        else if (imag == 0.0) atan = 0.0;
+        else atan = -(M_PI/2);
+
+    } else {
+
+        T  z = imag/real;
+
+        if (std::abs(z) < 1) {
+            atan = z / (1 + 0.28 * z * z);
+            if (real < 0) {
+                if (imag < 0) atan -= M_PI;
+                else atan += M_PI;
+            }
+        } else {
+            atan = (M_PI/2) - z / (z * z + 0.28);
+            if (imag < 0) atan -= M_PI;
+        }
+    }
+    return atan;
+}
+#endif
+
+#ifdef USE_APPROXIMATE_ATAN2
 template<typename T>
 inline void c_magphase(T *mag, T *phase, T real, T imag)
 {
-    *mag = sqrt(real * real + imag * imag);
-    *phase = atan2(imag, real);
-}
-
-#ifdef USE_APPROXIMATE_ATAN2
-// NB arguments in opposite order from usual for atan2f
-extern float approximate_atan2f(float real, float imag);
-template<>
-inline void c_magphase(float *mag, float *phase, float real, float imag)
-{
-    float atan = approximate_atan2f(real, imag);
-    *phase = atan;
-    *mag = sqrtf(real * real + imag * imag);
+    *phase = approximate_atan2(imag,real);
+    *mag = std::sqrt(real * real + imag * imag);
 }
 #else
-template<>
-inline void c_magphase(float *mag, float *phase, float real, float imag)
+template<typename T>
+inline void c_magphase(T *mag, T *phase, T real, T imag)
 {
-    *mag = sqrtf(real * real + imag * imag);
-    *phase = atan2f(imag, real);
+    *mag = std::sqrt(real * real + imag * imag);
+    *phase = atan2(imag, real);
 }
+template<>
 #endif
 
 

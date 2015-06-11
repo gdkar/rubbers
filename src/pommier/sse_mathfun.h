@@ -59,14 +59,14 @@ typedef __m64 v2si;   // vector of 2 int (mmx)
 #define _PS_CONST(Name, Val)                                            \
   static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
 #define _PI32_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { (int)Val, (int)Val, (int)Val, (int)Val }
 #define _PS_CONST_TYPE(Name, Type, Val)                                 \
-  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { (Type)Val, (Type)Val, (Type)Val, (Type)Val }
 
 _PS_CONST(1  , 1.0f);
 _PS_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */
-_PS_CONST_TYPE(min_norm_pos, int, 0x00800000);
+_PS_CONST_TYPE(min_norm_pos, int , 0x00800000);
 _PS_CONST_TYPE(mant_mask, int, 0x7f800000);
 _PS_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
 

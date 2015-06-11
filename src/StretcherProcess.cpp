@@ -1043,9 +1043,7 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
 
 #ifndef NO_THREADING
 #if defined HAVE_IPP && !defined USE_SPEEX
-        if (m_threaded) {
-            m_resamplerMutex.lock();
-        }
+        if (m_threaded) {m_resamplerMutex.lock();}
 #endif
 #endif
 
@@ -1057,29 +1055,20 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
 
 #ifndef NO_THREADING
 #if defined HAVE_IPP && !defined USE_SPEEX
-        if (m_threaded) {
-            m_resamplerMutex.unlock();
-        }
+        if (m_threaded) {m_resamplerMutex.unlock();}
 #endif
 #endif
-
-        writeOutput(*cd.outbuf, cd.resamplebuf,
-                    outframes, cd.outCount, theoreticalOut);
+        writeOutput(*cd.outbuf, cd.resamplebuf,outframes, cd.outCount, theoreticalOut);
 
     } else {
-        writeOutput(*cd.outbuf, accumulator,
-                    si, cd.outCount, theoreticalOut);
+        writeOutput(*cd.outbuf, accumulator,si, cd.outCount, theoreticalOut);
     }
-
     v_move(accumulator, accumulator + si, sz - si);
     v_zero(accumulator + sz - si, si);
-    
     v_move(windowAccumulator, windowAccumulator + si, sz - si);
     v_zero(windowAccumulator + sz - si, si);
-    
-    if (int(cd.accumulatorFill) > si) {
-        cd.accumulatorFill -= si;
-    } else {
+    if (int(cd.accumulatorFill) > si) {cd.accumulatorFill -= si;}
+    else {
         cd.accumulatorFill = 0;
         if (cd.draining) {
             if (m_debugLevel > 1) {
@@ -1089,7 +1078,6 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
         }
     }
 }
-
 void
 RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_t qty, size_t &outCount, size_t theoreticalOut)
 {
@@ -1101,14 +1089,9 @@ RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_
     // configure(), so we don't want to remove any here.
 
     size_t startSkip = 0;
-    if (!m_realtime) {
-        startSkip = lrintf((m_sWindowSize/2) / m_pitchScale);
-    }
-
+    if (!m_realtime) {startSkip = lrintf((m_sWindowSize/2) / m_pitchScale);}
     if (outCount > startSkip) {
-        
         // this is the normal case
-
         if (theoreticalOut > 0) {
             if (m_debugLevel > 1) {
                 cerr << "theoreticalOut = " << theoreticalOut
@@ -1124,25 +1107,17 @@ RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_
                 }
             }
         }
-
-        if (m_debugLevel > 2) {
-            cerr << "writing " << qty << endl;
-        }
-
+        if (m_debugLevel > 2) {cerr << "writing " << qty << endl;}
         size_t written = to.write(from, qty);
-
         if (written < qty) {
             cerr << "WARNING: RubberBandStretcher::Impl::writeOutput: "
                  << "Buffer overrun on output: wrote " << written
                  << " of " << qty << " samples" << endl;
         }
-
         outCount += written;
         return;
     }
-
     // the rest of this is only used during the first startSkip samples
-
     if (outCount + qty <= startSkip) {
         if (m_debugLevel > 1) {
             cerr << "qty = " << qty << ", startSkip = "
@@ -1152,7 +1127,6 @@ RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_
         outCount += qty;
         return;
     }
-
     size_t off = startSkip - outCount;
     if (m_debugLevel > 1) {
         cerr << "qty = " << qty << ", startSkip = "

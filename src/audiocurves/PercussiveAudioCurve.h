@@ -46,7 +46,7 @@ public:
     virtual const char *getUnit() const { return "bin/total"; }
 
 protected:
-    double *R__ m_prevMag;
+    float *R__ m_prevMag;
 };
 
 }

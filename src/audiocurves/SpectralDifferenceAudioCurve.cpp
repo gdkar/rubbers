@@ -33,8 +33,8 @@ namespace RubberBand
 SpectralDifferenceAudioCurve::SpectralDifferenceAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters)
 {
-    m_mag = allocate<double>(m_lastPerceivedBin + 1);
-    m_tmpbuf = allocate<double>(m_lastPerceivedBin + 1);
+    m_mag = allocate<float>(m_lastPerceivedBin + 1);
+    m_tmpbuf = allocate<float>(m_lastPerceivedBin + 1);
     v_zero(m_mag, m_lastPerceivedBin + 1);
 }
 
@@ -56,15 +56,15 @@ SpectralDifferenceAudioCurve::setFftSize(int newSize)
     deallocate(m_tmpbuf);
     deallocate(m_mag);
     AudioCurveCalculator::setFftSize(newSize);
-    m_mag = allocate<double>(m_lastPerceivedBin + 1);
-    m_tmpbuf = allocate<double>(m_lastPerceivedBin + 1);
+    m_mag = allocate<float>(m_lastPerceivedBin + 1);
+    m_tmpbuf = allocate<float>(m_lastPerceivedBin + 1);
     reset();
 }
 
 float
 SpectralDifferenceAudioCurve::process(const float *R__ mag, int increment)
 {
-    double result = 0.0;
+    float result = 0.0;
 
     const int hs1 = m_lastPerceivedBin + 1;
 

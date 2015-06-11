@@ -288,51 +288,75 @@ inline void v_multiply(T *const R__ dst,
     for (int i = 0; i < count; ++i) {dst[i] = src1[i] * src2[i];}
 }
 template<typename T>
-inline void v_divide(T *const R__ dst,
-                     const T *const R__ src,
-                     const int count)
+inline void v_divide(
+        T *const R__ dst
+      , const T *const R__ src
+      , const int count)
 {for (int i = 0; i < count; ++i) {dst[i] /= src[i];}}
 
 #if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
 template<> 
-inline void v_divide(float*const R__ dst, const float *const R__ src, int count)
+inline void v_divide(
+        float*const R__ dst
+      , const float *const R__ src
+      , const int count)
 {
     const int remainder = count&3;
     const int count_rounded= count&(~3);
-    int i = 0;
-    for(;i<count_rounded; i+=4){
-        __m128 _den = _mm_rcp_ps(_mm_load_ps(src+i));
-        _mm_store_ps(dst+i,_mm_mul_ps(_den,_mm_load_ps(dst+i)));
+    intptr_t i = count_rounded;
+    const float *ssrc = src-4;
+    const float *sdst = dst-4;
+    for(;i; i-= (intptr_t)4){
+        __m128 _den = _mm_rcp_ps(*(__m128*)(ssrc+i));
+        *(__m128*)(sdst+i)=_mm_mul_ps(_den,*(__m128*)(sdst+i));
     }
-    if(remainder){
-        __m128 _num = _mm_setzero_ps();
-        __m128 _den = _mm_set1_ps(1.0f);
-        __m128 _rcp,_prod;
         switch(remainder){
-            case 3:
-                _num[2] = dst[count_rounded+2];
-                _den[2] = src[count_rounded+2];
-            case 2:
-                _num[1] = dst[count_rounded+1];
-                _den[1] = src[count_rounded+1];
-            case 1:
-                _num[0] = dst[count_rounded];
-                _den[0] = src[count_rounded];
-                _rcp = _mm_rcp_ps(_den);
-                _prod  = _mm_mul_ps(_num,_rcp);
-            default:
-                break;
+        case 3:{
+            __m128 _num;
+            __m128 _den;
+            __m128 _rcp,_prod;
+
+            _den[0] = src[count_rounded];
+            _den[1] = src[count_rounded+1];
+            _den[2] = src[count_rounded+2];
+            _rcp = _mm_rcp_ps(_den);
+            _num[0] = dst[count_rounded];
+            _num[1] = dst[count_rounded+1];
+            _num[2] = dst[count_rounded+2];
+            _prod  = _mm_mul_ps(_num,_rcp);
+            dst[count_rounded+0] = _prod[0];
+            dst[count_rounded+1] = _prod[1];
+            dst[count_rounded+2] = _prod[2];
+            return;
         }
-        switch(remainder){
-            case 3:
-                dst[count_rounded+2] = _prod[2];
-            case 2:
-                dst[count_rounded+1] = _prod[1];
-            case 1:
-                dst[count_rounded+0] = _prod[0];
-            default:
-                break;
+        case 2:{
+            __m128 _num;
+            __m128 _den;
+            __m128 _rcp,_prod;
+            _den[0] = src[count_rounded];
+            _den[1] = src[count_rounded+1];
+            _rcp = _mm_rcp_ps(_den);
+            _num[0] = dst[count_rounded];
+            _num[1] = dst[count_rounded+1];
+            _prod  = _mm_mul_ps(_num,_rcp);
+            dst[count_rounded+0] = _prod[0];
+            dst[count_rounded+1] = _prod[1];
+            return;
         }
+        case 1:{
+            __m128 _num;
+            __m128 _den;
+            __m128 _rcp,_prod;
+
+            _num[0] = dst[count_rounded];
+            _den[0] = src[count_rounded];
+            _rcp = _mm_rcp_ss(_den);
+            _prod  = _mm_mul_ss(_num,_rcp);
+            dst[count_rounded+0] = _prod[0];
+            return;
+        }
+        default:
+            break;
     }
 }
 #endif
@@ -343,9 +367,7 @@ inline void v_multiply_and_add(T *const R__ dst,
                                const T *const R__ src2,
                                const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] += src1[i] * src2[i];
-    }
+    for (int i = 0; i < count; ++i) {dst[i] += src1[i] * src2[i];}
 }
 
 #if defined HAVE_IPP
@@ -372,9 +394,7 @@ inline T v_sum(const T *const R__ src,
                const int count)
 {
     T result = T();
-    for (int i = 0; i < count; ++i) {
-        result += src[i];
-    }
+    for (int i = 0; i < count; ++i) {result += src[i];}
     return result;
 }
 
@@ -382,9 +402,7 @@ template<typename T>
 inline void v_log(T *const R__ dst,
                   const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = log(dst[i]);
-    }
+    for (int i = 0; i < count; ++i) {dst[i] = log(dst[i]);}
 }
 
 #if defined HAVE_IPP
@@ -472,50 +490,54 @@ template<typename T>
 inline void v_sqrt(T *const R__ dst,
                    const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = sqrt(dst[i]);
-    }
+    for (int i = 0; i < count; ++i) {dst[i] = sqrt(dst[i]);}
 }
-#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
+//#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
 template<> 
-inline void v_sqrt(float*const R__ srcdst, int count)
+inline void v_sqrt(float*const R__ srcdst, const int count)
 {
     const int remainder = count&3;
     const int count_rounded= count&(~3);
+    float *const R__ ssrcdst = srcdst-4;
     int i = 0;
-    for(;i<count_rounded; i+=4){
-        __m128 _num = _mm_load_ps(srcdst+i);
-        __m128 _den = _mm_rsqrt_ps(*(__m128*)(srcdst+i));
-        _mm_store_ps(srcdst+i,_mm_mul_ps(_num,_den));
+    for(;i; i-=4){
+        __m128 _num = *(__m128*)(ssrcdst+i);
+        __m128 _den = _mm_rsqrt_ps(*(__m128*)(ssrcdst+i));
+        *(__m128*)(ssrcdst+i) = _mm_mul_ps(_num,_den);
     }
-    if(remainder){
-        __m128 _num = _mm_set1_ps(1.0f);
-        __m128 _rsqrt,_prod;
         switch(remainder){
-            case 3:
-                _num[2] = srcdst[count_rounded+2];
-            case 2:
-                _num[1] = srcdst[count_rounded+1];
-            case 1:
+            case 3:{
+                __m128 _num, _rsqrt,_prod;
                 _num[0] = srcdst[count_rounded+0];
+                _num[1] = srcdst[count_rounded+1];
+                _num[2] = srcdst[count_rounded+2];
                 _rsqrt = _mm_rsqrt_ps(_num);
                 _prod  = _mm_mul_ps(_num,_rsqrt);
-            default:
-                break;
-        }
-        switch(remainder){
-            case 3:
-                srcdst[count_rounded+2] = _prod[2];
-            case 2:
-                srcdst[count_rounded+1] = _prod[1];
-            case 1:
                 srcdst[count_rounded+0] = _prod[0];
+                srcdst[count_rounded+1] = _prod[1];
+                srcdst[count_rounded+2] = _prod[2];
+                return;}
+            case 2:{
+                __m128 _num, _rsqrt,_prod;
+                _num[0] = srcdst[count_rounded+0];
+                _num[1] = srcdst[count_rounded+1];
+                _rsqrt = _mm_rsqrt_ps(_num);
+                _prod  = _mm_mul_ps(_num,_rsqrt);
+                srcdst[count_rounded+0] = _prod[0];
+                srcdst[count_rounded+1] = _prod[1];
+                return;}
+            case 1:{
+                __m128 _num, _rsqrt,_prod;
+                _num[0] = srcdst[count_rounded+0];
+                _rsqrt = _mm_rsqrt_ss(_num);
+                _prod  = _mm_mul_ss(_num,_rsqrt);
+                srcdst[count_rounded+0] = _prod[0];
+            }
             default:
-                break;
+                return;
         }
-    }
 }
-#endif
+//#endif
 
 
 #if defined HAVE_IPP
@@ -558,9 +580,7 @@ template<typename T>
 inline void v_square(T *const R__ dst,
                    const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = dst[i] * dst[i];
-    }
+    for (int i = 0; i < count; ++i) {dst[i] = dst[i] * dst[i];}
 }
 
 #if defined HAVE_IPP
@@ -582,9 +602,7 @@ template<typename T>
 inline void v_abs(T *const R__ dst,
                   const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = fabs(dst[i]);
-    }
+    for (int i = 0; i < count; ++i) {dst[i] = fabs(dst[i]);}
 }
 
 #if defined HAVE_IPP
@@ -626,9 +644,7 @@ inline void v_interleave(T *const R__ dst,
     case 2:
         // common case, may be vectorized by compiler if hardcoded
         for (int i = 0; i < count; ++i) {
-            for (int j = 0; j < 2; ++j) {
-                dst[idx++] = src[j][i];
-            }
+            for (int j = 0; j < 2; ++j) {dst[idx++] = src[j][i];}
         }
         return;
     case 1:
@@ -636,9 +652,7 @@ inline void v_interleave(T *const R__ dst,
         return;
     default:
         for (int i = 0; i < count; ++i) {
-            for (int j = 0; j < channels; ++j) {
-                dst[idx++] = src[j][i];
-            }
+            for (int j = 0; j < channels; ++j) {dst[idx++] = src[j][i];}
         }
     }
 }
@@ -711,9 +725,7 @@ template<typename T>
 inline T v_mean(const T *const R__ ptr, const int count)
 {
     T t = T(0);
-    for (int i = 0; i < count; ++i) {
-        t += ptr[i];
-    }
+    for (int i = 0; i < count; ++i) {t += ptr[i];}
     t /= T(count);
     return t;
 }
@@ -724,9 +736,7 @@ inline T v_mean_channels(const T *const R__ *const R__ ptr,
                          const int count)
 {
     T t = T(0);
-    for (int c = 0; c < channels; ++c) {
-        t += v_mean(ptr[c], count);
-    }
+    for (int c = 0; c < channels; ++c) {t += v_mean(ptr[c], count);}
     t /= T(channels);
     return t;
 }

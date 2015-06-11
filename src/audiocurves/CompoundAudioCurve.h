@@ -57,16 +57,16 @@ protected:
     PercussiveAudioCurve m_percussive;
     HighFrequencyAudioCurve m_hf;
 
-    SampleFilter<double> *m_hfFilter;
-    SampleFilter<double> *m_hfDerivFilter;
+    SampleFilter<float> *m_hfFilter;
+    SampleFilter<float> *m_hfDerivFilter;
 
     Type m_type;
 
-    double m_lastHf;
-    double m_lastResult;
+    float m_lastHf;
+    float m_lastResult;
     int m_risingCount;
 
-    double processFiltering(double percussive, double hf);
+    float processFiltering(float percussive, float hf);
 };
 
 }

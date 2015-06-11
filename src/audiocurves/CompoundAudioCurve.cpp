@@ -35,8 +35,8 @@ CompoundAudioCurve::CompoundAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters),
     m_percussive(parameters),
     m_hf(parameters),
-    m_hfFilter(new MovingMedian<double>(19, 85)),
-    m_hfDerivFilter(new MovingMedian<double>(19, 90)),
+    m_hfFilter(new MovingMedian<float>(19, 85)),
+    m_hfDerivFilter(new MovingMedian<float>(19, 90)),
     m_type(CompoundDetector),
     m_lastHf(0.0),
     m_lastResult(0.0),
@@ -117,28 +117,28 @@ CompoundAudioCurve::process(const double *R__ mag, int increment)
     return processFiltering(percussive, hf);
 }
 
-double
-CompoundAudioCurve::processFiltering(double percussive, double hf)
+float 
+CompoundAudioCurve::processFiltering(float percussive, float hf)
 {
     if (m_type == PercussiveDetector) {
         return percussive;
     }
 
-    double rv = 0.f;
+    float rv = 0.f;
     
-    double hfDeriv = hf - m_lastHf;
+    float hfDeriv = hf - m_lastHf;
 
     m_hfFilter->push(hf);
     m_hfDerivFilter->push(hfDeriv);
 
-    double hfFiltered = m_hfFilter->get();
-    double hfDerivFiltered = m_hfDerivFilter->get();
+    float hfFiltered = m_hfFilter->get();
+    float hfDerivFiltered = m_hfDerivFilter->get();
 
     m_lastHf = hf;
 
-    double result = 0.f;
+    float result = 0.f;
     
-    double hfExcess = hf - hfFiltered;
+    float hfExcess = hf - hfFiltered;
 
     if (hfExcess > 0.0) {
         result = hfDeriv - hfDerivFiltered;

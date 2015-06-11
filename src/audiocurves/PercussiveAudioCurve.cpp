@@ -35,7 +35,7 @@ namespace RubberBand
 PercussiveAudioCurve::PercussiveAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters)
 {
-    m_prevMag = allocate_and_zero<double>(m_fftSize/2 + 1);
+    m_prevMag = allocate_and_zero<float>(m_fftSize/2 + 1);
 }
 
 PercussiveAudioCurve::~PercussiveAudioCurve()
@@ -103,7 +103,7 @@ PercussiveAudioCurve::process(const double *R__ mag, int increment)
         if (mag[n] > zeroThresh) ++nonZeroCount;
     }
 
-    v_copy(m_prevMag, mag, sz + 1);
+    v_convert(m_prevMag, mag, sz + 1);
 
     if (nonZeroCount == 0) return 0;
     else return double(count) / double(nonZeroCount);

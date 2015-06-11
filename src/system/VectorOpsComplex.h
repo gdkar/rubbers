@@ -74,19 +74,14 @@ inline T approximate_atan2(T  imag, T  real)
 {
 //    static const float pi = M_PI;
 //    static const float pi2 = M_PI / 2;
-
     T atan;
-
     if (real == 0) {
-
         if (imag > 0.0) atan = (M_PI/2);
         else if (imag == 0.0) atan = 0.0;
         else atan = -(M_PI/2);
 
     } else {
-
         T  z = imag/real;
-
         if (std::abs(z) < 1) {
             atan = z / (1 + 0.28 * z * z);
             if (real < 0) {
@@ -100,6 +95,7 @@ inline T approximate_atan2(T  imag, T  real)
     }
     return atan;
 }
+
 #endif
 
 #ifdef USE_APPROXIMATE_ATAN2
@@ -216,7 +212,15 @@ void v_cartesian_to_polar(T *const R__ mag,
         c_magphase<T>(mag + i, phase + i, real[i], imag[i]);
     }
 }
+template<>
+void v_cartesian_to_polar(
+        float *const R__ mag,
+        float *const R__ phase,
+        const float *const R__ real,
+        const float *const R__ imag,
+        const int count){
 
+}
 template<typename S, typename T> // S source, T target
 void v_cartesian_interleaved_to_polar(T *const R__ mag,
                                       T *const R__ phase,
@@ -243,7 +247,83 @@ inline void v_cartesian_to_polar(float *const R__ mag,
     vvsqrtf(mag, phase, &count); // using phase as the source
     vvatan2f(phase, imag, real, &count);
 }
-template<>
+#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
+/*template<> 
+inline void v_cartesian_to_polar(double *const R__ mag,
+                                 double *const R__ phase,
+                                 const double *const R__ real,
+                                 const double *const R__ imag,
+                                 const int count)
+{
+    const int remainder = count&3;
+    const int count_rounded= count&(~3);
+    intptr_t i = count_rounded;
+    const float *sreal = real-4;
+    const float *simag = imag-4;
+    const float *smag  = mag  -4;
+    const float *sphase= phase-4;
+
+    for(;i; i-= (intptr_t)4){
+        __m128 _real = *(__m128*)(real+i);
+        __m128 _imag = *(__m128*)(real+i);
+        __m128 _mag_sqr = _mm_add_ps(_mm_mul_ps(_real,_real)
+                ,_mm_mul_ps(_imag,_imag));
+        __m128 _rsqrt= _mm_rsqrt_ps(_mag_sqr);
+        *(__m128*)(smag+i) = _mm_mul_ps(_rsqrt,_mag_sqr);
+
+        __m128 _den = _mm_rcp_ps(*(__m128*)(ssrc+i));
+        *(__m128*)(sdst+i)=_mm_mul_ps(_den,*(__m128*)(sdst+i));
+    }
+    if(remainder){
+        __m128 _num;
+        __m128 _den;
+        __m128 _rcp,_prod;
+        switch(remainder){
+            case 3:
+                _num[1] = dst[count_rounded+1];
+                _den[1] = src[count_rounded+1];
+                _num[2] = dst[count_rounded+2];
+                _den[2] = src[count_rounded+2];
+                _num[0] = dst[count_rounded];
+                _den[0] = src[count_rounded];
+                _rcp = _mm_rcp_ps(_den);
+                _prod  = _mm_mul_ps(_num,_rcp);
+                break;
+            case 2:
+                _num[1] = dst[count_rounded+1];
+                _den[1] = src[count_rounded+1];
+                _num[0] = dst[count_rounded];
+                _den[0] = src[count_rounded];
+                _rcp = _mm_rcp_ps(_den);
+                _prod  = _mm_mul_ps(_num,_rcp);
+
+            case 1:
+                _num[0] = dst[count_rounded];
+                _den[0] = src[count_rounded];
+                _rcp = _mm_rcp_ps(_den);
+                _prod  = _mm_mul_ps(_num,_rcp);
+            default:
+                break;
+        }
+        switch(remainder){
+            case 3:
+                dst[count_rounded+0] = _prod[0];
+                dst[count_rounded+1] = _prod[1];
+                dst[count_rounded+2] = _prod[2];
+                return;
+            case 2:
+                dst[count_rounded+0] = _prod[0];
+                dst[count_rounded+1] = _prod[1];
+                return;
+            case 1:
+                dst[count_rounded+0] = _prod[0];
+            default:
+                return;
+        }
+    }
+}*/
+#endif
+
 inline void v_cartesian_to_polar(double *const R__ mag,
                                  double *const R__ phase,
                                  const double *const R__ real,

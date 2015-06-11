@@ -45,8 +45,8 @@ public:
     virtual const char *getUnit() const { return "V"; }
 
 protected:
-    double *R__ m_mag;
-    double *R__ m_tmpbuf;
+    float *R__ m_mag;
+    float *R__ m_tmpbuf;
 };
 
 }

@@ -424,7 +424,7 @@ RubberBandStretcher::Impl::calculateSizes()
         m_timeRatio = 1.0;
     }
 
-    double r = getEffectiveRatio();
+    float r = getEffectiveRatio();
 
     if (m_realtime) {
 
@@ -1114,7 +1114,7 @@ RubberBandStretcher::Impl::calculateStretch()
         }
     }
 
-    double prdm = 0, sdm = 0;
+    float prdm = 0, sdm = 0;
     if (!m_phaseResetDf.empty()) {
         for (int i = 0; i < (int)m_phaseResetDf.size(); ++i) {
             prdm += m_phaseResetDf[i];

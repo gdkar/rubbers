@@ -39,8 +39,8 @@ public:
 
     virtual void setFftSize(int newSize);
 
-    virtual float processFloat(const float *R__ mag, int increment);
-    virtual double processDouble(const double *R__ mag, int increment);
+    virtual float process(const float *R__ mag, int increment);
+    virtual double process(const double *R__ mag, int increment);
     virtual void reset();
     virtual const char *getUnit() const { return "V"; }
 

@@ -42,13 +42,13 @@ ConstantAudioCurve::reset()
 }
 
 float
-ConstantAudioCurve::processFloat(const float *R__, int)
+ConstantAudioCurve::process(const float *R__, int)
 {
     return 1.f;
 }
 
 double
-ConstantAudioCurve::processDouble(const double *R__, int)
+ConstantAudioCurve::process(const double *R__, int)
 {
     return 1.0;
 }

@@ -67,16 +67,6 @@ public:
     static constexpr bool threadingAvailable(){return true;}
 };
 
-typedef std::mutex Mutex;
-class MutexLocker
-{
-public:
-    MutexLocker(Mutex *_mutex):m_mutex(_mutex){m_mutex->lock();}
-    ~MutexLocker(){m_mutex->unlock();}
-
-private:
-    Mutex * const m_mutex;
-};
 
 /**
   The Condition class bundles a condition variable and mutex.
@@ -101,14 +91,13 @@ class Condition
 public:
     Condition(std::string name):m_locked(false),m_name(name){}
     ~Condition(){}
-    
-    void lock(){m_mutex.lock();m_locked = true;}
-    void unlock(){m_locked=false;m_mutex.unlock();}
-    void wait(int64_t ns = 0){
+    inline void lock(){m_mutex.lock();m_locked = true;}
+    inline void unlock(){m_locked=false;m_mutex.unlock();}
+    inline void wait(int64_t ns = 0){
         std::unique_lock<std::mutex> lock(m_mutex);
         m_condition.wait_for(lock,std::chrono::nanoseconds(ns));
     }
-    void signal(){
+    inline void signal(){
         std::unique_lock<std::mutex> lock(m_mutex);
         m_condition.notify_all();
     }

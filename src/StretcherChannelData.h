@@ -101,12 +101,12 @@ public:
     RingBuffer<float> *inbuf;
     RingBuffer<float> *outbuf;
 
-    process_t *mag;
-    process_t *phase;
+    float *mag;
+    float *phase;
 
-    process_t *prevPhase;
-    process_t *prevError;
-    process_t *unwrappedPhase;
+    float *prevPhase;
+    float *prevError;
+    float *unwrappedPhase;
 
     float *accumulator;
     size_t accumulatorFill;
@@ -116,8 +116,8 @@ public:
     int interpolatorScale;
 
     float *fltbuf;
-    process_t *dblbuf; // owned by FFT object, only used for time domain FFT i/o
-    process_t *envelope; // for cepstral formant shift
+    float *dblbuf; // owned by FFT object, only used for time domain FFT i/o
+    float *envelope; // for cepstral formant shift
     bool unchanged;
 
     size_t prevIncrement; // only used in RT mode

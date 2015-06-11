@@ -90,7 +90,7 @@ public:
      * time-domain audio samples) from the previous to the current
      * input block is given by increment.
      */
-    virtual float processFloat(const float *R__ mag, int increment) = 0;
+    virtual float process(const float *R__ mag, int increment) = 0;
 
     /**
      * Process the given magnitude spectrum block and return the curve
@@ -100,7 +100,7 @@ public:
      * time-domain audio samples) from the previous to the current
      * input block is given by increment.
      */
-    virtual double processDouble(const double *R__ mag, int increment) = 0;
+    virtual double process(const double *R__ mag, int increment) = 0;
 
     /**
      * Obtain a confidence for the curve value (if applicable). A

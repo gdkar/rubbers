@@ -74,15 +74,15 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
     inbuf = new RingBuffer<float>(maxSize);
     outbuf = new RingBuffer<float>(outbufSize);
 
-    mag = allocate_and_zero<process_t>(realSize);
-    phase = allocate_and_zero<process_t>(realSize);
-    prevPhase = allocate_and_zero<process_t>(realSize);
-    prevError = allocate_and_zero<process_t>(realSize);
-    unwrappedPhase = allocate_and_zero<process_t>(realSize);
-    envelope = allocate_and_zero<process_t>(realSize);
+    mag = allocate_and_zero<float>(realSize);
+    phase = allocate_and_zero<float>(realSize);
+    prevPhase = allocate_and_zero<float>(realSize);
+    prevError = allocate_and_zero<float>(realSize);
+    unwrappedPhase = allocate_and_zero<float>(realSize);
+    envelope = allocate_and_zero<float>(realSize);
 
     fltbuf = allocate_and_zero<float>(maxSize);
-    dblbuf = allocate_and_zero<process_t>(maxSize);
+    dblbuf = allocate_and_zero<float>(maxSize);
 
     accumulator = allocate_and_zero<float>(maxSize);
     windowAccumulator = allocate_and_zero<float>(maxSize);
@@ -93,11 +93,7 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
     for (std::set<size_t>::const_iterator i = sizes.begin();
          i != sizes.end(); ++i) {
         ffts[*i] = new FFT(*i);
-        if (sizeof(process_t) == sizeof(double)) {
-            ffts[*i]->initDouble();
-        } else {
-            ffts[*i]->initFloat();
-        }
+        ffts[*i]->initFloat();
     }
     fft = ffts[initialFftSize];
 
@@ -135,11 +131,7 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,
             //!!! this also requires a lock, but it shouldn't occur in
             //RT mode with proper initialisation
             ffts[fftSize] = new FFT(fftSize);
-            if (sizeof(process_t) == sizeof(double)) {
-                ffts[fftSize]->initDouble();
-            } else {
-                ffts[fftSize]->initFloat();
-            }
+            ffts[fftSize]->initFloat();
         }
         
         fft = ffts[fftSize];
@@ -194,11 +186,7 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,
 
     if (ffts.find(fftSize) == ffts.end()) {
         ffts[fftSize] = new FFT(fftSize);
-        if (sizeof(process_t) == sizeof(double)) {
-            ffts[fftSize]->initDouble();
-        } else {
-            ffts[fftSize]->initFloat();
-        }
+        ffts[fftSize]->initFloat();
     }
     
     fft = ffts[fftSize];

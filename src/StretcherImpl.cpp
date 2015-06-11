@@ -186,7 +186,7 @@ RubberBandStretcher::Impl::~Impl()
 {
 #ifndef NO_THREADING
     if (m_threaded) {
-        MutexLocker locker(&m_threadSetMutex);
+        std::unique_lock<std::mutex> locker(m_threadSetMutex);
         for (set<ProcessThread *>::iterator i = m_threadSet.begin();
              i != m_threadSet.end(); ++i) {
             if (m_debugLevel > 0) {
@@ -1015,15 +1015,15 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
 
             m_studyFFT->forwardMagnitude(cd.accumulator, cd.fltbuf);
 
-            float df = m_phaseResetAudioCurve->processFloat(cd.fltbuf, m_increment);
+            float df = m_phaseResetAudioCurve->process(cd.fltbuf, m_increment);
             m_phaseResetDf.push_back(df);
 
 //            cout << m_phaseResetDf.size() << " [" << final << "] -> " << df << " \t: ";
 
-            df = m_stretchAudioCurve->processFloat(cd.fltbuf, m_increment);
+            df = m_stretchAudioCurve->process(cd.fltbuf, m_increment);
             m_stretchDf.push_back(df);
 
-            df = m_silentAudioCurve->processFloat(cd.fltbuf, m_increment);
+            df = m_silentAudioCurve->process(cd.fltbuf, m_increment);
             bool silent = (df > 0.f);
             if (silent && m_debugLevel > 1) {
                 cerr << "silence found at " << m_inputDuration << endl;
@@ -1248,7 +1248,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
 
 #ifndef NO_THREADING
         if (m_threaded) {
-            MutexLocker locker(&m_threadSetMutex);
+            std::unique_lock<std::mutex> locker(m_threadSetMutex);
 
             for (size_t c = 0; c < m_channels; ++c) {
                 ProcessThread *thread = new ProcessThread(this, c);

@@ -2055,7 +2055,7 @@ private:
     static int m_extantf;
     static int m_extantd;
 #ifndef NO_THREADING
-    static Mutex m_commonMutex;
+    static std::mutex m_commonMutex;
 #endif
 };
 
@@ -2066,7 +2066,7 @@ int
 D_FFTW::m_extantd = 0;
 
 #ifndef NO_THREADING
-Mutex
+std::mutex
 D_FFTW::m_commonMutex;
 #endif
 

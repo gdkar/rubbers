@@ -78,40 +78,40 @@ CompoundAudioCurve::setFftSize(int newSize)
 }
 
 float
-CompoundAudioCurve::processFloat(const float *R__ mag, int increment)
+CompoundAudioCurve::process(const float *R__ mag, int increment)
 {
     float percussive = 0.f;
     float hf = 0.f;
     switch (m_type) {
     case PercussiveDetector:
-        percussive = m_percussive.processFloat(mag, increment);
+        percussive = m_percussive.process(mag, increment);
         break;
     case CompoundDetector:
-        percussive = m_percussive.processFloat(mag, increment);
-        hf = m_hf.processFloat(mag, increment);
+        percussive = m_percussive.process(mag, increment);
+        hf = m_hf.process(mag, increment);
         break;
     case SoftDetector:
-        hf = m_hf.processFloat(mag, increment);
+        hf = m_hf.process(mag, increment);
         break;
     }
     return processFiltering(percussive, hf);
 }
 
 double
-CompoundAudioCurve::processDouble(const double *R__ mag, int increment)
+CompoundAudioCurve::process(const double *R__ mag, int increment)
 {
     double percussive = 0.0;
     double hf = 0.0;
     switch (m_type) {
     case PercussiveDetector:
-        percussive = m_percussive.processDouble(mag, increment);
+        percussive = m_percussive.process(mag, increment);
         break;
     case CompoundDetector:
-        percussive = m_percussive.processDouble(mag, increment);
-        hf = m_hf.processDouble(mag, increment);
+        percussive = m_percussive.process(mag, increment);
+        hf = m_hf.process(mag, increment);
         break;
     case SoftDetector:
-        hf = m_hf.processDouble(mag, increment);
+        hf = m_hf.process(mag, increment);
         break;
     }
     return processFiltering(percussive, hf);

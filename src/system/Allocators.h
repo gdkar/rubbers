@@ -157,8 +157,7 @@ T *reallocate(T *ptr, size_t oldcount, size_t count)
 
 /// Reallocate, zeroing all contents
 template <typename T>
-T *reallocate_and_zero(T *ptr, size_t oldcount, size_t count)
-{
+T *reallocate_and_zero(T *ptr, size_t oldcount, size_t count){
     ptr = reallocate(ptr, oldcount, count);
     v_zero(ptr, count);
     return ptr;

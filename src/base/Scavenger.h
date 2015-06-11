@@ -83,7 +83,7 @@ protected:
     typedef std::list<T *> ObjectList;
     ObjectList m_excess;
     int m_lastExcess;
-    Mutex m_excessMutex;
+    std::mutex m_excessMutex;
     void pushExcess(T *);
     void clearExcess(int);
 
@@ -218,12 +218,11 @@ template <typename T>
 void
 Scavenger<T>::pushExcess(T *t)
 {
-    m_excessMutex.lock();
+    std::unique_lock<std::mutex> lock(m_excessMutex);
     m_excess.push_back(t);
     struct timeval tv;
     (void)gettimeofday(&tv, 0);
     m_lastExcess = tv.tv_sec;
-    m_excessMutex.unlock();
 }
 
 template <typename T>
@@ -234,7 +233,7 @@ Scavenger<T>::clearExcess(int sec)
     std::cerr << "Scavenger::clearExcess: Excess now " << m_excess.size() << std::endl;
 #endif
 
-    m_excessMutex.lock();
+    std::unique_lock<std::mutex> lock(m_excessMutex);
     for (typename ObjectList::iterator i = m_excess.begin();
 	 i != m_excess.end(); ++i) {
 	delete *i;
@@ -242,7 +241,6 @@ Scavenger<T>::clearExcess(int sec)
     }
     m_excess.clear();
     m_lastExcess = sec;
-    m_excessMutex.unlock();
 }
 
 }

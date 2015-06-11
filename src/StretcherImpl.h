@@ -44,12 +44,6 @@ using namespace RubberBand;
 namespace RubberBand
 {
 
-#ifdef PROCESS_SAMPLE_TYPE
-typedef PROCESS_SAMPLE_TYPE process_t;
-#else
-typedef double process_t;
-#endif
-
 class AudioCurveCalculator;
 class StretchCalculator;
 
@@ -216,7 +210,7 @@ protected:
         bool m_abandoning;
     };
 
-    mutable Mutex m_threadSetMutex;
+    mutable std::mutex m_threadSetMutex;
     typedef std::set<ProcessThread *> ThreadSet;
     ThreadSet m_threadSet;
     
@@ -224,7 +218,7 @@ protected:
     // Exasperatingly, the IPP polyphase resampler does not appear to
     // be thread-safe as advertised -- a good reason to prefer the
     // Speex alternative
-    Mutex m_resamplerMutex;
+    std::mutex m_resamplerMutex;
 #endif
 #endif
 

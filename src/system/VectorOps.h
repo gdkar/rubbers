@@ -35,7 +35,7 @@
 #ifdef HAVE_VDSP
 #include <Accelerate/Accelerate.h>
 #endif
-
+#include "pommier/sse_mathfun.h"
 #include <string.h>
 #include <cstring>
 #include <cmath>
@@ -54,37 +54,7 @@ namespace RubberBand {
 template<typename T>
 inline void v_zero(T *const R__ ptr,
                    const int count)
-{
-    memset(ptr, 0, count*sizeof(T));
-}
-
-#if defined HAVE_IPP
-template<> 
-inline void v_zero(float *const R__ ptr, 
-                   const int count)
-{
-    ippsZero_32f(ptr, count);
-}
-template<> 
-inline void v_zero(double *const R__ ptr,
-                   const int count)
-{
-    ippsZero_64f(ptr, count);
-}
-#elif defined HAVE_VDSP
-template<> 
-inline void v_zero(float *const R__ ptr, 
-                   const int count)
-{
-    vDSP_vclr(ptr, 1, count);
-}
-template<> 
-inline void v_zero(double *const R__ ptr,
-                   const int count)
-{
-    vDSP_vclrD(ptr, 1, count);
-}
-#endif
+{memset(ptr, 0, count*sizeof(T));}
 
 template<typename T>
 inline void v_zero_channels(T *const R__ *const R__ ptr,
@@ -110,26 +80,7 @@ template<typename T>
 inline void v_copy(T *const R__ dst,
                    const T *const R__ src,
                    const int count)
-{
-    memmove(dst, src, count*sizeof(T));
-}
-
-#if defined HAVE_IPP
-template<>
-inline void v_copy(float *const R__ dst,
-                   const float *const R__ src,
-                   const int count)
-{
-    ippsCopy_32f(src, dst, count);
-}
-template<>
-inline void v_copy(double *const R__ dst,
-                   const double *const R__ src,
-                   const int count)
-{
-    ippsCopy_64f(src, dst, count);
-}
-#endif
+{memmove(dst, src, count*sizeof(T));}
 
 template<typename T>
 inline void v_copy_channels(T *const R__ *const R__ dst,
@@ -141,32 +92,12 @@ inline void v_copy_channels(T *const R__ *const R__ dst,
         v_copy(dst[c], src[c], count);
     }
 }
-
 // src and dst alias by definition, so not R__ed
 template<typename T>
 inline void v_move(T *const dst,
                    const T *const src,
                    const int count)
-{
-    memmove(dst, src, count * sizeof(T));
-}
-
-#if defined HAVE_IPP
-template<>
-inline void v_move(float *const dst,
-                   const float *const src,
-                   const int count)
-{
-    ippsMove_32f(src, dst, count);
-}
-template<>
-inline void v_move(double *const dst,
-                   const double *const src,
-                   const int count)
-{
-    ippsMove_64f(src, dst, count);
-}
-#endif
+{memmove(dst, src, count * sizeof(T));}
 
 template<typename T, typename U>
 inline void v_convert(U *const R__ dst,
@@ -224,27 +155,16 @@ inline void v_convert_channels(U *const R__ *const R__ dst,
         v_convert(dst[c], src[c], count);
     }
 }
-
 template<typename T>
 inline void v_add(T *const R__ dst,
                   const T *const R__ src,
                   const int count)
-{
-    for (int i = 0; i < count; ++i) {
-        dst[i] += src[i];
-    }
-}
-
+{for (int i = 0; i < count; ++i) {dst[i] += src[i];}}
 template<typename T>
 inline void v_add(T *const R__ dst,
                   const T value,
                   const int count)
-{
-    for (int i = 0; i < count; ++i) {
-        dst[i] += value;
-    }
-}
-
+{for (int i = 0; i < count; ++i) {dst[i] += value;}}
 #if defined HAVE_IPP
 template<>
 inline void v_add(float *const R__ dst,
@@ -260,7 +180,6 @@ inline void v_add(double *const R__ dst,
     ippsAdd_64f_I(src, dst, count);
 }    
 #endif
-
 template<typename T>
 inline void v_add_channels(T *const R__ *const R__ dst,
                            const T *const R__ *const R__ src,
@@ -270,7 +189,6 @@ inline void v_add_channels(T *const R__ *const R__ dst,
         v_add(dst[c], src[c], count);
     }
 }
-
 template<typename T, typename G>
 inline void v_add_with_gain(T *const R__ dst,
                             const T *const R__ src,
@@ -281,7 +199,6 @@ inline void v_add_with_gain(T *const R__ dst,
         dst[i] += src[i] * gain;
     }
 }
-
 template<typename T, typename G>
 inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
                                      const T *const R__ *const R__ src,
@@ -293,17 +210,13 @@ inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
         v_add_with_gain(dst[c], src[c], gain, count);
     }
 }
-
 template<typename T>
 inline void v_subtract(T *const R__ dst,
                        const T *const R__ src,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] -= src[i];
-    }
+    for (int i = 0; i < count; ++i) {dst[i] -= src[i];}
 }
-
 #if defined HAVE_IPP
 template<>
 inline void v_subtract(float *const R__ dst,
@@ -319,17 +232,13 @@ inline void v_subtract(double *const R__ dst,
     ippsSub_64f_I(src, dst, count);
 }    
 #endif
-
 template<typename T, typename G>
 inline void v_scale(T *const R__ dst,
                     const G gain,
                     const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] *= gain;
-    }
+    for (int i = 0; i < count; ++i) {dst[i] *= gain;}
 }
-
 #if defined HAVE_IPP 
 template<>
 inline void v_scale(float *const R__ dst,
@@ -346,17 +255,13 @@ inline void v_scale(double *const R__ dst,
     ippsMulC_64f_I(gain, dst, count);
 }
 #endif
-
 template<typename T>
 inline void v_multiply(T *const R__ dst,
                        const T *const R__ src,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] *= src[i];
-    }
+    for (int i = 0; i < count; ++i) {dst[i] *= src[i];}
 }
-
 #if defined HAVE_IPP 
 template<>
 inline void v_multiply(float *const R__ dst,
@@ -380,54 +285,55 @@ inline void v_multiply(T *const R__ dst,
                        const T *const R__ src2,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] = src1[i] * src2[i];
-    }
+    for (int i = 0; i < count; ++i) {dst[i] = src1[i] * src2[i];}
 }
-
 template<typename T>
 inline void v_divide(T *const R__ dst,
                      const T *const R__ src,
                      const int count)
+{for (int i = 0; i < count; ++i) {dst[i] /= src[i];}}
+
+#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
+template<> 
+inline void v_divide(float*const R__ dst, const float *const R__ src, int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] /= src[i];
+    const int remainder = count&3;
+    const int count_rounded= count&(~3);
+    int i = 0;
+    for(;i<count_rounded; i+=4){
+        __m128 _den = _mm_rcp_ps(_mm_load_ps(src+i));
+        _mm_store_ps(dst+i,_mm_mul_ps(_den,_mm_load_ps(dst+i)));
     }
-}
-
-#if defined HAVE_IPP 
-template<>
-inline void v_divide(float *const R__ dst,
-                     const float *const R__ src,
-                     const int count)
-{
-    ippsDiv_32f_I(src, dst, count);
-}
-template<>
-inline void v_divide(double *const R__ dst,
-                     const double *const R__ src,
-                     const int count)
-{
-    ippsDiv_64f_I(src, dst, count);
-}
-#endif
-
-#if defined HAVE_IPP 
-template<>
-inline void v_multiply(float *const R__ dst,
-                       const float *const R__ src1,
-                       const float *const R__ src2,
-                       const int count)
-{
-    ippsMul_32f(src1, src2, dst, count);
-}    
-template<>
-inline void v_multiply(double *const R__ dst,
-                       const double *const R__ src1,
-                       const double *const R__ src2,
-                       const int count)
-{
-    ippsMul_64f(src1, src2, dst, count);
+    if(remainder){
+        __m128 _num = _mm_setzero_ps();
+        __m128 _den = _mm_set1_ps(1.0f);
+        __m128 _rcp,_prod;
+        switch(remainder){
+            case 3:
+                _num[2] = dst[count_rounded+2];
+                _den[2] = src[count_rounded+2];
+            case 2:
+                _num[1] = dst[count_rounded+1];
+                _den[1] = src[count_rounded+1];
+            case 1:
+                _num[0] = dst[count_rounded];
+                _den[0] = src[count_rounded];
+                _rcp = _mm_rcp_ps(_den);
+                _prod  = _mm_mul_ps(_num,_rcp);
+            default:
+                break;
+        }
+        switch(remainder){
+            case 3:
+                dst[count_rounded+2] = _prod[2];
+            case 2:
+                dst[count_rounded+1] = _prod[1];
+            case 1:
+                dst[count_rounded+0] = _prod[0];
+            default:
+                break;
+        }
+    }
 }
 #endif
 
@@ -570,6 +476,47 @@ inline void v_sqrt(T *const R__ dst,
         dst[i] = sqrt(dst[i]);
     }
 }
+#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
+template<> 
+inline void v_sqrt(float*const R__ srcdst, int count)
+{
+    const int remainder = count&3;
+    const int count_rounded= count&(~3);
+    int i = 0;
+    for(;i<count_rounded; i+=4){
+        __m128 _num = _mm_load_ps(srcdst+i);
+        __m128 _den = _mm_rsqrt_ps(*(__m128*)(srcdst+i));
+        _mm_store_ps(srcdst+i,_mm_mul_ps(_num,_den));
+    }
+    if(remainder){
+        __m128 _num = _mm_set1_ps(1.0f);
+        __m128 _rsqrt,_prod;
+        switch(remainder){
+            case 3:
+                _num[2] = srcdst[count_rounded+2];
+            case 2:
+                _num[1] = srcdst[count_rounded+1];
+            case 1:
+                _num[0] = srcdst[count_rounded+0];
+                _rsqrt = _mm_rsqrt_ps(_num);
+                _prod  = _mm_mul_ps(_num,_rsqrt);
+            default:
+                break;
+        }
+        switch(remainder){
+            case 3:
+                srcdst[count_rounded+2] = _prod[2];
+            case 2:
+                srcdst[count_rounded+1] = _prod[1];
+            case 1:
+                srcdst[count_rounded+0] = _prod[0];
+            default:
+                break;
+        }
+    }
+}
+#endif
+
 
 #if defined HAVE_IPP
 template<>

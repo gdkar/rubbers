@@ -27,8 +27,9 @@
 #include "VectorOps.h"
 
 #include <new> // for std::bad_alloc
-#include <stdlib.h>
-
+#include <cstdlib>
+#include <climits>
+#include <limits>
 #ifndef HAVE_POSIX_MEMALIGN
 #ifndef _WIN32
 #ifndef __APPLE__

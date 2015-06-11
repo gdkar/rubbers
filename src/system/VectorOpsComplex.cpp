@@ -63,7 +63,7 @@ v_polar_to_cartesian_pommier(float *const R__ real,
 {
     int idx = 0, tidx = 0;
     int i = 0;
-    for (int i = 0; i + 4 < count; i += 4) {
+    for (i = 0; i + 4 < count; i += 4) {
 	V4SF fmag, fphase, fre, fim;
         for (int j = 0; j < 3; ++j) {
             fmag.f[j] = mag[idx];

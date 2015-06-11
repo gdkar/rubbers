@@ -20,7 +20,7 @@
 
   Permission is granted to anyone to use this software for any purpose,
   including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
+  freely, subject to the following R__ions:
 
   1. The origin of this software must not be misrepresented; you must not
      claim that you wrote the original software. If you use this software
@@ -101,7 +101,7 @@ _PS_CONST(cephes_log_q2, 0.693359375);
    Note that the bug on _mm_cmp* does occur only at -O0 optimization level
 */
 
-inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
+static inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
 	asm (
 			"movhlps %2,%0\n\t"
 			: "=x" (a)
@@ -111,7 +111,7 @@ inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
 #warning "redefined _mm_movehl_ps (see gcc bug 21179)"
 #define _mm_movehl_ps my_movehl_ps
 
-inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
+static inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpltps %2,%0\n\t"
 			: "=x" (a)
@@ -119,7 +119,7 @@ inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
 	    );
 	return a;               
                   }
-inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
+static inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpnleps %2,%0\n\t"
 			: "=x" (a)
@@ -127,7 +127,7 @@ inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
 	    );
 	return a;               
 }
-inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
+static inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpeqps %2,%0\n\t"
 			: "=x" (a)
@@ -162,7 +162,7 @@ typedef union xmm_mm_union {
 /* natural logarithm computed for 4 simultaneous float 
    return NaN for x <= 0
 */
-v4sf log_ps(v4sf x) {
+static inline v4sf log_ps(v4sf x) {
 #ifdef USE_SSE2
   v4si emm0;
 #else
@@ -264,7 +264,7 @@ _PS_CONST(cephes_exp_p3, 4.1665795894E-2);
 _PS_CONST(cephes_exp_p4, 1.6666665459E-1);
 _PS_CONST(cephes_exp_p5, 5.0000001201E-1);
 
-v4sf exp_ps(v4sf x) {
+static inline v4sf exp_ps(v4sf x) {
   v4sf tmp = _mm_setzero_ps(), fx;
 #ifdef USE_SSE2
   v4si emm0;
@@ -382,7 +382,7 @@ _PS_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
    Since it is based on SSE intrinsics, it has to be compiled at -O2 to
    deliver full speed.
 */
-v4sf sin_ps(v4sf x) { // any x
+static inline v4sf sin_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
 #ifdef USE_SSE2
@@ -499,7 +499,7 @@ v4sf sin_ps(v4sf x) { // any x
 }
 
 /* almost the same as sin_ps */
-v4sf cos_ps(v4sf x) { // any x
+static inline v4sf cos_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
 #ifdef USE_SSE2
   v4si emm0, emm2;
@@ -618,7 +618,7 @@ v4sf cos_ps(v4sf x) { // any x
 
 /* since sin_ps and cos_ps are almost identical, sincos_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
+static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   v4sf xmm1, xmm2, xmm3 = _mm_setzero_ps(), sign_bit_sin, y;
 #ifdef USE_SSE2
   v4si emm0, emm2, emm4;

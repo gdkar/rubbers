@@ -142,7 +142,7 @@ inline void v_copy_channels(T *const R__ *const R__ dst,
     }
 }
 
-// src and dst alias by definition, so not restricted
+// src and dst alias by definition, so not R__ed
 template<typename T>
 inline void v_move(T *const dst,
                    const T *const src,

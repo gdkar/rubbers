@@ -193,7 +193,6 @@ RubberBandStretcher::Impl::~Impl()
                 cerr << "RubberBandStretcher::~RubberBandStretcher: joining (channel " << *i << ")" << endl;
             }
             (*i)->abandon();
-            (*i)->wait();
             delete *i;
         }
     }
@@ -231,7 +230,6 @@ RubberBandStretcher::Impl::reset()
                 cerr << "RubberBandStretcher::~RubberBandStretcher: joining (channel " << *i << ")" << endl;
             }
             (*i)->abandon();
-            (*i)->wait();
             delete *i;
         }
         m_threadSet.clear();

@@ -28,8 +28,15 @@
 #define RUBBERBAND_API_MAJOR_VERSION 2
 #define RUBBERBAND_API_MINOR_VERSION 5
 
+#include <memory>
+#include <new>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <vector>
 #include <map>
+#include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <cstddef>
 

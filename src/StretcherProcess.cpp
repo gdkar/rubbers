@@ -83,16 +83,12 @@ RubberBandStretcher::Impl::ProcessThread::run()
         if (last) break;
 
         if (any) {
-            m_s->m_spaceAvailable.lock();
             m_s->m_spaceAvailable.signal();
-            m_s->m_spaceAvailable.unlock();
         }
 
-        m_dataAvailable.lock();
         if (!m_s->testInbufReadSpace(m_channel) && !m_abandoning) {
             m_dataAvailable.wait(50000); // bounded in case of abandonment
         }
-        m_dataAvailable.unlock();
 
         if (m_abandoning) {
             if (m_s->m_debugLevel > 1) {
@@ -104,9 +100,7 @@ RubberBandStretcher::Impl::ProcessThread::run()
 
     bool any = false, last = false;
     m_s->processChunks(m_channel, any, last);
-    m_s->m_spaceAvailable.lock();
     m_s->m_spaceAvailable.signal();
-    m_s->m_spaceAvailable.unlock();
     
     if (m_s->m_debugLevel > 1) {
         cerr << "thread " << m_channel << " done" << endl;
@@ -116,9 +110,7 @@ RubberBandStretcher::Impl::ProcessThread::run()
 void
 RubberBandStretcher::Impl::ProcessThread::signalDataAvailable()
 {
-    m_dataAvailable.lock();
     m_dataAvailable.signal();
-    m_dataAvailable.unlock();
 }
 
 void
@@ -1234,7 +1226,6 @@ RubberBandStretcher::Impl::available() const
 #ifndef NO_THREADING
     }
 #endif
-
     size_t min = 0;
     bool consumed = true;
     bool haveResamplers = false;
@@ -1261,9 +1252,7 @@ size_t
 RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const
 {
     Profiler profiler("RubberBandStretcher::Impl::retrieve");
-
     size_t got = samples;
-
     for (size_t c = 0; c < m_channels; ++c) {
         size_t gotHere = m_channelData[c]->outbuf->read(output[c], got);
         if (gotHere < got) {
@@ -1275,7 +1264,6 @@ RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const
             got = gotHere;
         }
     }
-
     if ((m_options & OptionChannelsTogether) && (m_channels >= 2)) {
         for (size_t i = 0; i < got; ++i) {
             float mid = output[0][i];

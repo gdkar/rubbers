@@ -200,7 +200,7 @@ protected:
     {
     public:
         ProcessThread(Impl *s, size_t c);
-        void run();
+        virtual void run();
         void signalDataAvailable();
         void abandon();
     private:

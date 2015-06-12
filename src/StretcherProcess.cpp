@@ -56,19 +56,14 @@ namespace RubberBand {
 RubberBandStretcher::Impl::ProcessThread::ProcessThread(Impl *s, size_t c) :
     m_s(s),
     m_channel(c),
-    m_dataAvailable(std::string("data ") + char('A' + c)),
+    m_dataAvailable(),
     m_abandoning(false)
-{ }
+{start();}
 
 void
-RubberBandStretcher::Impl::ProcessThread::run()
-{
-    if (m_s->m_debugLevel > 1) {
-        cerr << "thread " << m_channel << " getting going" << endl;
-    }
-
+RubberBandStretcher::Impl::ProcessThread::run(){
+    if (m_s->m_debugLevel > 1) {cerr << "thread " << m_channel << " getting going" << endl;}
     ChannelData &cd = *m_s->m_channelData[m_channel];
-
     while (cd.inputSize == -1 ||
            cd.inbuf->getReadSpace() > 0) {
 
@@ -83,11 +78,11 @@ RubberBandStretcher::Impl::ProcessThread::run()
         if (last) break;
 
         if (any) {
-            m_s->m_spaceAvailable.signal();
+            m_s->m_spaceAvailable.notify_all();
         }
 
         if (!m_s->testInbufReadSpace(m_channel) && !m_abandoning) {
-            m_dataAvailable.wait(50000); // bounded in case of abandonment
+            m_dataAvailable.wait_for(std::chrono::nanoseconds(500000)); // bounded in case of abandonment
         }
 
         if (m_abandoning) {
@@ -100,7 +95,7 @@ RubberBandStretcher::Impl::ProcessThread::run()
 
     bool any = false, last = false;
     m_s->processChunks(m_channel, any, last);
-    m_s->m_spaceAvailable.signal();
+    m_s->m_spaceAvailable.notify_all();
     
     if (m_s->m_debugLevel > 1) {
         cerr << "thread " << m_channel << " done" << endl;
@@ -110,7 +105,7 @@ RubberBandStretcher::Impl::ProcessThread::run()
 void
 RubberBandStretcher::Impl::ProcessThread::signalDataAvailable()
 {
-    m_dataAvailable.signal();
+    m_dataAvailable.notify_all();
 }
 
 void

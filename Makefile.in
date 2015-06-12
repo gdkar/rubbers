@@ -1,8 +1,10 @@
 
+OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math\
+	-march=native -ftree-vectorize -funsafe-math-optimizations
 PREFIX		:= @prefix@
 CXX		:= @CXX@
 CC		:= @CC@
-CXXFLAGS	:= -DHAVE_LIBSAMPLERATE -DHAVE_FFTWF -DHAVE_FFTW3 -DNO_THREAD_CHECKS -DMALLOC_IS_ALIGNED -DUSE_APPROXIMATE_ATAN2 -DUSE_POMMIER_MATHFUN -DUSE_PTHREADS -DNO_TIMING -DNDEBUG -I. -Isrc -Irubberband @CXXFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@ @FFTWF_CFLAGS@ @FFTW_CFLAGS@ @Vamp_CFLAGS@ $(OPTFLAGS)
+CXXFLAGS	:= -g -ggdb -O3 -DHAVE_LIBSAMPLERATE -DHAVE_FFTWF -DHAVE_FFTW3 -DNO_THREAD_CHECKS -DMALLOC_IS_ALIGNED -DUSE_APPROXIMATE_ATAN2 -DUSE_POMMIER_MATHFUN -DUSE_PTHREADS -DNO_TIMING -DNDEBUG -I. -Isrc -Irubberband @CXXFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@ @FFTWF_CFLAGS@ @FFTW_CFLAGS@ @Vamp_CFLAGS@ $(OPTFLAGS)
 CFLAGS		:= @CFLAGS@ $(OPTFLAGS)
 LDFLAGS		:= @LDFLAGS@ -lpthread $(LDFLAGS)
 
@@ -102,7 +104,6 @@ LIBRARY_SOURCES := \
 	src/dsp/FFT.cpp \
 	src/system/Allocators.cpp \
 	src/system/sysutils.cpp \
-	src/system/Thread.cpp \
 	src/StretcherChannelData.cpp \
 	src/StretcherImpl.cpp
 

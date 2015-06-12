@@ -97,7 +97,7 @@ RubberBandStretcher::Impl::Impl(size_t sampleRate,
     m_swindow(0),
     m_studyFFT(0),
 #ifndef NO_THREADING
-    m_spaceAvailable("space"),
+    m_spaceAvailable(),
 #endif
     m_inputDuration(0),
     m_detectorType(CompoundAudioCurve::CompoundDetector),
@@ -676,20 +676,14 @@ RubberBandStretcher::Impl::configure()
             m_channelData[c]->setResampleBufSize(rbs);
         }
     }
-    
     // stretchAudioCurve is unused in RT mode; phaseResetAudioCurve,
     // silentAudioCurve and stretchCalculator however are used in all
     // modes
-
     delete m_phaseResetAudioCurve;
-    m_phaseResetAudioCurve = new CompoundAudioCurve
-        (CompoundAudioCurve::Parameters(m_sampleRate, m_fftSize));
+    m_phaseResetAudioCurve = new CompoundAudioCurve (CompoundAudioCurve::Parameters(m_sampleRate, m_fftSize));
     m_phaseResetAudioCurve->setType(m_detectorType);
-
     delete m_silentAudioCurve;
-    m_silentAudioCurve = new SilentAudioCurve
-        (SilentAudioCurve::Parameters(m_sampleRate, m_fftSize));
-
+    m_silentAudioCurve = new SilentAudioCurve (SilentAudioCurve::Parameters(m_sampleRate, m_fftSize));
     if (!m_realtime) {
         delete m_stretchAudioCurve;
         if (!(m_options & OptionStretchPrecise)) {
@@ -700,11 +694,9 @@ RubberBandStretcher::Impl::configure()
                 (ConstantAudioCurve::Parameters(m_sampleRate, m_fftSize));
         }
     }
-
     delete m_stretchCalculator;
     m_stretchCalculator = new StretchCalculator
-        (m_sampleRate, m_increment,
-         !(m_options & OptionTransientsSmooth));
+        (m_sampleRate, m_increment,!(m_options & OptionTransientsSmooth));
 
     m_stretchCalculator->setDebugLevel(m_debugLevel);
     m_inputDuration = 0;
@@ -1249,16 +1241,10 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
 #ifndef NO_THREADING
         if (m_threaded) {
             std::unique_lock<std::mutex> locker(m_threadSetMutex);
-
             for (size_t c = 0; c < m_channels; ++c) {
-                ProcessThread *thread = new ProcessThread(this, c);
-                m_threadSet.insert(thread);
-                thread->start();
+                m_threadSet.insert(new ProcessThread(this,c));
             }
-            
-            if (m_debugLevel > 0) {
-                cerr << m_channels << " threads created" << endl;
-            }
+            if (m_debugLevel > 0) {cerr << m_channels << " threads created" << endl;}
         }
 #endif
         
@@ -1322,7 +1308,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
             }
             m_spaceAvailable.lock();
             if (!allConsumed) {
-                m_spaceAvailable.wait(500);
+                m_spaceAvailable.wait_for(std::chrono::nanoseconds(500000));
             }
             m_spaceAvailable.unlock();
         }

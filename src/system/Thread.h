@@ -52,22 +52,13 @@ class Thread
     static void static_run( Thread *self){self->run();}
 protected:
     virtual void run() = 0;
+    virtual void start(){m_thread = std::thread(&Thread::static_run,this);}
 public:
     Thread(){}
-    virtual ~Thread(){wait();}
+    virtual ~Thread(){if(m_thread.joinable() && m_thread.get_id()!=std::this_thread::get_id()) m_thread.join();}
     std::thread::id id()  const{return m_thread.get_id();}
-    virtual bool extant() const{return m_thread.joinable();}
-    virtual void start(){
-        m_thread = std::thread(&Thread::static_run,this);
-    }
-    virtual void wait(){
-        if(extant() && id()!=std::this_thread::get_id()) 
-            m_thread.join();
-    }
     static constexpr bool threadingAvailable(){return true;}
 };
-
-
 /**
   The Condition class bundles a condition variable and mutex.
 
@@ -82,25 +73,36 @@ public:
   condition before calling signal() and unlock it afterwards.
 */
 
-class Condition
-{
+class Condition : public std::condition_variable {
     std::mutex  m_mutex;
-    std::condition_variable m_condition;
-    bool m_locked;
-    std::string m_name;
 public:
-    Condition(std::string name):m_locked(false),m_name(name){}
-    ~Condition(){}
-    inline void lock(){m_mutex.lock();m_locked = true;}
-    inline void unlock(){m_locked=false;m_mutex.unlock();}
-    inline void wait(int64_t ns = 0){
+    explicit Condition() = default;
+    virtual ~Condition() = default;
+    void lock(){m_mutex.lock();}
+    void unlock(){m_mutex.unlock();}
+    void wait(){
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_condition.wait_for(lock,std::chrono::nanoseconds(ns));
+        std::condition_variable::wait(lock);
     }
-    inline void signal(){
+    template<class Clock, class Period>
+    void wait_for(std::chrono::duration<Clock,Period> d){
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_condition.notify_all();
+        std::condition_variable::wait_for(lock,d);
     }
+    template<class Clock, class Duration>
+    void wait_until(std::chrono::time_point<Clock,Duration> tp){
+        std::unique_lock<std::mutex> lock(m_mutex);
+        std::condition_variable::wait_until(lock,tp);
+    }
+    void notify_all(){
+        std::unique_lock<std::mutex> lock(m_mutex);
+        std::condition_variable::notify_all();
+    }
+    void notify_any(){
+        std::unique_lock<std::mutex> lock(m_mutex);
+        std::condition_variable::notify_all();
+    }
+
 };
 
 }

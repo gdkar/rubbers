@@ -27,16 +27,3 @@
 #include <iostream>
 #include <cstdlib>
 
-#ifdef USE_PTHREADS
-#include <sys/time.h>
-#include <time.h>
-#endif
-
-using std::cerr;
-using std::endl;
-using std::string;
-
-namespace RubberBand
-{
-
-}

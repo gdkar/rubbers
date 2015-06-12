@@ -21,20 +21,12 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#include "Allocators.h"
-
 #ifdef HAVE_IPP
+#include "Allocators.h"
 #include <ipps.h>
 #endif
-
-#include <iostream>
-using std::cerr;
-using std::endl;
-
 namespace RubberBand {
-
 #ifdef HAVE_IPP
-
 template <>
 float *allocate(size_t count)
 {
@@ -42,7 +34,6 @@ float *allocate(size_t count)
     if (!ptr) throw (std::bad_alloc());
     return ptr;
 }
-
 template <>
 double *allocate(size_t count)
 {
@@ -50,19 +41,16 @@ double *allocate(size_t count)
     if (!ptr) throw (std::bad_alloc());
     return ptr;
 }
-
 template <>
 void deallocate(float *ptr)
 {
     if (ptr) ippsFree((void *)ptr);
 }
-
 template <>
 void deallocate(double *ptr)
 {
     if (ptr) ippsFree((void *)ptr);
 }
-
 #endif
 
 }

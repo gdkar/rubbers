@@ -31,54 +31,30 @@ namespace RubberBand
 
 
 SpectralDifferenceAudioCurve::SpectralDifferenceAudioCurve(Parameters parameters) :
-    AudioCurveCalculator(parameters)
-{
-    m_mag = allocate<float>(m_lastPerceivedBin + 1);
-    m_tmpbuf = allocate<float>(m_lastPerceivedBin + 1);
-    v_zero(m_mag, m_lastPerceivedBin + 1);
+    AudioCurveCalculator(parameters){
+    m_mag = std::make_unique<float[]>(m_lastPerceivedBin + 1);
+    v_zero(&m_mag[0], m_lastPerceivedBin + 1);
 }
-
-SpectralDifferenceAudioCurve::~SpectralDifferenceAudioCurve()
-{
-    deallocate(m_mag);
-    deallocate(m_tmpbuf);
-}
-
+SpectralDifferenceAudioCurve::~SpectralDifferenceAudioCurve(){}
 void
-SpectralDifferenceAudioCurve::reset()
-{
-    v_zero(m_mag, m_lastPerceivedBin + 1);
-}
-
+SpectralDifferenceAudioCurve::reset() {v_zero(&m_mag[0], m_lastPerceivedBin + 1);}
 void
-SpectralDifferenceAudioCurve::setFftSize(int newSize)
-{
-    deallocate(m_tmpbuf);
-    deallocate(m_mag);
+SpectralDifferenceAudioCurve::setFftSize(int newSize){
     AudioCurveCalculator::setFftSize(newSize);
-    m_mag = allocate<float>(m_lastPerceivedBin + 1);
-    m_tmpbuf = allocate<float>(m_lastPerceivedBin + 1);
+    m_mag = std::make_unique<float[]>(m_lastPerceivedBin + 1);
     reset();
 }
-
 float
-SpectralDifferenceAudioCurve::process(const float *R__ mag, int increment)
-{
+SpectralDifferenceAudioCurve::process(const float *R__ mag, int increment){
     float result = 0.0;
-
     const int hs1 = m_lastPerceivedBin + 1;
-
-    v_convert(m_tmpbuf, mag, hs1);
-    v_square(m_tmpbuf, hs1);
-    v_subtract(m_mag, m_tmpbuf, hs1);
-    v_abs(m_mag, hs1);
-    v_sqrt(m_mag, hs1);
-    
-    for (int i = 0; i < hs1; ++i) {
-        result += m_mag[i];
+    for ( int i = 0; i < hs1; i++){
+        const float magi = mag[i];
+        const float magi2 = magi*magi;
+        const float diff = m_mag[i]-magi2;
+        result += sqrtf(fabsf(diff));
+        m_mag[i] = magi2;
     }
-
-    v_copy(m_mag, m_tmpbuf, hs1);
     return result;
 }
 
@@ -86,20 +62,14 @@ double
 SpectralDifferenceAudioCurve::process(const double *R__ mag, int increment)
 {
     double result = 0.0;
-
     const int hs1 = m_lastPerceivedBin + 1;
-
-    v_convert(m_tmpbuf, mag, hs1);
-    v_square(m_tmpbuf, hs1);
-    v_subtract(m_mag, m_tmpbuf, hs1);
-    v_abs(m_mag, hs1);
-    v_sqrt(m_mag, hs1);
-    
-    for (int i = 0; i < hs1; ++i) {
-        result += m_mag[i];
+    for ( int i = 0; i < hs1; i++){
+        const float magi = mag[i];
+        const float magi2 = magi*magi;
+        const float diff = m_mag[i]-magi2;
+        result += sqrtf(fabsf(diff));
+        m_mag[i] = magi2;
     }
-
-    v_copy(m_mag, m_tmpbuf, hs1);
     return result;
 }
 

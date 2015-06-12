@@ -450,6 +450,37 @@ inline void v_exp(T *const R__ dst,
     }
 }
 
+#ifdef USE_POMMIER_MATHFUN
+template<>
+inline  void v_exp(float *const R__ dst, const int count)
+{
+    int i;
+    for(i = 0; i + 4 < count; i+=4 )
+    {
+        v4sf x = *(v4sf*)(dst+i);
+        v4sf e = exp_ps(x);
+        *(v4sf*)(dst+i) = e;
+    }
+    while(i<count){
+        dst[i] = expf(dst[i]);
+    }
+}
+template<>
+inline  void v_log(float *const R__ dst, const int count)
+{
+    int i;
+    for(i = 0; i + 4 < count; i+=4 )
+    {
+        v4sf x = *(v4sf*)(dst+i);
+        v4sf l = log_ps(x);
+        *(v4sf*)(dst+i) = l;
+    }
+    while(i<count){
+        dst[i] = logf(dst[i]);
+    }
+}
+#endif
+
 #if defined HAVE_IPP
 template<>
 inline void v_exp(float *const R__ dst,

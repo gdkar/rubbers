@@ -29,24 +29,17 @@
 namespace RubberBand
 {
 
-class PercussiveAudioCurve : public AudioCurveCalculator
-{
+class PercussiveAudioCurve : public AudioCurveCalculator{
 public:
     PercussiveAudioCurve(Parameters parameters);
-
     virtual ~PercussiveAudioCurve();
-
     virtual void setFftSize(int newSize);
-
     virtual float process(const float *R__ mag, int increment);
     virtual double process(const double *R__ mag, int increment);
-
-
     virtual void reset();
     virtual const char *getUnit() const { return "bin/total"; }
-
 protected:
-    float *R__ m_prevMag;
+    std::unique_ptr<float[]> m_prevMag;
 };
 
 }

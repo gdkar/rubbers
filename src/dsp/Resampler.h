@@ -20,32 +20,23 @@
     under terms other than those of the GNU General Public License,
     you must obtain a valid commercial licence before doing so.
 */
-
-#ifndef _RUBBERBAND_RESAMPLER_H_
-#define _RUBBERBAND_RESAMPLER_H_
-
+#pragma once
+#include <memory>
 #include "system/sysutils.h"
-
 namespace RubberBand {
-
 class ResamplerImpl;
-
-class Resampler
-{
+class Resampler{
 public:
     enum Quality { Best, FastestTolerable, Fastest };
     enum Exception { ImplementationError };
-
     /**
      * Construct a resampler with the given quality level and channel
      * count.  maxBufferSize gives a bound on the maximum incount size
      * that may be passed to the resample function before the
      * resampler needs to reallocate its internal buffers.
      */
-    Resampler(Quality quality, int channels, int maxBufferSize = 0,
-              int debugLevel = 0);
+    Resampler(Quality quality, int channels, int maxBufferSize = 0,int debugLevel = 0);
     ~Resampler();
-
     /**
      * Resample the given multi-channel buffers, where incount is the
      * number of frames in the input buffers.  Returns the number of
@@ -56,7 +47,6 @@ public:
                  int incount,
                  float ratio,
                  bool final = false);
-
     /**
      * Resample the given interleaved buffer, where incount is the
      * number of frames in the input buffer (i.e. it has incount *
@@ -68,16 +58,12 @@ public:
                             int incount,
                             float ratio,
                             bool final = false);
-
     int getChannelCount() const;
-
     void reset();
-
 protected:
-    ResamplerImpl *d;
+    std::unique_ptr<ResamplerImpl> d;
     int m_method;
 };
 
 }
 
-#endif

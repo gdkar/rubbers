@@ -34,40 +34,24 @@ namespace RubberBand
 
 PercussiveAudioCurve::PercussiveAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters)
-{
-    m_prevMag = allocate_and_zero<float>(m_fftSize/2 + 1);
-}
-
-PercussiveAudioCurve::~PercussiveAudioCurve()
-{
-    deallocate(m_prevMag);
-}
+{m_prevMag = std::make_unique<float[]>(m_fftSize/2+1);}
+PercussiveAudioCurve::~PercussiveAudioCurve(){}
 
 void
-PercussiveAudioCurve::reset()
-{
-    v_zero(m_prevMag, m_fftSize/2 + 1);
-}
-
+PercussiveAudioCurve::reset(){v_zero(&m_prevMag[0], m_fftSize/2 + 1);}
 void
-PercussiveAudioCurve::setFftSize(int newSize)
-{
-    m_prevMag = reallocate(m_prevMag, m_fftSize/2 + 1, newSize/2 + 1);
+PercussiveAudioCurve::setFftSize(int newSize){
+    m_prevMag = std::make_unique<float[]>(newSize/2 + 1);
     AudioCurveCalculator::setFftSize(newSize);
     reset();
 }
-
 float
-PercussiveAudioCurve::process(const float *R__ mag, int increment)
-{
+PercussiveAudioCurve::process(const float *R__ mag, int increment){
     static float threshold = powf(10.f, 0.15f); // 3dB rise in square of magnitude
     static float zeroThresh = powf(10.f, -8);
-
     int count = 0;
     int nonZeroCount = 0;
-
     const int sz = m_lastPerceivedBin;
-
     for (int n = 1; n <= sz; ++n) {
         float v = 0.f;
         if (m_prevMag[n] > zeroThresh) v = mag[n] / m_prevMag[n];
@@ -76,24 +60,17 @@ PercussiveAudioCurve::process(const float *R__ mag, int increment)
         if (above) ++count;
         if (mag[n] > zeroThresh) ++nonZeroCount;
     }
-
-    v_convert(m_prevMag, mag, sz + 1);
-
+    v_convert(&m_prevMag[0], mag, sz + 1);
     if (nonZeroCount == 0) return 0;
     else return float(count) / float(nonZeroCount);
 }
-
 double
-PercussiveAudioCurve::process(const double *R__ mag, int increment)
-{
+PercussiveAudioCurve::process(const double *R__ mag, int increment){
     static double threshold = powf(10., 0.15); // 3dB rise in square of magnitude
     static double zeroThresh = powf(10., -8);
-
     int count = 0;
     int nonZeroCount = 0;
-
     const int sz = m_lastPerceivedBin;
-
     for (int n = 1; n <= sz; ++n) {
         double v = 0.0;
         if (m_prevMag[n] > zeroThresh) v = mag[n] / m_prevMag[n];
@@ -102,9 +79,7 @@ PercussiveAudioCurve::process(const double *R__ mag, int increment)
         if (above) ++count;
         if (mag[n] > zeroThresh) ++nonZeroCount;
     }
-
-    v_convert(m_prevMag, mag, sz + 1);
-
+    v_convert(&m_prevMag[0], mag, sz + 1);
     if (nonZeroCount == 0) return 0;
     else return double(count) / double(nonZeroCount);
 }

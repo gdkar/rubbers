@@ -25,33 +25,15 @@
 
 namespace RubberBand
 {
-
-
 ConstantAudioCurve::ConstantAudioCurve(Parameters parameters) :
-    AudioCurveCalculator(parameters)
-{
-}
-
-ConstantAudioCurve::~ConstantAudioCurve()
-{
-}
-
+    AudioCurveCalculator(parameters){}
+ConstantAudioCurve::~ConstantAudioCurve(){}
 void
-ConstantAudioCurve::reset()
-{
-}
-
+ConstantAudioCurve::reset(){}
 float
-ConstantAudioCurve::process(const float *R__, int)
-{
-    return 1.f;
-}
-
+ConstantAudioCurve::process(const float *R__, int){return 1.f;}
 double
-ConstantAudioCurve::process(const double *R__, int)
-{
-    return 1.0;
-}
+ConstantAudioCurve::process(const double *R__, int){return 1.0;}
 
 }
 

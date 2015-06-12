@@ -22,15 +22,10 @@
 */
 
 #include "CompoundAudioCurve.h"
-
 #include "dsp/MovingMedian.h"
-
 #include <iostream>
-
 namespace RubberBand
 {
-
-
 CompoundAudioCurve::CompoundAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters),
     m_percussive(parameters),
@@ -41,24 +36,12 @@ CompoundAudioCurve::CompoundAudioCurve(Parameters parameters) :
     m_lastHf(0.0),
     m_lastResult(0.0),
     m_risingCount(0)
-{
-}
-
-CompoundAudioCurve::~CompoundAudioCurve()
-{
-    delete m_hfFilter;
-    delete m_hfDerivFilter;
-}
-
+{}
+CompoundAudioCurve::~CompoundAudioCurve(){}
 void
-CompoundAudioCurve::setType(Type type)
-{
-    m_type = type;
-}
-
+CompoundAudioCurve::setType(Type type){m_type = type;}
 void
-CompoundAudioCurve::reset()
-{
+CompoundAudioCurve::reset(){
     m_percussive.reset();
     m_hf.reset();
     m_hfFilter->reset();
@@ -66,20 +49,16 @@ CompoundAudioCurve::reset()
     m_lastHf = 0.0;
     m_lastResult = 0.0;
 }
-
 void
-CompoundAudioCurve::setFftSize(int newSize)
-{
+CompoundAudioCurve::setFftSize(int newSize){
     m_percussive.setFftSize(newSize);
     m_hf.setFftSize(newSize);
     m_fftSize = newSize;
     m_lastHf = 0.0;
     m_lastResult = 0.0;
 }
-
 float
-CompoundAudioCurve::process(const float *R__ mag, int increment)
-{
+CompoundAudioCurve::process(const float *R__ mag, int increment){
     float percussive = 0.f;
     float hf = 0.f;
     switch (m_type) {
@@ -96,10 +75,8 @@ CompoundAudioCurve::process(const float *R__ mag, int increment)
     }
     return processFiltering(percussive, hf);
 }
-
 double
-CompoundAudioCurve::process(const double *R__ mag, int increment)
-{
+CompoundAudioCurve::process(const double *R__ mag, int increment){
     double percussive = 0.0;
     double hf = 0.0;
     switch (m_type) {
@@ -116,49 +93,28 @@ CompoundAudioCurve::process(const double *R__ mag, int increment)
     }
     return processFiltering(percussive, hf);
 }
-
 float 
-CompoundAudioCurve::processFiltering(float percussive, float hf)
-{
-    if (m_type == PercussiveDetector) {
-        return percussive;
-    }
-
+CompoundAudioCurve::processFiltering(float percussive, float hf){
+    if (m_type == PercussiveDetector) {return percussive;}
     float rv = 0.f;
-    
     float hfDeriv = hf - m_lastHf;
-
     m_hfFilter->push(hf);
     m_hfDerivFilter->push(hfDeriv);
-
     float hfFiltered = m_hfFilter->get();
     float hfDerivFiltered = m_hfDerivFilter->get();
-
     m_lastHf = hf;
-
     float result = 0.f;
-    
     float hfExcess = hf - hfFiltered;
-
-    if (hfExcess > 0.0) {
-        result = hfDeriv - hfDerivFiltered;
-    }
-
+    if (hfExcess > 0.0) {result = hfDeriv - hfDerivFiltered;}
     if (result < m_lastResult) {
         if (m_risingCount > 3 && m_lastResult > 0) rv = 0.5;
         m_risingCount = 0;
-    } else {
-        m_risingCount ++;
     }
-
+    else {m_risingCount ++;}
     if (m_type == CompoundDetector) {
-        if (percussive > 0.35 && percussive > rv) {
-            rv = percussive;
-        }
+        if (percussive > 0.35 && percussive > rv) {rv = percussive;}
     }
-
     m_lastResult = result;
-
     return rv;
 }
 

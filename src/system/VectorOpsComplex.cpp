@@ -61,25 +61,23 @@ v_polar_to_cartesian_pommier(float *const R__ real,
                              const float *const R__ phase,
                              const int count)
 {
-    int idx = 0, tidx = 0;
     int i = 0;
-    for (i = 0; i + 4 < count; i += 4) {
-	V4SF fmag, fphase, fre, fim;
-        for (int j = 0; j < 3; ++j) {
-            fmag.f[j] = mag[idx];
-            fphase.f[j] = phase[idx++];
-        }
-	sincos_ps(fphase.v, &fim.v, &fre.v);
-        for (int j = 0; j < 3; ++j) {
-            real[tidx] = fre.f[j] * fmag.f[j];
-            imag[tidx++] = fim.f[j] * fmag.f[j];
-        }
+
+    for (int i = 0; i + 4 < count; i += 4) {
+	__m128 fmag, fphase, fre, fim;
+        fmag = *(__m128*)(mag+i);
+        fphase = *(__m128*)(phase+i);
+	sincos_ps(fphase, &fim, &fre);
+        fim = _mm_mul_ps(fim, fmag);
+        fre = _mm_mul_ps(fre,fmag);
+        *(__m128*)(real + i ) = fre;
+        *(__m128*)(imag + i ) = fim;
     }
     while (i < count) {
         float re, im;
         c_phasor(&re, &im, phase[i]);
-        real[tidx] = re * mag[i];
-        imag[tidx++] = im * mag[i];
+        real[i] = re * mag[i];
+        imag[i] = im * mag[i];
         ++i;
     }
 }    
@@ -91,15 +89,15 @@ v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
     int i;
     int idx = 0, tidx = 0;
     for (i = 0; i + 4 < count; i += 4) {
-	V4SF fmag, fphase, fre, fim;
+	__m128 fmag, fphase, fre, fim;
         for (int j = 0; j < 3; ++j) {
-            fmag.f[j] = srcdst[idx++];
-            fphase.f[j] = srcdst[idx++];
+            fmag[j] = srcdst[idx++];
+            fphase[j] = srcdst[idx++];
         }
-	sincos_ps(fphase.v, &fim.v, &fre.v);
+	sincos_ps(fphase, &fim, &fre);
         for (int j = 0; j < 3; ++j) {
-            srcdst[tidx++] = fre.f[j] * fmag.f[j];
-            srcdst[tidx++] = fim.f[j] * fmag.f[j];
+            srcdst[tidx++] = fre[j] * fmag[j];
+            srcdst[tidx++] = fim[j] * fmag[j];
         }
     }
     while (i < count) {
@@ -112,6 +110,7 @@ v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
         ++i;
     }
 }    
+
 void
 v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
                                          const float *const R__ mag,
@@ -119,28 +118,25 @@ v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
                                          const int count)
 {
     int i;
-    int idx = 0, tidx = 0;
     for (i = 0; i + 4 <= count; i += 4) {
-	V4SF fmag, fphase, fre, fim;
-        for (int j = 0; j < 3; ++j) {
-            fmag.f[j] = mag[idx];
-            fphase.f[j] = phase[idx];
-            ++idx;
-        }
-	sincos_ps(fphase.v, &fim.v, &fre.v);
-        for (int j = 0; j < 3; ++j) {
-            dst[tidx++] = fre.f[j] * fmag.f[j];
-            dst[tidx++] = fim.f[j] * fmag.f[j];
-        }
+	__m128 fmag, fphase, fre, fim;
+        fmag = *(__m128*)(mag+i);
+        fphase = *(__m128*)(phase+i);
+	sincos_ps(fphase, &fim, &fre);
+        fim = _mm_mul_ps(fim, fmag);
+        fre = _mm_mul_ps(fre,fmag);
+        *(__m128*)(dst+(2*i))   = _mm_unpacklo_ps(fre,fim);
+        *(__m128*)(dst+(2*i+4)) = _mm_unpackhi_ps(fre,fim);
     }
     while (i < count) {
         float real, imag;
         c_phasor(&real, &imag, phase[i]);
-        dst[tidx++] = real * mag[i];
-        dst[tidx++] = imag * mag[i];
+        dst[2*i+0] = real * mag[i];
+        dst[2*i+1] = imag * mag[i];
         ++i;
     }
 }    
+
 #endif
 
 

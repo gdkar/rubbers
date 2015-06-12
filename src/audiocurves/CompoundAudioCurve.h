@@ -31,44 +31,31 @@
 
 namespace RubberBand
 {
-
-class CompoundAudioCurve : public AudioCurveCalculator
-{
+class CompoundAudioCurve : public AudioCurveCalculator{
 public:
     CompoundAudioCurve(Parameters parameters);
-
     virtual ~CompoundAudioCurve();
-
     enum Type {
         PercussiveDetector,
         CompoundDetector,
         SoftDetector
     };
     virtual void setType(Type); // default is CompoundDetector
-    
     virtual void setFftSize(int newSize);
-
     virtual float process(const float *R__ mag, int increment);
     virtual double process(const double *R__ mag, int increment);
-
     virtual void reset();
-
 protected:
     PercussiveAudioCurve m_percussive;
     HighFrequencyAudioCurve m_hf;
-
-    SampleFilter<float> *m_hfFilter;
-    SampleFilter<float> *m_hfDerivFilter;
-
+    std::unique_ptr<SampleFilter<float> >m_hfFilter;
+    std::unique_ptr<SampleFilter<float> >m_hfDerivFilter;
     Type m_type;
-
     float m_lastHf;
     float m_lastResult;
     int m_risingCount;
-
     float processFiltering(float percussive, float hf);
 };
-
 }
 
 #endif

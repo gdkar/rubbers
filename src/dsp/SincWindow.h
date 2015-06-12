@@ -36,8 +36,7 @@
 namespace RubberBand {
 
 template <typename T>
-class SincWindow
-{
+class SincWindow{
 public:
     /**
      * Construct a sinc windower which produces a window of size n
@@ -46,12 +45,8 @@ public:
      * function first crosses zero, for negative and positive
      * arguments respectively) is p samples.
      */
-    SincWindow(int n, int p) : m_size(n), m_p(p), m_cache(0) {
-        encache();
-    }
-    SincWindow(const SincWindow &w) : m_size(w.m_size), m_p(w.m_p), m_cache(0) {
-        encache();
-    }
+    SincWindow(int n, int p) : m_size(n), m_p(p), m_cache(0) {encache();}
+    SincWindow(const SincWindow &w) : m_size(w.m_size), m_p(w.m_p), m_cache(0) {encache();}
     SincWindow &operator=(const SincWindow &w) {
 	if (&w == this) return *this;
 	m_size = w.m_size;
@@ -60,10 +55,7 @@ public:
 	encache();
 	return *this;
     }
-    virtual ~SincWindow() {
-        deallocate(m_cache);
-    }
-
+    virtual ~SincWindow() {deallocate(m_cache);}
     /**
      * Regenerate the sinc window with the same size, but a new scale
      * (the p value is interpreted as for the argument of the same
@@ -75,25 +67,13 @@ public:
         m_p = p;
         encache();
     }
-    
-    inline void cut(T *const R__ dst) const {
-        v_multiply(dst, m_cache, m_size);
-    }
-
-    inline void cut(const T *const R__ src, T *const R__ dst) const {
-        v_multiply(dst, src, m_cache, m_size);
-    }
-
-    inline void add(T *const R__ dst, T scale) const {
-        v_add_with_gain(dst, m_cache, scale, m_size);
-    }
-
+    inline void cut(T *const R__ dst) const {v_multiply(dst, m_cache, m_size);}
+    inline void cut(const T *const R__ src, T *const R__ dst) const {v_multiply(dst, src, m_cache, m_size);}
+    inline void add(T *const R__ dst, T scale) const {v_add_with_gain(dst, m_cache, scale, m_size);}
     inline T getArea() const { return m_area; }
     inline T getValue(int i) const { return m_cache[i]; }
-
     inline int getSize() const { return m_size; }
     inline int getP() const { return m_p; }
-
     /**
      * Write a sinc window of size n with scale p (the p value is
      * interpreted as for the argument of the same name to the
@@ -104,20 +84,16 @@ public:
         const int half = n/2;
         writeHalf(dst, n, p);
         int target = half - 1;
-        for (int i = half + 1; i < n; ++i) {
-            dst[target--] = dst[i];
-        }
+        for (int i = half + 1; i < n; ++i) {dst[target--] = dst[i];}
         const T twopi = 2. * M_PI;
         T arg = T(half) * twopi / p;
         dst[0] = sin(arg) / arg;
     }
-
 protected:
     int m_size;
     int m_p;
     T *R__ m_cache;
     T m_area;
-
     /**
      * Write the positive half (i.e. n/2 to n-1) of a sinc window of
      * size n with scale p (the p value is interpreted as for the
@@ -134,18 +110,11 @@ protected:
             dst[half+i] = sin(arg) / arg;
         }
     }
-    
     void encache() {
-        if (!m_cache) {
-            m_cache = allocate<T>(m_size);
-        }
-
+        if (!m_cache) {m_cache = allocate<T>(m_size);}
         write(m_cache, m_size, m_p);
-	
         m_area = 0;
-        for (int i = 0; i < m_size; ++i) {
-            m_area += m_cache[i];
-        }
+        for (int i = 0; i < m_size; ++i) {m_area += m_cache[i];}
         m_area /= m_size;
     }
 };

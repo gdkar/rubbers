@@ -20,7 +20,7 @@
 
   Permission is granted to anyone to use this software for any purpose,
   including commercial applications, and to alter it and redistribute it
-  freely, subject to the following R__ions:
+  freely, subject to the following restrictions:
 
   1. The origin of this software must not be misrepresented; you must not
      claim that you wrote the original software. If you use this software
@@ -59,14 +59,14 @@ typedef __m64 v2si;   // vector of 2 int (mmx)
 #define _PS_CONST(Name, Val)                                            \
   static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
 #define _PI32_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { (int)Val, (int)Val, (int)Val, (int)Val }
+  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
 #define _PS_CONST_TYPE(Name, Type, Val)                                 \
-  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { (Type)Val, (Type)Val, (Type)Val, (Type)Val }
+  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
 
 _PS_CONST(1  , 1.0f);
 _PS_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */
-_PS_CONST_TYPE(min_norm_pos, int , 0x00800000);
+_PS_CONST_TYPE(min_norm_pos, int, 0x00800000);
 _PS_CONST_TYPE(mant_mask, int, 0x7f800000);
 _PS_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
 
@@ -101,7 +101,7 @@ _PS_CONST(cephes_log_q2, 0.693359375);
    Note that the bug on _mm_cmp* does occur only at -O0 optimization level
 */
 
-static inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
+inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
 	asm (
 			"movhlps %2,%0\n\t"
 			: "=x" (a)
@@ -111,7 +111,7 @@ static inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
 #warning "redefined _mm_movehl_ps (see gcc bug 21179)"
 #define _mm_movehl_ps my_movehl_ps
 
-static inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
+inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpltps %2,%0\n\t"
 			: "=x" (a)
@@ -119,7 +119,7 @@ static inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
 	    );
 	return a;               
                   }
-static inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
+inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpnleps %2,%0\n\t"
 			: "=x" (a)
@@ -127,7 +127,7 @@ static inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
 	    );
 	return a;               
 }
-static inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
+inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
 	asm (
 			"cmpeqps %2,%0\n\t"
 			: "=x" (a)

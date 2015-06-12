@@ -33,6 +33,9 @@
 #ifdef FFT_MEASUREMENT
 #include <sstream>
 #endif
+#ifdef HAVE_FFTS
+#include <ffts.h>
+#endif
 
 #ifdef HAVE_IPP
 #include <ipps.h>
@@ -63,7 +66,7 @@ extern "C" {
 #ifdef USE_KISSFFT
 #include "kissfft/kiss_fftr.h"
 #endif
-
+#ifndef HAVE_FFTS
 #ifndef HAVE_IPP
 #ifndef HAVE_FFTW3
 #ifndef USE_KISSFFT
@@ -81,6 +84,7 @@ extern "C" {
 #endif
 #endif
 #endif
+#endif
 
 #include <cmath>
 #include <iostream>
@@ -88,12 +92,15 @@ extern "C" {
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <xmmintrin.h>
+#include <immintrin.h>
 
 #ifdef FFT_MEASUREMENT
 #ifndef _WIN32
 #include <unistd.h>
 #endif
 #endif
+
 
 namespace RubberBand {
 
@@ -1488,6 +1495,153 @@ private:
 };
 
 #endif /* HAVE_OPENMAX */
+
+#ifdef HAVE_FFTS
+class D_FFTS : public FFTImpl
+{
+public:
+    D_FFTS(int size)
+      : m_size(size)
+      , m_c2r(ffts_init_1d_real(size, 1))
+      , m_r2c(ffts_init_1d_real(size,-1))
+      , m_freq_buf(reinterpret_cast<float*>(_mm_malloc(2 * size * sizeof(float),32)))
+      , m_time_buf(reinterpret_cast<float*>(_mm_malloc(2 * size * sizeof(float),32))) 
+    {}
+
+    ~D_FFTS() {
+        ffts_free(m_r2c);
+        ffts_free(m_c2r);
+        delete[]m_time_buf;
+        delete[]m_freq_buf;
+    }
+
+    FFT::Precisions
+    getSupportedPrecisions() const {return FFT::SinglePrecision;}
+    void initFloat() {}
+    void initDouble() {}
+
+    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+        v_convert(m_time_buf,realIn,m_size );
+        ffts_execute(m_r2c,m_time_buf,m_freq_buf);
+        if(imagOut){
+            for(int i = 0; i <= m_size/2; i++){
+                realOut[i] = m_freq_buf[2*i+0];
+                imagOut[i] = m_freq_buf[2*i+1];
+            }
+        }else{
+            for(int i = 0; i <= m_size/2; i++){
+                realOut[i] = m_freq_buf[2*i+0];
+            }
+        }
+    }
+    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+        v_convert(m_time_buf,realIn,m_size);
+        ffts_execute(m_r2c,m_time_buf,m_freq_buf);
+        v_convert(complexOut,m_freq_buf,m_size+2);
+    }
+    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+        v_convert(m_time_buf,realIn,m_size);
+        ffts_execute(m_r2c,m_time_buf,m_freq_buf);
+        v_cartesian_interleaved_to_polar( m_time_buf + m_size/2+1, m_freq_buf, m_freq_buf, m_size/2+1);
+        v_convert(magOut,m_time_buf,m_size/2+1);
+        v_convert(phaseOut,m_time_buf+m_size/2+1,m_size/2+1);
+    }
+    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+        v_convert(m_time_buf,realIn,m_size);
+        ffts_execute(m_r2c,m_time_buf,m_freq_buf);
+        for ( int i = 0; i <= m_size/2; i++){
+            magOut[i] = sqrtf(m_freq_buf[2*i+0]*m_freq_buf[2*i+0] + m_freq_buf[2*i+1]*m_freq_buf[2*i+1]);
+        }
+    }
+    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+        ffts_execute(m_r2c,realIn,m_freq_buf);
+        if(imagOut){
+            for(int i = 0; i <= m_size/2; i++){
+                realOut[i] = m_freq_buf[2*i+0];imagOut[i] = m_freq_buf[2*i+1];
+            }
+        }else{
+            for(int i = 0; i <= m_size/2; i++){realOut[i] = m_freq_buf[2*i+0];}
+        }
+    }
+    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+        ffts_execute(m_r2c, realIn, complexOut);
+    }
+    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+        ffts_execute(m_r2c,realIn,m_freq_buf);
+        v_cartesian_interleaved_to_polar(magOut, phaseOut, m_freq_buf, m_size/2+1);
+    }
+    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+        ffts_execute(m_r2c,realIn,m_freq_buf);
+        for (int i = 0; i <= m_size/2; ++i) {
+            magOut[i] = sqrtf(m_freq_buf[2*i+0] * m_freq_buf[2*i+0] +
+                              m_freq_buf[2*i+1] * m_freq_buf[2*i+1]);
+        }
+    }
+    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+        for(int i = 0; i <= m_size/2;i++){
+            m_freq_buf[2*i+0] = realIn[i];
+            m_freq_buf[2*i+1] = imagIn[i];
+        }
+        ffts_execute(m_c2r,m_freq_buf, m_time_buf);
+        v_convert(realOut,m_time_buf,m_size);
+    }
+    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+        v_convert(m_freq_buf,complexIn,m_size + 2 );
+        ffts_execute(m_c2r,m_freq_buf,m_time_buf);
+        v_convert(realOut,m_time_buf,m_size);
+    }
+    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+        for( int i = 0; i <= m_size/2; i++){
+             m_freq_buf[2*i+1] = phaseIn[i];
+            m_freq_buf[2*i+0] = magIn[i];
+        }
+        v_polar_interleaved_to_cartesian_inplace ( m_freq_buf, m_size/2+1);
+        ffts_execute(m_c2r,m_freq_buf,m_time_buf);
+        v_convert(realOut,m_time_buf,m_size);
+    }
+
+    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+        for (int i = 0; i <= m_size/2; ++i) {
+            m_freq_buf[2*i+0] = logf(magIn[i] + 0.000001f);
+            m_freq_buf[2*i+1] = 0.0f;
+        }
+        ffts_execute(m_c2r,m_freq_buf,m_time_buf);
+        v_convert(cepOut,m_time_buf,m_size);
+    }
+
+    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+        for(int i = 0; i <= m_size/2;i++){
+            m_freq_buf[2*i+0] = realIn[i];
+            m_freq_buf[2*i+1] = imagIn[i];
+        }
+        ffts_execute(m_c2r,m_freq_buf, realOut);
+    }
+    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+        ffts_execute(m_c2r,complexIn,realOut);
+    }
+    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+        v_polar_to_cartesian_interleaved(m_freq_buf,magIn,phaseIn,m_size/2+1);
+        ffts_execute(m_c2r,m_freq_buf,realOut);
+    }
+    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+        for (int i = 0; i <= m_size/2; ++i) {
+            m_freq_buf[2*i+0] = logf(magIn[i] + 0.000001f);
+            m_freq_buf[2*i+1] = 0.f;
+        }
+        ffts_execute(m_c2r,m_freq_buf,cepOut);
+    }
+
+private:
+    int m_size;
+    ffts_plan_t *m_c2r;
+    ffts_plan_t *m_r2c;
+    float *m_freq_buf;
+    float *m_time_buf;
+};
+
+#endif /* HAVE_FFTS */
+
+
 
 #ifdef HAVE_FFTW3
 
@@ -3063,6 +3217,10 @@ FFT::getImplementations()
 #ifdef HAVE_FFTW3
     impls.insert("fftw");
 #endif
+#ifdef HAVE_FFTS
+    impls.insert("ffts");
+#endif
+
 #ifdef USE_KISSFFT
     impls.insert("kissfft");
 #endif
@@ -3092,6 +3250,7 @@ FFT::pickDefaultImplementation()
     std::set<std::string> impls = getImplementations();
 
     std::string best = "cross";
+    if (impls.find("ffts") != impls.end()) best = "ffts";
     if (impls.find("kissfft") != impls.end()) best = "kissfft";
     if (impls.find("medialib") != impls.end()) best = "medialib";
     if (impls.find("openmax") != impls.end()) best = "openmax";
@@ -3139,6 +3298,10 @@ FFT::FFT(int size, int debugLevel) :
     if (impl == "ipp") {
 #ifdef HAVE_IPP
         d = new FFTs::D_IPP(size);
+#endif
+    } else if (impl == "ffts") {
+#ifdef HAVE_FFTS
+        d = new FFTs::D_FFTS(size);
 #endif
     } else if (impl == "fftw") {
 #ifdef HAVE_FFTW3
@@ -3381,21 +3544,27 @@ FFT::tune()
         }
 
         FFTImpl *d;
-        
+        int top_id=0; 
 #ifdef HAVE_IPP
         std::cerr << "Constructing new IPP FFT object for size " << size << "..." << std::endl;
         d = new FFTs::D_IPP(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 0;
+        candidates[d] = top_id;top_id++;
 #endif
-        
+ #ifdef HAVE_FFTS
+        os << "Constructing new FFTS FFT object for size " << size << "..." << std::endl;
+        d = new FFTs::D_FFTS(size);
+        d->initFloat();
+        d->initDouble();
+        candidates[d] = top_id;top_id++;
+#endif
 #ifdef HAVE_FFTW3
         os << "Constructing new FFTW3 FFT object for size " << size << "..." << std::endl;
         d = new FFTs::D_FFTW(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 1;
+        candidates[d] = top_id;top_id++;
 #endif
 
 #ifdef USE_KISSFFT
@@ -3403,7 +3572,7 @@ FFT::tune()
         d = new FFTs::D_KISSFFT(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 2;
+        candidates[d] = top_id;top_id++;
 #endif        
 
 #ifdef USE_BUILTIN_FFT
@@ -3411,7 +3580,7 @@ FFT::tune()
         d = new FFTs::D_Cross(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 3;
+        candidates[d] = top_id;top_id++;
 #endif
         
 #ifdef HAVE_VDSP
@@ -3419,7 +3588,7 @@ FFT::tune()
         d = new FFTs::D_VDSP(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 4;
+        candidates[d] = top_id;top_id++;
 #endif
         
 #ifdef HAVE_MEDIALIB
@@ -3427,7 +3596,7 @@ FFT::tune()
         d = new FFTs::D_MEDIALIB(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 5;
+        candidates[d] = top_id;top_id++;
 #endif
         
 #ifdef HAVE_OPENMAX
@@ -3435,7 +3604,7 @@ FFT::tune()
         d = new FFTs::D_OPENMAX(size);
         d->initFloat();
         d->initDouble();
-        candidates[d] = 6;
+        candidates[d] = top_id;top_id++;
 #endif
         
 #ifdef HAVE_SFFT
@@ -3443,7 +3612,7 @@ FFT::tune()
         d = new FFTs::D_SFFT(size);
 //        d->initFloat();
         d->initDouble();
-        candidates[d] = 6;
+        candidates[d] = top_id;top_id++;
 #endif
 
         os << "CLOCKS_PER_SEC = " << CLOCKS_PER_SEC << std::endl;

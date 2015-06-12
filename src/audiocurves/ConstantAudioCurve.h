@@ -26,15 +26,11 @@
 
 #include "dsp/AudioCurveCalculator.h"
 
-namespace RubberBand
-{
-
-class ConstantAudioCurve : public AudioCurveCalculator
-{
+namespace RubberBand{
+class ConstantAudioCurve : public AudioCurveCalculator{
 public:
     ConstantAudioCurve(Parameters parameters);
     virtual ~ConstantAudioCurve();
-
     virtual float process(const float *R__ mag, int increment);
     virtual double process(const double *R__ mag, int increment);
     virtual void reset();

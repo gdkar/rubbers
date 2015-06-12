@@ -23,7 +23,8 @@
 
 #ifndef _AUDIO_CURVE_CALCULATOR_H_
 #define _AUDIO_CURVE_CALCULATOR_H_
-
+#include <memory>
+#include <cmath>
 #include <sys/types.h>
 
 
@@ -49,8 +50,7 @@ namespace RubberBand
  * of their processing data, and the caller must call reset() before
  * resynchronising to an unrelated piece of input audio.
  */
-class AudioCurveCalculator
-{
+class AudioCurveCalculator{
 public:
     struct Parameters {
         Parameters(int _sampleRate, int _fftSize) :
@@ -60,28 +60,19 @@ public:
         int sampleRate;
         int fftSize;
     };
-
     AudioCurveCalculator(Parameters parameters);
     virtual ~AudioCurveCalculator();
-
     int getSampleRate() const { return m_sampleRate; }
     int getFftSize() const { return m_fftSize; }
-
     virtual void setSampleRate(int newRate);
     virtual void setFftSize(int newSize);
-
-    Parameters getParameters() const {
-        return Parameters(m_sampleRate, m_fftSize);
-    }
+    Parameters getParameters() const {return Parameters(m_sampleRate, m_fftSize);}
     void setParameters(Parameters p) {
         setSampleRate(p.sampleRate);
         setFftSize(p.fftSize);
     }
-
     // You may not mix calls to the various process functions on a
     // given instance
-
-
     /**
      * Process the given magnitude spectrum block and return the curve
      * value for it.  The mag input contains (fftSize/2 + 1) values
@@ -91,7 +82,6 @@ public:
      * input block is given by increment.
      */
     virtual float process(const float *R__ mag, int increment) = 0;
-
     /**
      * Process the given magnitude spectrum block and return the curve
      * value for it.  The mag input contains (fftSize/2 + 1) values
@@ -101,26 +91,22 @@ public:
      * input block is given by increment.
      */
     virtual double process(const double *R__ mag, int increment) = 0;
-
     /**
      * Obtain a confidence for the curve value (if applicable). A
      * value of 1.0 indicates perfect confidence in the curve
      * calculation, 0.0 indicates none.
      */
     virtual double getConfidence() const { return 1.0; }
-
     /**
      * Reset the calculator, forgetting the history of the audio input
      * so far.
      */
     virtual void reset() = 0;
-
     /**
      * If the output of this calculator has a known unit, return it as
      * text.  For example, "Hz" or "V".
      */
     virtual const char *getUnit() const { return ""; }
-
 protected:
     int m_sampleRate;
     int m_fftSize;

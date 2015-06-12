@@ -255,6 +255,22 @@ void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
         srcdst[i+1] = phase;
     }
 }
+template<>
+inline void v_cartesian_to_polar(float *const R__ mag,
+                                 float *const R__ phase,
+                                 const float *const R__ real,
+                                 const float *const R__ imag,
+                                 const int count)
+{
+    int i;
+    for(i=0;i+4<count;i+=4){
+        approx_magphase_ps ( (v4sf*)(mag + i), (v4sf*)(phase+i),
+                *(v4sf*)(real+i),*(v4sf*)(imag+i));
+    }
+    while(i<count){
+        c_magphase(mag+i, phase+i, real[i],imag[i]);
+    }
+}
 
 }
 

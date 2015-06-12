@@ -301,62 +301,14 @@ inline void v_divide(
       , const float *const R__ src
       , const int count)
 {
-    const int remainder = count&3;
-    const int count_rounded= count&(~3);
-    intptr_t i = count_rounded;
-    const float *ssrc = src-4;
-    const float *sdst = dst-4;
-    for(;i; i-= (intptr_t)4){
-        __m128 _den = _mm_rcp_ps(*(__m128*)(ssrc+i));
-        *(__m128*)(sdst+i)=_mm_mul_ps(_den,*(__m128*)(sdst+i));
+    int i;
+    for(i=0; i+4<count; i+=4){
+        *(__m128*)(dst+i)=
+            _mm_mul_ps ( *(__m128*)(dst+i),_mm_rcp_ps(*(__m128*)(src+i)));
     }
-        switch(remainder){
-        case 3:{
-            __m128 _num;
-            __m128 _den;
-            __m128 _rcp,_prod;
-
-            _den[0] = src[count_rounded];
-            _den[1] = src[count_rounded+1];
-            _den[2] = src[count_rounded+2];
-            _rcp = _mm_rcp_ps(_den);
-            _num[0] = dst[count_rounded];
-            _num[1] = dst[count_rounded+1];
-            _num[2] = dst[count_rounded+2];
-            _prod  = _mm_mul_ps(_num,_rcp);
-            dst[count_rounded+0] = _prod[0];
-            dst[count_rounded+1] = _prod[1];
-            dst[count_rounded+2] = _prod[2];
-            return;
-        }
-        case 2:{
-            __m128 _num;
-            __m128 _den;
-            __m128 _rcp,_prod;
-            _den[0] = src[count_rounded];
-            _den[1] = src[count_rounded+1];
-            _rcp = _mm_rcp_ps(_den);
-            _num[0] = dst[count_rounded];
-            _num[1] = dst[count_rounded+1];
-            _prod  = _mm_mul_ps(_num,_rcp);
-            dst[count_rounded+0] = _prod[0];
-            dst[count_rounded+1] = _prod[1];
-            return;
-        }
-        case 1:{
-            __m128 _num;
-            __m128 _den;
-            __m128 _rcp,_prod;
-
-            _num[0] = dst[count_rounded];
-            _den[0] = src[count_rounded];
-            _rcp = _mm_rcp_ss(_den);
-            _prod  = _mm_mul_ss(_num,_rcp);
-            dst[count_rounded+0] = _prod[0];
-            return;
-        }
-        default:
-            break;
+    while(i < count ){
+        dst[i]/=src[i];
+        i++;
     }
 }
 #endif
@@ -527,46 +479,14 @@ inline void v_sqrt(T *const R__ dst,
 template<> 
 inline void v_sqrt(float*const R__ srcdst, const int count)
 {
-    const int remainder = count&3;
-    const int count_rounded= count&(~3);
-    float *const R__ ssrcdst = srcdst-4;
-    int i = 0;
-    for(;i; i-=4){
-        __m128 _num = *(__m128*)(ssrcdst+i);
-        __m128 _den = _mm_rsqrt_ps(*(__m128*)(ssrcdst+i));
-        *(__m128*)(ssrcdst+i) = _mm_mul_ps(_num,_den);
+    int i;
+    for(i=0; i+4<count;i+=4){
+        *(__m128*)(srcdst+i) = approx_sqrt_ps (
+                *(__m128*)(srcdst+i));
     }
-        switch(remainder){
-            case 3:{
-                __m128 _num, _rsqrt,_prod;
-                _num[0] = srcdst[count_rounded+0];
-                _num[1] = srcdst[count_rounded+1];
-                _num[2] = srcdst[count_rounded+2];
-                _rsqrt = _mm_rsqrt_ps(_num);
-                _prod  = _mm_mul_ps(_num,_rsqrt);
-                srcdst[count_rounded+0] = _prod[0];
-                srcdst[count_rounded+1] = _prod[1];
-                srcdst[count_rounded+2] = _prod[2];
-                return;}
-            case 2:{
-                __m128 _num, _rsqrt,_prod;
-                _num[0] = srcdst[count_rounded+0];
-                _num[1] = srcdst[count_rounded+1];
-                _rsqrt = _mm_rsqrt_ps(_num);
-                _prod  = _mm_mul_ps(_num,_rsqrt);
-                srcdst[count_rounded+0] = _prod[0];
-                srcdst[count_rounded+1] = _prod[1];
-                return;}
-            case 1:{
-                __m128 _num, _rsqrt,_prod;
-                _num[0] = srcdst[count_rounded+0];
-                _rsqrt = _mm_rsqrt_ss(_num);
-                _prod  = _mm_mul_ss(_num,_rsqrt);
-                srcdst[count_rounded+0] = _prod[0];
-            }
-            default:
-                return;
-        }
+    while(i<count){
+        srcdst[i]=sqrtf(srcdst[i]);
+    }
 }
 //#endif
 

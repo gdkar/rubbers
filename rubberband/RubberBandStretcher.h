@@ -40,7 +40,12 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstddef>
-
+#ifndef UNLIKELY 
+#define UNLIKELY(x) __builtin_expect(!!(x),0)
+#endif
+#ifndef LIKELY
+#define LIKELY(x)  __builtin_expect(!!(x),1)
+#endif
 /**
  * @mainpage RubberBand
  * 

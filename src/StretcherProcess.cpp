@@ -71,68 +71,36 @@ RubberBandStretcher::Impl::ProcessThread::run(){
 //            cerr << "inputSize == " << cd.inputSize
 //                 << ", readSpace == " << cd.inbuf->getReadSpace() << endl;
 //        }
-        
         bool any = false, last = false;
         m_s->processChunks(m_channel, any, last);
-
         if (last) break;
-
-        if (any) {
-            m_s->m_spaceAvailable.notify_all();
-        }
-
-        if (!m_s->testInbufReadSpace(m_channel) && !m_abandoning) {
-            m_dataAvailable.wait_for(std::chrono::nanoseconds(500000)); // bounded in case of abandonment
-        }
-
+        if (any) {m_s->m_spaceAvailable.notify_all();}
+        if (!m_s->testInbufReadSpace(m_channel) && !m_abandoning) {m_dataAvailable.wait_for(std::chrono::nanoseconds(500000)); }
         if (m_abandoning) {
-            if (m_s->m_debugLevel > 1) {
-                cerr << "thread " << m_channel << " abandoning" << endl;
-            }
+            if (m_s->m_debugLevel > 1) {cerr << "thread " << m_channel << " abandoning" << endl;}
             return;
         }
     }
-
     bool any = false, last = false;
     m_s->processChunks(m_channel, any, last);
     m_s->m_spaceAvailable.notify_all();
-    
-    if (m_s->m_debugLevel > 1) {
-        cerr << "thread " << m_channel << " done" << endl;
-    }
+    if (m_s->m_debugLevel > 1) {cerr << "thread " << m_channel << " done" << endl;}
 }
-
 void
-RubberBandStretcher::Impl::ProcessThread::signalDataAvailable()
-{
-    m_dataAvailable.notify_all();
-}
-
+RubberBandStretcher::Impl::ProcessThread::signalDataAvailable(){m_dataAvailable.notify_all();}
 void
-RubberBandStretcher::Impl::ProcessThread::abandon()
-{
-    m_abandoning = true;
-}
-
+RubberBandStretcher::Impl::ProcessThread::abandon(){m_abandoning = true;}
 #endif
-
 bool
-RubberBandStretcher::Impl::resampleBeforeStretching() const
-{
+RubberBandStretcher::Impl::resampleBeforeStretching() const{
     // We can't resample before stretching in offline mode, because
     // the stretch calculation is based on doing it the other way
     // around.  It would take more work (and testing) to enable this.
     if (!m_realtime) return false;
-
-    if (m_options & OptionPitchHighQuality) {
-        return (m_pitchScale < 1.0); // better sound
-    } else if (m_options & OptionPitchHighConsistency) {
-        return false;
-    } else {
-        return (m_pitchScale > 1.0); // better performance
-    }
+    if (m_options & OptionPitchHighQuality) { return (m_pitchScale < 1.0); // better sound
+    } else if (m_options & OptionPitchHighConsistency) {return false;
+    } else {return (m_pitchScale > 1.0); }
 }
-
 void
 RubberBandStretcher::Impl::prepareChannelMS(size_t c,
                                             const float *const *inputs,
@@ -145,14 +113,10 @@ RubberBandStretcher::Impl::prepareChannelMS(size_t c,
         float right = inputs[1][i + offset];
         float mid = (left + right) / 2;
         float side = (left - right) / 2;
-        if (c == 0) {
-            prepared[i] = mid;
-        } else {
-            prepared[i] = side;
-        }
+        if (c == 0) {prepared[i] = mid;
+        } else {prepared[i] = side;}
     }
 }
-    
 size_t
 RubberBandStretcher::Impl::consumeChannel(size_t c,
                                           const float *const *inputs,
@@ -161,138 +125,88 @@ RubberBandStretcher::Impl::consumeChannel(size_t c,
                                           bool final)
 {
     Profiler profiler("RubberBandStretcher::Impl::consumeChannel");
-
     ChannelData &cd = *m_channelData[c];
     RingBuffer<float> &inbuf = *cd.inbuf;
-
     size_t toWrite = samples;
     size_t writable = inbuf.getWriteSpace();
-
     bool resampling = resampleBeforeStretching();
-
     const float *input = 0;
-
-    bool useMidSide = ((m_options & OptionChannelsTogether) &&
-                       (m_channels >= 2) &&
-                       (c < 2));
-
+    bool useMidSide = ((m_options & OptionChannelsTogether) && (m_channels >= 2) && (c < 2));
     if (resampling) {
-
         toWrite = int(ceil(samples / m_pitchScale));
         if (writable < toWrite) {
             samples = int(floor(writable * m_pitchScale));
             if (samples == 0) return 0;
         }
-
         size_t reqSize = int(ceil(samples / m_pitchScale));
         if (reqSize > cd.resamplebufSize) {
             cerr << "WARNING: RubberBandStretcher::Impl::consumeChannel: resizing resampler buffer from "
                  << cd.resamplebufSize << " to " << reqSize << endl;
             cd.setResampleBufSize(reqSize);
         }
-
 #ifndef NO_THREADING
 #if defined HAVE_IPP && !defined USE_SPEEX
-        if (m_threaded) {
-            m_resamplerMutex.lock();
-        }
+        if (m_threaded) {m_resamplerMutex.lock();}
 #endif
 #endif
-
         if (useMidSide) {
             prepareChannelMS(c, inputs, offset, samples, cd.ms);
             input = cd.ms;
-        } else {
-            input = inputs[c] + offset;
-        }
-
-        toWrite = cd.resampler->resample(&input,
-                                         &cd.resamplebuf,
-                                         samples,
-                                         1.0 / m_pitchScale,
-                                         final);
-
+        } else {input = inputs[c] + offset;}
+        toWrite = cd.resampler->resample(&input,&cd.resamplebuf,samples,1.0 / m_pitchScale,final);
 #ifndef NO_THREADING
 #if defined HAVE_IPP && !defined USE_SPEEX
-        if (m_threaded) {
-            m_resamplerMutex.unlock();
-        }
+        if (m_threaded) {m_resamplerMutex.unlock();}
 #endif
 #endif
     }
-
     if (writable < toWrite) {
-        if (resampling) {
-            return 0;
-        }
+        if (resampling) {return 0;}
         toWrite = writable;
     }
-
     if (resampling) {
-
         inbuf.write(cd.resamplebuf, toWrite);
         cd.inCount += samples;
         return samples;
-
     } else {
-
         if (useMidSide) {
             prepareChannelMS(c, inputs, offset, toWrite, cd.ms);
             input = cd.ms;
-        } else {
-            input = inputs[c] + offset;
-        }
-
+        } else {input = inputs[c] + offset;}
         inbuf.write(input, toWrite);
         cd.inCount += toWrite;
         return toWrite;
     }
 }
-
 void
-RubberBandStretcher::Impl::processChunks(size_t c, bool &any, bool &last)
-{
+RubberBandStretcher::Impl::processChunks(size_t c, bool &any, bool &last){
     Profiler profiler("RubberBandStretcher::Impl::processChunks");
-
     // Process as many chunks as there are available on the input
     // buffer for channel c.  This requires that the increments have
     // already been calculated.
-
     // This is the normal process method in offline mode.
-
     ChannelData &cd = *m_channelData[c];
-
     last = false;
     any = false;
-
     float *tmp = 0;
-
     while (!last) {
-
         if (!testInbufReadSpace(c)) {
-            if (m_debugLevel > 2) {
-                cerr << "processChunks: out of input" << endl;
-            }
+            if (m_debugLevel > 2) {cerr << "processChunks: out of input" << endl;}
             break;
         }
-
         any = true;
-
         if (!cd.draining) {
             size_t ready = cd.inbuf->getReadSpace();
             assert(ready >= m_aWindowSize || cd.inputSize >= 0);
             cd.inbuf->peek(cd.fltbuf, std::min(ready, m_aWindowSize));
             cd.inbuf->skip(m_increment);
         }
-
         bool phaseReset = false;
         size_t phaseIncrement, shiftIncrement;
         getIncrements(c, phaseIncrement, shiftIncrement, phaseReset);
-
         if (shiftIncrement <= m_aWindowSize) {
             analyseChunk(c);
-            last = processChunkForChannel
-                (c, phaseIncrement, shiftIncrement, phaseReset);
+            last = processChunkForChannel(c, phaseIncrement, shiftIncrement, phaseReset);
         } else {
             size_t bit = m_aWindowSize/4;
             if (m_debugLevel > 1) {
@@ -304,40 +218,26 @@ RubberBandStretcher::Impl::processChunks(size_t c, bool &any, bool &last)
             for (size_t i = 0; i < shiftIncrement; i += bit) {
                 v_copy(cd.fltbuf, tmp, m_aWindowSize);
                 size_t thisIncrement = bit;
-                if (i + thisIncrement > shiftIncrement) {
-                    thisIncrement = shiftIncrement - i;
-                }
-                last = processChunkForChannel
-                    (c, phaseIncrement + i, thisIncrement, phaseReset);
+                if (i + thisIncrement > shiftIncrement) {thisIncrement = shiftIncrement - i;}
+                last = processChunkForChannel(c, phaseIncrement + i, thisIncrement, phaseReset);
                 phaseReset = false;
             }
         }
-
         cd.chunkCount++;
-        if (m_debugLevel > 2) {
-            cerr << "channel " << c << ": last = " << last << ", chunkCount = " << cd.chunkCount << endl;
-        }
+        if (m_debugLevel > 2) {cerr << "channel " << c << ": last = " << last << ", chunkCount = " << cd.chunkCount << endl;}
     }
-
     if (tmp) deallocate(tmp);
 }
-
 bool
-RubberBandStretcher::Impl::processOneChunk()
-{
+RubberBandStretcher::Impl::processOneChunk(){
     Profiler profiler("RubberBandStretcher::Impl::processOneChunk");
-
     // Process a single chunk for all channels, provided there is
     // enough data on each channel for at least one chunk.  This is
     // able to calculate increments as it goes along.
-
     // This is the normal process method in RT mode.
-
     for (size_t c = 0; c < m_channels; ++c) {
         if (!testInbufReadSpace(c)) {
-            if (m_debugLevel > 2) {
-                cerr << "processOneChunk: out of input" << endl;
-            }
+            if (m_debugLevel > 2) {cerr << "processOneChunk: out of input" << endl;}
             return false;
         }
         ChannelData &cd = *m_channelData[c];
@@ -349,43 +249,32 @@ RubberBandStretcher::Impl::processOneChunk()
             analyseChunk(c);
         }
     }
-    
     bool phaseReset = false;
     size_t phaseIncrement, shiftIncrement;
-    if (!getIncrements(0, phaseIncrement, shiftIncrement, phaseReset)) {
-        calculateIncrements(phaseIncrement, shiftIncrement, phaseReset);
-    }
-
+    if (!getIncrements(0, phaseIncrement, shiftIncrement, phaseReset)) 
+    {calculateIncrements(phaseIncrement, shiftIncrement, phaseReset);}
     bool last = false;
     for (size_t c = 0; c < m_channels; ++c) {
         last = processChunkForChannel(c, phaseIncrement, shiftIncrement, phaseReset);
         m_channelData[c]->chunkCount++;
     }
-
     return last;
 }
 
 bool
-RubberBandStretcher::Impl::testInbufReadSpace(size_t c)
-{
+RubberBandStretcher::Impl::testInbufReadSpace(size_t c){
     Profiler profiler("RubberBandStretcher::Impl::testInbufReadSpace");
-
     ChannelData &cd = *m_channelData[c];
     RingBuffer<float> &inbuf = *cd.inbuf;
-
     size_t rs = inbuf.getReadSpace();
-
     if (rs < m_aWindowSize && !cd.draining) {
-            
         if (cd.inputSize == -1) {
-
             // Not all the input data has been written to the inbuf
             // (that's why the input size is not yet set).  We can't
             // process, because we don't have a full chunk of data, so
             // our process chunk would contain some empty padding in
             // its input -- and that would give incorrect output, as
             // we know there is more input to come.
-
 #ifndef NO_THREADING
             if (!m_threaded) {
 #endif
@@ -394,33 +283,21 @@ RubberBandStretcher::Impl::testInbufReadSpace(size_t c)
                          << inbuf.getReadSpace() << " < " << m_aWindowSize
                          << ") when not all input written, on processChunks for channel " << c << endl;
                 }
-
 #ifndef NO_THREADING
             }
 #endif
             return false;
         }
-        
         if (rs == 0) {
-
-            if (m_debugLevel > 1) {
-                cerr << "read space = 0, giving up" << endl;
-            }
+            if (m_debugLevel > 1) {cerr << "read space = 0, giving up" << endl;}
             return false;
-
         } else if (rs < m_aWindowSize/2) {
-
-            if (m_debugLevel > 1) {
-                cerr << "read space = " << rs << ", setting draining true" << endl;
-            }
-            
+            if (m_debugLevel > 1) {cerr << "read space = " << rs << ", setting draining true" << endl;}
             cd.draining = true;
         }
     }
-
     return true;
 }
-
 bool 
 RubberBandStretcher::Impl::processChunkForChannel(size_t c,
                                                   size_t phaseIncrement,
@@ -428,79 +305,50 @@ RubberBandStretcher::Impl::processChunkForChannel(size_t c,
                                                   bool phaseReset)
 {
     Profiler profiler("RubberBandStretcher::Impl::processChunkForChannel");
-
     // Process a single chunk on a single channel.  This assumes
     // enough input data is available; caller must have tested this
     // using e.g. testInbufReadSpace first.  Return true if this is
     // the last chunk on the channel.
-
     if (phaseReset && (m_debugLevel > 1)) {
         cerr << "processChunkForChannel: phase reset found, incrs "
              << phaseIncrement << ":" << shiftIncrement << endl;
     }
-
     ChannelData &cd = *m_channelData[c];
-
     if (!cd.draining) {
-        
         // This is the normal processing case -- draining is only
         // set when all the input has been used and we only need
         // to write from the existing accumulator into the output.
-        
         // We know we have enough samples available in m_inbuf --
         // this is usually m_aWindowSize, but we know that if fewer
         // are available, it's OK to use zeroes for the rest
         // (which the ring buffer will provide) because we've
         // reached the true end of the data.
-        
         // We need to peek m_aWindowSize samples for processing, and
         // then skip m_increment to advance the read pointer.
-
         modifyChunk(c, phaseIncrement, phaseReset);
         synthesiseChunk(c, shiftIncrement); // reads from cd.mag, cd.phase
-
         if (m_debugLevel > 2) {
-            if (phaseReset) {
-                for (int i = 0; i < 10; ++i) {
-                    cd.accumulator[i] = 1.2f - (i % 3) * 1.2f;
-                }
-            }
+            if (phaseReset) {for (int i = 0; i < 10; ++i) {cd.accumulator[i] = 1.2f - (i % 3) * 1.2f;}}
         }
     }
-
     bool last = false;
-
     if (cd.draining) {
-        if (m_debugLevel > 1) {
-            cerr << "draining: accumulator fill = " << cd.accumulatorFill << " (shiftIncrement = " << shiftIncrement << ")" <<  endl;
-        }
+        if (m_debugLevel > 1) {cerr << "draining: accumulator fill = " << cd.accumulatorFill << " (shiftIncrement = " << shiftIncrement << ")" <<  endl;}
         if (shiftIncrement == 0) {
             cerr << "WARNING: draining: shiftIncrement == 0, can't handle that in this context: setting to " << m_increment << endl;
             shiftIncrement = m_increment;
         }
         if (cd.accumulatorFill <= shiftIncrement) {
-            if (m_debugLevel > 1) {
-                cerr << "reducing shift increment from " << shiftIncrement
-                          << " to " << cd.accumulatorFill
-                          << " and marking as last" << endl;
-            }
+            if (m_debugLevel > 1) {cerr << "reducing shift increment from " << shiftIncrement<< " to " << cd.accumulatorFill<< " and marking as last" << endl;}
             shiftIncrement = cd.accumulatorFill;
             last = true;
         }
     }
-        
     int required = shiftIncrement;
-
-    if (m_pitchScale != 1.0) {
-        required = int(required / m_pitchScale) + 1;
-    }
-
+    if (m_pitchScale != 1.0) {required = int(required / m_pitchScale) + 1;}
     int ws = cd.outbuf->getWriteSpace();
     if (ws < required) {
-        if (m_debugLevel > 0) {
-            cerr << "Buffer overrun on output for channel " << c << endl;
-        }
-
+        if (m_debugLevel > 0) {cerr << "Buffer overrun on output for channel " << c << endl;}
         // The only correct thing we can do here is resize the buffer.
         // We can't wait for the client thread to read some data out
         // from the buffer so as to make more space, because the
@@ -508,23 +356,18 @@ RubberBandStretcher::Impl::processChunkForChannel(size_t c,
         // in a process() call waiting for us to stow away enough
         // input increments to allow the process() call to complete.
         // This is an unhappy situation.
-
         RingBuffer<float> *oldbuf = cd.outbuf;
         cd.outbuf = oldbuf->resized(oldbuf->getSize() + (required - ws));
         m_emergencyScavenger.claim(oldbuf);
     }
-
     writeChunk(c, shiftIncrement, last);
     return last;
 }
-
 void
 RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
                                                size_t &shiftIncrementRtn,
-                                               bool &phaseReset)
-{
+                                               bool &phaseReset){
     Profiler profiler("RubberBandStretcher::Impl::calculateIncrements");
-
 //    cerr << "calculateIncrements" << endl;
     
     // Calculate the next upcoming phase and shift increment, on the
@@ -541,11 +384,8 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
     phaseIncrementRtn = m_increment;
     shiftIncrementRtn = m_increment;
     phaseReset = false;
-
     if (m_channels == 0) return;
-
     ChannelData &cd = *m_channelData[0];
-
     size_t bc = cd.chunkCount;
     for (size_t c = 1; c < m_channels; ++c) {
         if (m_channelData[c]->chunkCount != bc) {
@@ -553,9 +393,7 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
             return;
         }
     }
-
     const int hs = m_fftSize/2 + 1;
-
     // Normally we would mix down the time-domain signal and apply a
     // single FFT, or else mix down the Cartesian form of the
     // frequency-domain signal.  Both of those would be inefficient
@@ -565,43 +403,25 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
     // about phase entirely.  Normally we don't expect the channel
     // phases to cancel each other, and broadband effects will still
     // be apparent.
-
     float df = 0.f;
     bool silent = false;
-
     if (m_channels == 1) {
-
         df = m_phaseResetAudioCurve->process((float *)cd.mag, m_increment);
         silent = (m_silentAudioCurve->process((float *)cd.mag, m_increment) > 0.f);
-
     } else {
-
         float *tmp = (float *)alloca(hs * sizeof(float));
-
         v_zero(tmp, hs);
-        for (size_t c = 0; c < m_channels; ++c) {
-            v_add(tmp, m_channelData[c]->mag, hs);
-        }
-
+        for (size_t c = 0; c < m_channels; ++c) {v_add(tmp, m_channelData[c]->mag, hs);}
         df = m_phaseResetAudioCurve->process((float *)tmp, m_increment);
         silent = (m_silentAudioCurve->process((float *)tmp, m_increment) > 0.f);
 }
-
-    int incr = m_stretchCalculator->calculateSingle
-        (getEffectiveRatio(), df, m_increment);
-
-    if (m_lastProcessPhaseResetDf.getWriteSpace() > 0) {
-        m_lastProcessPhaseResetDf.write(&df, 1);
-    }
-    if (m_lastProcessOutputIncrements.getWriteSpace() > 0) {
-        m_lastProcessOutputIncrements.write(&incr, 1);
-    }
-
+    int incr = m_stretchCalculator->calculateSingle(getEffectiveRatio(), df, m_increment);
+    if (m_lastProcessPhaseResetDf.getWriteSpace() > 0) {m_lastProcessPhaseResetDf.write(&df, 1);}
+    if (m_lastProcessOutputIncrements.getWriteSpace() > 0) {m_lastProcessOutputIncrements.write(&incr, 1);}
     if (incr < 0) {
         phaseReset = true;
         incr = -incr;
     }
-    
     // The returned increment is the phase increment.  The shift
     // increment for one chunk is the same as the phase increment for
     // the following chunk (see comment below).  This means we don't
@@ -614,20 +434,12 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
     // phase reset than we would be in non-RT mode.  The sensitivity
     // of the broadband onset detector may mean that this isn't a
     // problem -- test it and see.
-
     shiftIncrementRtn = incr;
-
-    if (cd.prevIncrement == 0) {
-        phaseIncrementRtn = shiftIncrementRtn;
-    } else {
-        phaseIncrementRtn = cd.prevIncrement;
-    }
-
+    if (cd.prevIncrement == 0) {phaseIncrementRtn = shiftIncrementRtn;}
+    else {phaseIncrementRtn = cd.prevIncrement;}
     cd.prevIncrement = shiftIncrementRtn;
-
     if (silent) ++m_silentHistory;
     else m_silentHistory = 0;
-
     if (m_silentHistory >= int(m_aWindowSize / m_increment) && !phaseReset) {
         phaseReset = true;
         if (m_debugLevel > 1) {
@@ -636,22 +448,18 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,
         }
     }
 }
-
 bool
 RubberBandStretcher::Impl::getIncrements(size_t channel,
                                          size_t &phaseIncrementRtn,
                                          size_t &shiftIncrementRtn,
-                                         bool &phaseReset)
-{
+                                         bool &phaseReset){
     Profiler profiler("RubberBandStretcher::Impl::getIncrements");
-
     if (channel >= m_channels) {
         phaseIncrementRtn = m_increment;
         shiftIncrementRtn = m_increment;
         phaseReset = false;
         return false;
     }
-
     // There are two relevant output increments here.  The first is
     // the phase increment which we use when recalculating the phases
     // for the current chunk; the second is the shift increment used
@@ -667,10 +475,8 @@ RubberBandStretcher::Impl::getIncrements(size_t channel,
     // consistency.
     
     // m_outputIncrements stores phase increments.
-
     ChannelData &cd = *m_channelData[channel];
     bool gotData = true;
-
     if (cd.chunkCount >= m_outputIncrements.size()) {
 //        cerr << "WARNING: RubberBandStretcher::Impl::getIncrements:"
 //             << " chunk count " << cd.chunkCount << " >= "
@@ -685,22 +491,16 @@ RubberBandStretcher::Impl::getIncrements(size_t channel,
             gotData = false;
         }
     }
-    
     int phaseIncrement = m_outputIncrements[cd.chunkCount];
-    
     int shiftIncrement = phaseIncrement;
     if (cd.chunkCount + 1 < m_outputIncrements.size()) {
         shiftIncrement = m_outputIncrements[cd.chunkCount + 1];
     }
-    
     if (phaseIncrement < 0) {
         phaseIncrement = -phaseIncrement;
         phaseReset = true;
     }
-    
-    if (shiftIncrement < 0) {
-        shiftIncrement = -shiftIncrement;
-    }
+    if (shiftIncrement < 0) {shiftIncrement = -shiftIncrement;}
     /*
     if (shiftIncrement >= int(m_windowSize)) {
         cerr << "*** ERROR: RubberBandStretcher::Impl::processChunks: shiftIncrement " << shiftIncrement << " >= windowSize " << m_windowSize << " at " << cd.chunkCount << " (of " << m_outputIncrements.size() << ")" << endl;
@@ -714,53 +514,35 @@ RubberBandStretcher::Impl::getIncrements(size_t channel,
 }
 
 void
-RubberBandStretcher::Impl::analyseChunk(size_t channel)
-{
+RubberBandStretcher::Impl::analyseChunk(size_t channel){
     Profiler profiler("RubberBandStretcher::Impl::analyseChunk");
-
     ChannelData &cd = *m_channelData[channel];
-
     float *const R__ dblbuf = cd.dblbuf;
     float *const R__ fltbuf = cd.fltbuf;
-
     // cd.fltbuf is known to contain m_aWindowSize samples
-
-    if (m_aWindowSize > m_fftSize) {
-        m_afilter->cut(fltbuf);
-    }
-
+    if (m_aWindowSize > m_fftSize) {m_afilter->cut(fltbuf);}
     cutShiftAndFold(dblbuf, m_fftSize, fltbuf, m_awindow);
-
     cd.fft->forwardPolar(dblbuf, cd.mag, cd.phase);
 }
 
 void
 RubberBandStretcher::Impl::modifyChunk(size_t channel,
                                        size_t outputIncrement,
-                                       bool phaseReset)
-{
+                                       bool phaseReset){
     Profiler profiler("RubberBandStretcher::Impl::modifyChunk");
-
     ChannelData &cd = *m_channelData[channel];
-
-    if (phaseReset && m_debugLevel > 1) {
-        cerr << "phase reset: leaving phases unmodified" << endl;
-    }
-
+    if (phaseReset && m_debugLevel > 1) {cerr << "phase reset: leaving phases unmodified" << endl;}
     const float rate = m_sampleRate;
     const int count = m_fftSize / 2;
-
     bool unchanged = cd.unchanged && (outputIncrement == m_increment);
     bool fullReset = phaseReset;
     bool laminar = !(m_options & OptionPhaseIndependent);
     bool bandlimited = (m_options & OptionTransientsMixed);
     int bandlow = lrint((150 * m_fftSize) / rate);
     int bandhigh = lrint((1000 * m_fftSize) / rate);
-
     float freq0 = m_freq0;
     float freq1 = m_freq1;
     float freq2 = m_freq2;
-
     if (laminar) {
         float r = getEffectiveRatio();
         if (r > 1) {
@@ -772,17 +554,13 @@ RubberBandStretcher::Impl::modifyChunk(size_t channel,
             freq2 = freq0 * f2ratio;
         }
     }
-
     int limit0 = lrint((freq0 * m_fftSize) / rate);
     int limit1 = lrint((freq1 * m_fftSize) / rate);
     int limit2 = lrint((freq2 * m_fftSize) / rate);
-
     if (limit1 < limit0) limit1 = limit0;
     if (limit2 < limit1) limit2 = limit1;
-    
     float prevInstability = 0.0;
     bool prevDirection = false;
-
     float distance = 0.0;
     const float maxdist = 8.0;
     const int lookback = 1;
@@ -804,39 +582,24 @@ RubberBandStretcher::Impl::modifyChunk(size_t channel,
         if (i <= limit0) mi = 0.0;
         else if (i <= limit1) mi = 1.0;
         else if (i <= limit2) mi = 3.0;
-
         if (!resetThis) {
-
             float omega = (2 * M_PI * m_increment * i) / (m_fftSize);
-
             float pp = cd.prevPhase[i];
             float ep = pp + omega;
             perr = princarg(p - ep);
-
             float instability = fabs(perr - cd.prevError[i]);
             bool direction = (perr > cd.prevError[i]);
-
             bool inherit = false;
-
             if (laminar) {
-                if (distance >= mi || i == count) {
-                    inherit = false;
-                } else if (bandlimited && (i == bandhigh || i == bandlow)) {
-                    inherit = false;
-                } else if (instability > prevInstability &&
-                           direction == prevDirection) {
-                    inherit = true;
+                if (distance >= mi || i == count) {inherit = false;
+                } else if (bandlimited && (i == bandhigh || i == bandlow)) {inherit = false;
+                } else if (instability > prevInstability &&direction == prevDirection) {inherit = true;
                 }
             }
-
             float advance = outputIncrement * ((omega + perr) / m_increment);
-
             if (inherit) {
-                float inherited =
-                    cd.unwrappedPhase[i + lookback] - cd.prevPhase[i + lookback];
-                advance = ((advance * distance) +
-                           (inherited * (maxdist - distance)))
-                    / maxdist;
+                float inherited = cd.unwrappedPhase[i + lookback] - cd.prevPhase[i + lookback];
+                advance = ((advance * distance) + (inherited * (maxdist - distance))) / maxdist;
                 outphase = p + advance;
                 distacc += distance;
                 distance += 1.0;
@@ -852,24 +615,15 @@ RubberBandStretcher::Impl::modifyChunk(size_t channel,
         cd.phase[i] = outphase;
         cd.unwrappedPhase[i] = outphase;
     }
-    if (m_debugLevel > 2) {
-        cerr << "mean inheritance distance = " << distacc / count << endl;
-    }
+    if (m_debugLevel > 2) {cerr << "mean inheritance distance = " << distacc / count << endl;}
     if (fullReset) unchanged = true;
     cd.unchanged = unchanged;
-    if (unchanged && m_debugLevel > 1) {
-        cerr << "frame unchanged on channel " << channel << endl;
-    }
+    if (unchanged && m_debugLevel > 1) {cerr << "frame unchanged on channel " << channel << endl;}
 }    
-
-
 void
-RubberBandStretcher::Impl::formantShiftChunk(size_t channel)
-{
+RubberBandStretcher::Impl::formantShiftChunk(size_t channel){
     Profiler profiler("RubberBandStretcher::Impl::formantShiftChunk");
-
     ChannelData &cd = *m_channelData[channel];
-
     float *const R__ mag = cd.mag;
     float *const R__ envelope = cd.envelope;
     float *const R__ dblbuf = cd.dblbuf;
@@ -878,33 +632,21 @@ RubberBandStretcher::Impl::formantShiftChunk(size_t channel)
     const float factor = 1.0 / sz;
     cd.fft->inverseCepstral(mag, dblbuf);
     const int cutoff = m_sampleRate / 700;
-
 //    cerr <<"cutoff = "<< cutoff << ", m_sampleRate/cutoff = " << m_sampleRate/cutoff << endl;
-
     dblbuf[0] /= 2;
     dblbuf[cutoff-1] /= 2;
-
-    for (int i = cutoff; i < sz; ++i) {
-        dblbuf[i] = 0.0;
-    }
-
+    for (int i = cutoff; i < sz; ++i) {dblbuf[i] = 0.0;}
     v_scale(dblbuf, factor, cutoff);
-
     float *spare = (float *)alloca((hs + 1) * sizeof(float));
     cd.fft->forward(dblbuf, envelope, spare);
-
     v_exp(envelope, hs + 1);
     v_divide(mag, envelope, hs + 1);
-
     if (m_pitchScale > 1.0) {
         // scaling up, we want a new envelope that is lower by the pitch factor
         for (int target = 0; target <= hs; ++target) {
             int source = lrint(target * m_pitchScale);
-            if (source > hs) {
-                envelope[target] = 0.0;
-            } else {
-                envelope[target] = envelope[source];
-            }
+            if (source > hs) {envelope[target] = 0.0;}
+            else {envelope[target] = envelope[source];}
         }
     } else {
         // scaling down, we want a new envelope that is higher by the pitch factor
@@ -914,46 +656,33 @@ RubberBandStretcher::Impl::formantShiftChunk(size_t channel)
             envelope[target] = envelope[source];
         }
     }
-
     v_multiply(mag, envelope, hs+1);
-
     cd.unchanged = false;
 }
 
 void
 RubberBandStretcher::Impl::synthesiseChunk(size_t channel,
-                                           size_t shiftIncrement)
-{
+                                           size_t shiftIncrement){
     Profiler profiler("RubberBandStretcher::Impl::synthesiseChunk");
-
-
     if ((m_options & OptionFormantPreserved) &&
         (m_pitchScale != 1.0)) {
         formantShiftChunk(channel);
     }
-
     ChannelData &cd = *m_channelData[channel];
-
     float *const R__ dblbuf = cd.dblbuf;
     float *const R__ fltbuf = cd.fltbuf;
     float *const R__ accumulator = cd.accumulator;
     float *const R__ windowAccumulator = cd.windowAccumulator;
-    
     const int fsz = m_fftSize;
     const int hs = fsz / 2;
-
     const int wsz = m_sWindowSize;
-
     if (!cd.unchanged) {
-
         // Our FFTs produced unscaled results. Scale before inverse
         // transform rather than after, to avoid overflow if using a
         // fixed-point FFT.
         float factor = 1.f / fsz;
         v_scale(cd.mag, factor, hs + 1);
-
         cd.fft->inversePolar(cd.mag, cd.phase, cd.dblbuf);
-
         if (wsz == fsz) {
             v_convert(fltbuf, dblbuf + hs, hs);
             v_convert(fltbuf + hs, dblbuf, hs);
@@ -967,7 +696,6 @@ RubberBandStretcher::Impl::synthesiseChunk(size_t channel,
             }
         }
     }
-
     if (wsz > fsz) {
         int p = shiftIncrement * 2;
         if (cd.interpolatorScale != p) {
@@ -976,54 +704,36 @@ RubberBandStretcher::Impl::synthesiseChunk(size_t channel,
         }
         v_multiply(fltbuf, cd.interpolator, wsz);
     }
-
     m_swindow->cut(fltbuf);
     v_add(accumulator, fltbuf, wsz);
     cd.accumulatorFill = wsz;
-
     if (wsz > fsz) {
         // reuse fltbuf to calculate interpolating window shape for
         // window accumulator
         v_copy(fltbuf, cd.interpolator, wsz);
         m_swindow->cut(fltbuf);
         v_add(windowAccumulator, fltbuf, wsz);
-    } else {
-        m_swindow->add(windowAccumulator, m_awindow->getArea() * 1.5f);
-    }
+    } else {m_swindow->add(windowAccumulator, m_awindow->getArea() * 1.5f);}
 }
 
 void
-RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, bool last)
-{
+RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, bool last){
     Profiler profiler("RubberBandStretcher::Impl::writeChunk");
-
     ChannelData &cd = *m_channelData[channel];
-    
     float *const R__ accumulator = cd.accumulator;
     float *const R__ windowAccumulator = cd.windowAccumulator;
-
     const int sz = m_sWindowSize;
     const int si = shiftIncrement;
-
-    if (m_debugLevel > 2) {
-        cerr << "writeChunk(" << channel << ", " << shiftIncrement << ", " << last << ")" << endl;
-    }
-
+    if (m_debugLevel > 2) {cerr << "writeChunk(" << channel << ", " << shiftIncrement << ", " << last << ")" << endl;}
     v_divide(accumulator, windowAccumulator, si);
-
     // for exact sample scaling (probably not meaningful if we
     // were running in RT mode)
     size_t theoreticalOut = 0;
-    if (cd.inputSize >= 0) {
-        theoreticalOut = lrint(cd.inputSize * m_timeRatio);
-    }
-
+    if (cd.inputSize >= 0) {theoreticalOut = lrint(cd.inputSize * m_timeRatio);}
     bool resampledAlready = resampleBeforeStretching();
-
     if (!resampledAlready &&
         (m_pitchScale != 1.0 || m_options & OptionPitchHighConsistency) &&
         cd.resampler) {
-
         size_t reqSize = int(ceil(si / m_pitchScale));
         if (reqSize > cd.resamplebufSize) {
             // This shouldn't normally happen -- the buffer is
@@ -1035,13 +745,11 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
                       << cd.resamplebufSize << " to " << reqSize << endl;
             cd.setResampleBufSize(reqSize);
         }
-
 #ifndef NO_THREADING
 #if defined HAVE_IPP && !defined USE_SPEEX
         if (m_threaded) {m_resamplerMutex.lock();}
 #endif
 #endif
-
         size_t outframes = cd.resampler->resample(&cd.accumulator,
                                                   &cd.resamplebuf,
                                                   si,
@@ -1055,9 +763,7 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
 #endif
         writeOutput(*cd.outbuf, cd.resamplebuf,outframes, cd.outCount, theoreticalOut);
 
-    } else {
-        writeOutput(*cd.outbuf, accumulator,si, cd.outCount, theoreticalOut);
-    }
+    } else {writeOutput(*cd.outbuf, accumulator,si, cd.outCount, theoreticalOut);}
     v_move(accumulator, accumulator + si, sz - si);
     v_zero(accumulator + sz - si, si);
     v_move(windowAccumulator, windowAccumulator + si, sz - si);
@@ -1066,23 +772,18 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
     else {
         cd.accumulatorFill = 0;
         if (cd.draining) {
-            if (m_debugLevel > 1) {
-                cerr << "RubberBandStretcher::Impl::processChunks: setting outputComplete to true" << endl;
-            }
+            if (m_debugLevel > 1) {cerr << "RubberBandStretcher::Impl::processChunks: setting outputComplete to true" << endl;}
             cd.outputComplete = true;
         }
     }
 }
 void
-RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_t qty, size_t &outCount, size_t theoreticalOut)
-{
+RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_t qty, size_t &outCount, size_t theoreticalOut){
     Profiler profiler("RubberBandStretcher::Impl::writeOutput");
-
     // In non-RT mode, we don't want to write the first startSkip
     // samples, because the first chunk is centred on the start of the
     // output.  In RT mode we didn't apply any pre-padding in
     // configure(), so we don't want to remove any here.
-
     size_t startSkip = 0;
     if (!m_realtime) {startSkip = lrintf((m_sWindowSize/2) / m_pitchScale);}
     if (outCount > startSkip) {
@@ -1142,11 +843,8 @@ RubberBandStretcher::Impl::available() const
     if (m_threaded) {
         std::unique_lock<std::mutex> locker(m_threadSetMutex);
         if (m_channelData.empty()) return 0;
-    } else {
-        if (m_channelData.empty()) return 0;
-    }
+    } else {if (m_channelData.empty()) return 0;}
 #endif
-
 #ifndef NO_THREADING
     if (!m_threaded) {
 #endif
@@ -1170,28 +868,21 @@ RubberBandStretcher::Impl::available() const
     size_t min = 0;
     bool consumed = true;
     bool haveResamplers = false;
-
     for (size_t i = 0; i < m_channels; ++i) {
         size_t availIn = m_channelData[i]->inbuf->getReadSpace();
         size_t availOut = m_channelData[i]->outbuf->getReadSpace();
-        if (m_debugLevel > 2) {
-            cerr << "available on channel " << i << ": " << availOut << " (waiting: " << availIn << ")" << endl;
-        }
+        if (m_debugLevel > 2) {cerr << "available on channel " << i << ": " << availOut << " (waiting: " << availIn << ")" << endl;}
         if (i == 0 || availOut < min) min = availOut;
         if (!m_channelData[i]->outputComplete) consumed = false;
         if (m_channelData[i]->resampler) haveResamplers = true;
     }
-
     if (min == 0 && consumed) return -1;
     if (m_pitchScale == 1.0) return min;
-
     if (haveResamplers) return min; // resampling has already happened
     return int(floor(min / m_pitchScale));
 }
-
 size_t
-RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const
-{
+RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const{
     Profiler profiler("RubberBandStretcher::Impl::retrieve");
     size_t got = samples;
     for (size_t c = 0; c < m_channels; ++c) {
@@ -1215,9 +906,7 @@ RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const
             output[1][i] = right;
         }
     }            
-
     return got;
 }
-
 }
 

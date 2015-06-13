@@ -40,6 +40,12 @@
 #ifndef R__
 #define R__
 #endif
+#ifndef UNLIKELY 
+#define UNLIKELY(x) __builtin_expect(!!(x),0)
+#endif
+#ifndef LIKELY
+#define LIKELY(x)  __builtin_expect(!!(x),1)
+#endif
 
 #ifdef __MINGW32__
 #include <malloc.h>

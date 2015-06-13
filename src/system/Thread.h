@@ -21,27 +21,12 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#ifndef _RUBBERBAND_THREAD_H_
-#define _RUBBERBAND_THREAD_H_
-
-#include <string>
+#pragma once
 
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#ifdef _WIN32
-#include <windows.h>
-#else /* !_WIN32 */
-#ifdef USE_PTHREADS
-#include <pthread.h>
-#else /* !USE_PTHREADS */
-#error No thread implementation selected
-#endif /* !USE_PTHREADS */
-#endif /* !_WIN32 */
 
-//#define DEBUG_THREAD 1
-//#define DEBUG_MUTEX 1
-//#define DEBUG_CONDITION 1
 
 namespace RubberBand
 {
@@ -102,8 +87,6 @@ public:
         std::unique_lock<std::mutex> lock(m_mutex);
         std::condition_variable::notify_all();
     }
-
 };
 
 }
-#endif

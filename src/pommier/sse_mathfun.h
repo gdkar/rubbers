@@ -44,7 +44,6 @@
 # define ALIGN16_BEG
 # define ALIGN16_END __attribute__((aligned(16)))
 #endif
-
 /* __m128 is ugly to write */
 typedef __m128 v4sf;  // vector of 4 float (sse1)
 
@@ -54,6 +53,8 @@ typedef __m128i v4si; // vector of 4 int (sse2)
 #else
 typedef __m64 v2si;   // vector of 2 int (mmx)
 #endif
+#include <math.h>
+#include <cmath>
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
 #define _PS_CONST(Name, Val)                                            \
@@ -767,11 +768,12 @@ static inline v4sf recip_ps(v4sf x ){
   v4sf rcp2= _mm_mul_ps ( rcp, rcp );
   return _mm_sub_ps ( _2rcp, _mm_mul_ps ( x, rcp2 ) );
 }
-static inline v4sf fast_div_ps ( v4sf x, v4sf y )
-{return _mm_mul_ps ( recip_ps ( y ), x );}
+static inline v4sf _approx_div_ps ( v4sf x, v4sf y ){return _mm_mul_ps ( recip_ps ( y ), x );}
 _PS_CONST(isqrt_c0, 1.5f);
 _PS_CONST(isqrt_c1, -0.5f);
-static inline v4sf invsqrt_ps ( v4sf x ){
+
+static inline v4sf _approx_rsqrt_ps( v4sf x )
+{
   const v4sf y0 = _mm_rsqrt_ps ( x );
   const v4sf minus_half_x =
     _mm_mul_ps(*(v4sf*)_ps_isqrt_c0 ,x );
@@ -781,21 +783,19 @@ static inline v4sf invsqrt_ps ( v4sf x ){
   return _mm_add_ps(three_halfs_y0,
       _mm_mul_ps(y0_2,minus_half_x));
 }
-static inline v4sf rsqrt_ps ( v4sf x )
-{return _mm_rsqrt_ps ( x );}
-static inline v4sf approx_sqrt_ps ( v4sf x )
+static inline v4sf _approx_sqrt_ps ( v4sf x )
 {return _mm_mul_ps ( x, _mm_rsqrt_ps ( x ) );}
 _PS_CONST(approx_atan2_c0,0.1963f);
 _PS_CONST(approx_atan2_c1,-0.9817f);
 _PS_CONST(approx_atan2_minus_pi_4,-(float)M_PI/4.f);
 _PS_CONST(approx_atan2_pi_2,(float)M_PI/2.f);
-static inline v4sf approx_atan2_ps ( v4sf y, v4sf x )
+static inline v4sf _approx_atan2_ps ( v4sf y, v4sf x )
 {
   v4sf sign_bit_x = _mm_and_ps(x, *(v4sf*)_ps_sign_mask);
-  v4sf absx       = _mm_andnot_ps(x, *(v4sf*)_ps_sign_mask);
+  v4sf absx       = _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
   v4sf sign_bit_y = _mm_and_ps(y, *(v4sf*)_ps_sign_mask);
-  v4sf absy       = _mm_andnot_ps(y,*(v4sf*)_ps_sign_mask);
-  v4sf angle = fast_div_ps(_mm_sub_ps(absx,absy),_mm_add_ps(absx,absy));
+  v4sf absy       = _mm_and_ps(y,*(v4sf*)_ps_inv_sign_mask);
+  v4sf angle = _approx_div_ps(_mm_sub_ps(absx,absy),_mm_add_ps(absx,absy));
   v4sf angle2= _mm_mul_ps(angle,angle);
        angle2= _mm_mul_ps(*(v4sf*)_ps_approx_atan2_c0,angle2); 
        angle2= _mm_add_ps(angle2,*(v4sf*)_ps_approx_atan2_c1);
@@ -805,11 +805,11 @@ static inline v4sf approx_atan2_ps ( v4sf y, v4sf x )
        angle2= _mm_add_ps(*(v4sf*)_ps_approx_atan2_pi_2,angle2);
   return  _mm_xor_ps(angle2,sign_bit_y);
 }
-static inline void approx_magphase_ps (v4sf *mag, v4sf *phase, v4sf real, v4sf imag)
-{
-  *phase = approx_atan2_ps(imag,real);
-  *mag   = approx_sqrt_ps ( _mm_add_ps ( _mm_mul_ps ( real, real ),
-                                         _mm_mul_ps ( imag, imag ) ) );
-}
-#endif
+static inline v4sf fabsf_ps ( v4sf x ){return   _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);}
 
+static inline void _approx_magphase_ps (v4sf *mag, v4sf *phase, v4sf real, v4sf imag){
+  *phase = _approx_atan2_ps(imag,real);
+  *mag   = _approx_sqrt_ps ( _mm_add_ps ( _mm_mul_ps ( real, real ),
+                                         _mm_mul_ps ( imag, imag ) ) );}
+  /* take the absolute value */
+#endif

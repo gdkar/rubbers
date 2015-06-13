@@ -102,7 +102,6 @@ LIBRARY_SOURCES := \
 	src/audiocurves/PercussiveAudioCurve.cpp \
 	src/dsp/Resampler.cpp \
 	src/dsp/FFT.cpp \
-	src/system/VectorOpsComplex.cpp \
 	src/system/Allocators.cpp \
 	src/system/sysutils.cpp \
 	src/StretcherChannelData.cpp \

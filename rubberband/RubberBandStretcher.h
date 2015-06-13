@@ -29,6 +29,7 @@
 #define RUBBERBAND_API_MINOR_VERSION 5
 
 #include <memory>
+#include <atomic>
 #include <new>
 #include <thread>
 #include <mutex>

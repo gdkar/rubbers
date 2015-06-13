@@ -57,12 +57,15 @@ public:
      * minus one.
      */
     RingBuffer(int n);
+
     virtual ~RingBuffer();
+
     /**
      * Return the total capacity of the ring buffer in samples.
      * (This is the argument n passed to the constructor.)
      */
     int getSize() const;
+
     /**
      * Return a new ring buffer (allocated with "new" -- caller must
      * delete when no longer needed) of the given size, containing the
@@ -72,24 +75,29 @@ public:
      * size, the contents are undefined.
      */
     RingBuffer<T> *resized(int newSize) const;
+
     /**
      * Lock the ring buffer into physical memory.  Returns true
      * for success.
      */
     bool mlock();
+
     /**
      * Reset read and write pointers, thus emptying the buffer.
      * Should be called from the write thread.
      */
     void reset();
+
     /**
      * Return the amount of data available for reading, in samples.
      */
     int getReadSpace() const;
+
     /**
      * Return the amount of space available for writing, in samples.
      */
     int getWriteSpace() const;
+
     /**
      * Read n samples from the buffer.  If fewer than n are available,
      * the remainder will be zeroed out.  Returns the number of
@@ -100,7 +108,8 @@ public:
      * types are compatible for arithmetic operations.
      */
     template <typename S>
-    int read(S *const destination, int n);
+    int read(S *const R__ destination, int n);
+
     /**
      * Read n samples from the buffer, adding them to the destination.
      * If fewer than n are available, the remainder will be left
@@ -111,7 +120,8 @@ public:
      * types are compatible for arithmetic operations.
      */
     template <typename S>
-    int readAdding(S *const destination, int n);
+    int readAdding(S *const R__ destination, int n);
+
     /**
      * Read one sample from the buffer.  If no sample is available,
      * this will silently return zero.  Calling this repeatedly is
@@ -119,6 +129,7 @@ public:
      * enough if you don't want to allocate a buffer to read into.
      */
     T readOne();
+
     /**
      * Read n samples from the buffer, if available, without advancing
      * the read pointer -- i.e. a subsequent read() or skip() will be
@@ -126,7 +137,8 @@ public:
      * the remainder will be zeroed out.  Returns the number of
      * samples actually read.
      */
-    int peek(T *const destination, int n) const;
+    int peek(T *const R__ destination, int n) const;
+
     /**
      * Read one sample from the buffer, if available, without
      * advancing the read pointer -- i.e. a subsequent read() or
@@ -134,12 +146,14 @@ public:
      * no sample was available.
      */
     T peekOne() const;
+
     /**
      * Pretend to read n samples from the buffer, without actually
      * returning them (i.e. discard the next n samples).  Returns the
      * number of samples actually available for discarding.
      */
     int skip(int n);
+
     /**
      * Write n samples to the buffer.  If insufficient space is
      * available, not all samples may actually be written.  Returns
@@ -150,19 +164,22 @@ public:
      * types are compatible for assignment.
      */
     template <typename S>
-    int write(const S *const source, int n);
+    int write(const S *const R__ source, int n);
+
     /**
      * Write n zero-value samples to the buffer.  If insufficient
      * space is available, not all zeros may actually be written.
      * Returns the number of zeroes actually written.
      */
     int zero(int n);
+
 protected:
-    T *const m_buffer;
+    T *const R__ m_buffer;
     int          m_writer;
     int          m_reader;
     const int    m_size;
     bool         m_mlocked;
+
     int readSpaceFor(int w, int r) const {
         int space;
         if (w > r) space = w - r;
@@ -170,11 +187,13 @@ protected:
         else space = 0;
         return space;
     }
+
     int writeSpaceFor(int w, int r) const {
         int space = (r + m_size - w - 1);
         if (space >= m_size) space -= m_size;
         return space;
     }
+
 private:
     RingBuffer(const RingBuffer &); // not provided
     RingBuffer &operator=(const RingBuffer &); // not provided
@@ -185,68 +204,100 @@ RingBuffer<T>::RingBuffer(int n) :
     m_buffer(allocate<T>(n + 1)),
     m_writer(0),
     m_size(n + 1),
-    m_mlocked(false){
+    m_mlocked(false)
+{
 #ifdef DEBUG_RINGBUFFER
     std::cerr << "RingBuffer<T>[" << this << "]::RingBuffer(" << n << ")" << std::endl;
 #endif
+
     m_reader = 0;
 }
+
 template <typename T>
-RingBuffer<T>::~RingBuffer(){
+RingBuffer<T>::~RingBuffer()
+{
 #ifdef DEBUG_RINGBUFFER
     std::cerr << "RingBuffer<T>[" << this << "]::~RingBuffer" << std::endl;
 #endif
-    if (m_mlocked) {MUNLOCK((void *)m_buffer, m_size * sizeof(T));}
+
+    if (m_mlocked) {
+	MUNLOCK((void *)m_buffer, m_size * sizeof(T));
+    }
+
     deallocate(m_buffer);
 }
+
 template <typename T>
 int
-RingBuffer<T>::getSize() const{
+RingBuffer<T>::getSize() const
+{
 #ifdef DEBUG_RINGBUFFER
     std::cerr << "RingBuffer<T>[" << this << "]::getSize(): " << m_size-1 << std::endl;
 #endif
+
     return m_size - 1;
 }
+
 template <typename T>
 RingBuffer<T> *
-RingBuffer<T>::resized(int newSize) const{
+RingBuffer<T>::resized(int newSize) const
+{
     RingBuffer<T> *newBuffer = new RingBuffer<T>(newSize);
+
     int w = m_writer;
     int r = m_reader;
+
     while (r != w) {
         T value = m_buffer[r];
         newBuffer->write(&value, 1);
         if (++r == m_size) r = 0;
     }
+
     return newBuffer;
 }
+
 template <typename T>
 bool
-RingBuffer<T>::mlock(){
+RingBuffer<T>::mlock()
+{
     if (MLOCK((void *)m_buffer, m_size * sizeof(T))) return false;
     m_mlocked = true;
     return true;
 }
+
 template <typename T>
 void
-RingBuffer<T>::reset(){
+RingBuffer<T>::reset()
+{
 #ifdef DEBUG_RINGBUFFER
     std::cerr << "RingBuffer<T>[" << this << "]::reset" << std::endl;
 #endif
+
     m_reader = m_writer;
 }
+
 template <typename T>
 int
-RingBuffer<T>::getReadSpace() const{return readSpaceFor(m_writer, m_reader);}
+RingBuffer<T>::getReadSpace() const
+{
+    return readSpaceFor(m_writer, m_reader);
+}
+
 template <typename T>
 int
-RingBuffer<T>::getWriteSpace() const{return writeSpaceFor(m_writer, m_reader);}
+RingBuffer<T>::getWriteSpace() const
+{
+    return writeSpaceFor(m_writer, m_reader);
+}
+
 template <typename T>
 template <typename S>
 int
-RingBuffer<T>::read(S *const destination, int n){
+RingBuffer<T>::read(S *const R__ destination, int n)
+{
     int w = m_writer;
     int r = m_reader;
+
     int available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::read: " << n << " requested, only "
@@ -255,26 +306,34 @@ RingBuffer<T>::read(S *const destination, int n){
 	n = available;
     }
     if (n == 0) return n;
+
     int here = m_size - r;
     T *const R__ bufbase = m_buffer + r;
-    if (here >= n) {v_convert(destination, bufbase, n);}
-    else {
+
+    if (here >= n) {
+        v_convert(destination, bufbase, n);
+    } else {
         v_convert(destination, bufbase, here);
         v_convert(destination + here, m_buffer, n - here);
     }
+
     r += n;
     while (r >= m_size) r -= m_size;
+
     MBARRIER();
     m_reader = r;
+
     return n;
 }
+
 template <typename T>
 template <typename S>
 int
-RingBuffer<T>::readAdding(S *const destination, int n)
+RingBuffer<T>::readAdding(S *const R__ destination, int n)
 {
     int w = m_writer;
     int r = m_reader;
+
     int available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::read: " << n << " requested, only "
@@ -282,41 +341,55 @@ RingBuffer<T>::readAdding(S *const destination, int n)
 	n = available;
     }
     if (n == 0) return n;
+
     int here = m_size - r;
     T *const R__ bufbase = m_buffer + r;
-    if (here >= n) {v_add(destination, bufbase, n);}
-    else {
+
+    if (here >= n) {
+        v_add(destination, bufbase, n);
+    } else {
         v_add(destination, bufbase, here);
         v_add(destination + here, m_buffer, n - here);
     }
+
     r += n;
     while (r >= m_size) r -= m_size;
+
     MBARRIER();
     m_reader = r;
+
     return n;
 }
+
 template <typename T>
 T
 RingBuffer<T>::readOne()
 {
     int w = m_writer;
     int r = m_reader;
+
     if (w == r) {
 	std::cerr << "WARNING: RingBuffer::readOne: no sample available"
 		  << std::endl;
 	return T();
     }
+
     T value = m_buffer[r];
     if (++r == m_size) r = 0;
+
     MBARRIER();
     m_reader = r;
+
     return value;
 }
+
 template <typename T>
 int
-RingBuffer<T>::peek(T *const destination, int n) const{
+RingBuffer<T>::peek(T *const R__ destination, int n) const
+{
     int w = m_writer;
     int r = m_reader;
+
     int available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::peek: " << n << " requested, only "
@@ -325,10 +398,13 @@ RingBuffer<T>::peek(T *const destination, int n) const{
 	n = available;
     }
     if (n == 0) return n;
+
     int here = m_size - r;
     const T *const R__ bufbase = m_buffer + r;
-    if (here >= n) {v_copy(destination, bufbase, n);}
-    else {
+
+    if (here >= n) {
+        v_copy(destination, bufbase, n);
+    } else {
         v_copy(destination, bufbase, here);
         v_copy(destination + here, m_buffer, n - here);
     }
@@ -338,13 +414,17 @@ RingBuffer<T>::peek(T *const destination, int n) const{
 
 template <typename T>
 T
-RingBuffer<T>::peekOne() const{
+RingBuffer<T>::peekOne() const
+{
     int w = m_writer;
     int r = m_reader;
+
     if (w == r) {
-	std::cerr << "WARNING: RingBuffer::peekOne: no sample available"<< std::endl;
+	std::cerr << "WARNING: RingBuffer::peekOne: no sample available"
+		  << std::endl;
 	return 0;
     }
+
     T value = m_buffer[r];
     return value;
 }
@@ -355,6 +435,7 @@ RingBuffer<T>::skip(int n)
 {
     int w = m_writer;
     int r = m_reader;
+
     int available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::skip: " << n << " requested, only "
@@ -362,19 +443,24 @@ RingBuffer<T>::skip(int n)
 	n = available;
     }
     if (n == 0) return n;
+
     r += n;
     while (r >= m_size) r -= m_size;
+
     // No memory barrier required, because we didn't read any data
     m_reader = r;
+
     return n;
 }
 
 template <typename T>
 template <typename S>
 int
-RingBuffer<T>::write(const S *const source, int n){
+RingBuffer<T>::write(const S *const R__ source, int n)
+{
     int w = m_writer;
     int r = m_reader;
+
     int available = writeSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::write: " << n
@@ -382,25 +468,33 @@ RingBuffer<T>::write(const S *const source, int n){
 	n = available;
     }
     if (n == 0) return n;
+
     int here = m_size - w;
     T *const R__ bufbase = m_buffer + w;
+
     if (here >= n) {
         v_convert<S, T>(bufbase, source, n);
     } else {
         v_convert<S, T>(bufbase, source, here);
         v_convert<S, T>(m_buffer, source + here, n - here);
     }
+
     w += n;
     while (w >= m_size) w -= m_size;
+
     MBARRIER();
     m_writer = w;
+
     return n;
 }
+
 template <typename T>
 int
-RingBuffer<T>::zero(int n){
+RingBuffer<T>::zero(int n)
+{
     int w = m_writer;
     int r = m_reader;
+
     int available = writeSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::zero: " << n
@@ -408,17 +502,23 @@ RingBuffer<T>::zero(int n){
 	n = available;
     }
     if (n == 0) return n;
+
     int here = m_size - w;
     T *const R__ bufbase = m_buffer + w;
-    if (here >= n) {v_zero(bufbase, n);}
-    else {
+
+    if (here >= n) {
+        v_zero(bufbase, n);
+    } else {
         v_zero(bufbase, here);
         v_zero(m_buffer, n - here);
     }
+
     w += n;
     while (w >= m_size) w -= m_size;
+
     MBARRIER();
     m_writer = w;
+
     return n;
 }
 

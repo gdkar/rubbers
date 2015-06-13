@@ -1,0 +1,3 @@
+[submodule "src/cephes"]
+	path = src/cephes
+	url = git@github.com:jeremybarnes/cephes.git

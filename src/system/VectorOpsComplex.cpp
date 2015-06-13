@@ -59,8 +59,7 @@ v_polar_to_cartesian_pommier(float *const R__ real,
                              float *const R__ imag,
                              const float *const R__ mag,
                              const float *const R__ phase,
-                             const int count)
-{
+                             const int count){
     int i = 0;
 
     for (int i = 0; i + 4 < count; i += 4) {
@@ -84,8 +83,7 @@ v_polar_to_cartesian_pommier(float *const R__ real,
 
 void
 v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
-                                                 const int count)
-{
+                                                 const int count){
     int i;
     int idx = 0, tidx = 0;
     for (i = 0; i + 4 < count; i += 4) {
@@ -115,8 +113,7 @@ void
 v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
                                          const float *const R__ mag,
                                          const float *const R__ phase,
-                                         const int count)
-{
+                                         const int count){
     int i;
     for (i = 0; i + 4 <= count; i += 4) {
 	__m128 fmag, fphase, fre, fim;
@@ -136,7 +133,6 @@ v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
         ++i;
     }
 }    
-
 #endif
 
 

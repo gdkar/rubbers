@@ -508,7 +508,6 @@ public:
      * and from which there is no output).
      */
     void setMaxProcessSize(size_t samples);
-
     /**
      * Ask the stretcher how many audio sample frames should be
      * provided as input in order to ensure that some more output
@@ -528,7 +527,6 @@ public:
      * and from which there is no output).
      */
      size_t getSamplesRequired() const;
-
     /**
      * Provide a set of mappings from "before" to "after" sample
      * numbers so as to enforce a particular stretch profile.  The
@@ -554,7 +552,6 @@ public:
      * extent of the frame numbers found in the key frame map.
      */
     void setKeyFrameMap(const std::map<size_t, size_t> &);
-    
     /**
      * Provide a block of "samples" sample frames for the stretcher to
      * study and calculate a stretch profile from.
@@ -569,18 +566,17 @@ public:
      * audio sample frames available in "input".  If "samples" is
      * zero, "input" may be NULL.
      * 
-     * Set "final" to true if this is the last block of data that will
+     * Set "last" to true if this is the last block of data that will
      * be provided to study() before the first process() call.
      */
-    void study(const float *const *input, size_t samples, bool final);
-
+    void study(const float *const *input, size_t samples, bool last);
     /**
      * Provide a block of "samples" sample frames for processing.
      * See also getSamplesRequired() and setMaxProcessSize().
      *
-     * Set "final" to true if this is the last block of input data.
+     * Set "last" to true if this is the last block of input data.
      */
-    void process(const float *const *input, size_t samples, bool final);
+    void process(const float *const *input, size_t samples, bool last);
 
     /**
      * Ask the stretcher how many audio sample frames of output data
@@ -637,7 +633,6 @@ public:
      * This function is provided for diagnostic purposes only.
      */
     std::vector<int> getOutputIncrements() const;
-
     /**
      * In offline mode, retrieve the sequence of internal phase reset
      * detection function values, for the entire audio data, provided
@@ -648,7 +643,6 @@ public:
      * This function is provided for diagnostic purposes only.
      */
     std::vector<float> getPhaseResetCurve() const;
-
     /**
      * In offline mode, retrieve the sequence of internal frames for
      * which exact timing has been sought, for the entire audio data,
@@ -658,13 +652,11 @@ public:
      * This function is provided for diagnostic purposes only.
      */
     std::vector<int> getExactTimePoints() const;
-
     /**
      * Return the number of channels this stretcher was constructed
      * with.
      */
     size_t getChannelCount() const;
-
     /**
      * Force the stretcher to calculate a stretch profile.  Normally
      * this happens automatically for the first process() call in
@@ -673,7 +665,6 @@ public:
      * This function is provided for diagnostic purposes only.
      */
     void calculateStretch();
-
     /**
      * Set the level of debug output.  The value may be from 0 (errors
      * only) to 3 (very verbose, with audible ticks in the output at
@@ -682,7 +673,6 @@ public:
      * called.
      */
     void setDebugLevel(int level);
-
     /**
      * Set the default level of debug output for subsequently
      * constructed stretchers.
@@ -690,7 +680,6 @@ public:
      * @see setDebugLevel
      */
     static void setDefaultDebugLevel(int level);
-
 protected:
     class Impl;
     Impl *m_d;

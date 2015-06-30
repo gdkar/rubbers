@@ -65,8 +65,7 @@ public:
      * If increment is non-zero, use it for the input increment for
      * this block in preference to m_increment.
      */
-    int calculateSingle(double ratio, float curveValue,
-                        size_t increment = 0);
+    int calculateSingle(double ratio, float curveValue,size_t increment = 0);
     void setUseHardPeaks(bool use) { m_useHardPeaks = use; }
     void reset();
     void setDebugLevel(int level) { m_debugLevel = level; }
@@ -94,14 +93,12 @@ protected:
     double m_divergence;
     float m_recovery;
     float m_prevRatio;
-    int m_transientAmnesty; // only in RT mode; handled differently offline
+    int m_transientAmnesty;
     int m_debugLevel;
     bool m_useHardPeaks;
-
     std::map<size_t, size_t> m_keyFrameMap;
     std::vector<Peak> m_peaks;
 };
-
 }
 
 #endif

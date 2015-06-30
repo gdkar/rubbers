@@ -36,7 +36,11 @@ RubberBandStretcher::Impl::ChannelData::ChannelData(size_t windowSize,
     std::set<size_t> s;
     construct(s, windowSize, fftSize, outbufSize);
 }
-
+RubberBandStretcher::Impl::ChannelData::ChannelData(std::initializer_list<size_t> sizes,
+        size_t initialWindowSize, size_t initialFftSize,size_t initialOutbufSize){
+    std::set<size_t> s(sizes.begin(),sizes.end());
+    construct(s,initialWindowSize,initialFftSize,initialOutbufSize);
+}
 RubberBandStretcher::Impl::ChannelData::ChannelData(const std::set<size_t> &sizes,
                                                     size_t initialWindowSize,
                                                     size_t initialFftSize,
@@ -97,11 +101,9 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSiz
     size_t oldReal = oldMax / 2 + 1;
     if (oldMax >= maxSize) {
         // no need to reallocate buffers, just reselect fft
-
         //!!! we can't actually do this without locking against the
         //process thread, can we?  we need to zero the mag/phase
         //buffers without interference
-
         if (ffts.find(fftSize) == ffts.end()) {
             //!!! this also requires a lock, but it shouldn't occur in
             //RT mode with proper initialisation

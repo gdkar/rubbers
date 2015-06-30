@@ -53,6 +53,7 @@ namespace RubberBand
 class AudioCurveCalculator{
 public:
     struct Parameters {
+        Parameters() = default;
         Parameters(int _sampleRate, int _fftSize) :
             sampleRate(_sampleRate),
             fftSize(_fftSize)
@@ -60,17 +61,14 @@ public:
         int sampleRate;
         int fftSize;
     };
-    AudioCurveCalculator(Parameters parameters);
+    explicit AudioCurveCalculator(Parameters parameters = Parameters(44100,4096));
     virtual ~AudioCurveCalculator();
-    int getSampleRate() const { return m_sampleRate; }
-    int getFftSize() const { return m_fftSize; }
+    constexpr int getSampleRate() const { return m_sampleRate; }
+    constexpr int getFftSize() const { return m_fftSize; }
     virtual void setSampleRate(int newRate);
     virtual void setFftSize(int newSize);
     Parameters getParameters() const {return Parameters(m_sampleRate, m_fftSize);}
-    void setParameters(Parameters p) {
-        setSampleRate(p.sampleRate);
-        setFftSize(p.fftSize);
-    }
+    virtual void setParameters(Parameters p);
     // You may not mix calls to the various process functions on a
     // given instance
     /**
@@ -113,7 +111,6 @@ protected:
     int m_lastPerceivedBin;
     void recalculateLastPerceivedBin();
 };
-
 
 }
 

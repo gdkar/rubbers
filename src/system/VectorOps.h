@@ -40,6 +40,9 @@
 #include <cstring>
 #include <cmath>
 #include "sysutils.h"
+#include <memory>
+#include <algorithm>
+#include <utility>
 
 namespace RubberBand {
 
@@ -88,87 +91,45 @@ template<typename T, typename U>
 inline void v_convert(U *const R__ dst,
                       const T *const R__ src,
                       const int count)
-{for (int i = 0; i < count; ++i) {dst[i] = U(src[i]);}}
+{std::copy_n(src,count,dst);}
 
 template<typename T>
 inline void v_convert(T *const R__ dst, const T * R__ const src, const int count){
     memmove(dst, src, count*sizeof(T));
 }
-#if defined HAVE_IPP
-template<>
-inline void v_convert(double *const R__ dst,
-                      const float *const R__ src,
-                      const int count)
-{
-    ippsConvert_32f64f(src, dst, count);
-}
-template<>
-inline void v_convert(float *const R__ dst,
-                      const double *const R__ src,
-                      const int count)
-{
-    ippsConvert_64f32f(src, dst, count);
-}
-#elif defined HAVE_VDSP
-template<>
-inline void v_convert(double *const R__ dst,
-                      const float *const R__ src,
-                      const int count)
-{
-    vDSP_vspdp((float *)src, 1, dst, 1, count);
-}
-template<>
-inline void v_convert(float *const R__ dst,
-                      const double *const R__ src,
-                      const int count)
-{
-    vDSP_vdpsp((double *)src, 1, dst, 1, count);
-}
-#endif
-
 template<typename T, typename U>
 inline void v_convert_channels(U *const R__ *const R__ dst,
                                const T *const R__ *const R__ src,
                                const int channels,
                                const int count)
 {
-    for (int c = 0; c < channels; ++c) {
-        v_convert(dst[c], src[c], count);
-    }
+    for (int c = 0; c < channels; ++c) {v_convert(dst[c], src[c], count);}
 }
 template<typename T>
 inline void v_add(T *const R__ dst,
                   const T *const R__ src,
                   const int count)
-{for (int i = 0; i < count; ++i) {dst[i] += src[i];}}
+{
+    auto _src=(const T*const R__)__builtin_assume_aligned(src,16);
+    auto _dst =(T*const R__)__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {
+        _dst[i] += _src[i];
+    }
+}
 template<typename T>
 inline void v_add(T *const R__ dst,
                   const T value,
                   const int count)
-{for (int i = 0; i < count; ++i) {dst[i] += value;}}
-#if defined HAVE_IPP
-template<>
-inline void v_add(float *const R__ dst,
-                  const float *const R__ src,
-                  const int count)
 {
-    ippsAdd_32f_I(src, dst, count);
-}    
-inline void v_add(double *const R__ dst,
-                  const double *const R__ src,
-                  const int count)
-{
-    ippsAdd_64f_I(src, dst, count);
-}    
-#endif
+    auto _dst = (T *const R__ )__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {dst[i] += value;}
+}
 template<typename T>
 inline void v_add_channels(T *const R__ *const R__ dst,
                            const T *const R__ *const R__ src,
                            const int channels, const int count)
 {
-    for (int c = 0; c < channels; ++c) {
-        v_add(dst[c], src[c], count);
-    }
+    for (int c = 0; c < channels; ++c) {v_add(dst[c], src[c], count);}
 }
 template<typename T, typename G>
 inline void v_add_with_gain(T *const R__ dst,
@@ -176,9 +137,9 @@ inline void v_add_with_gain(T *const R__ dst,
                             const G gain,
                             const int count)
 {
-    for (int i = 0; i < count; ++i) {
-        dst[i] += src[i] * gain;
-    }
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
+    for (int i = 0; i < count; ++i) {_dst[i] += _src[i] * gain;}
 }
 template<typename T, typename G>
 inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
@@ -187,95 +148,60 @@ inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
                                      const int channels,
                                      const int count)
 {
-    for (int c = 0; c < channels; ++c) {
-        v_add_with_gain(dst[c], src[c], gain, count);
-    }
+    for (int c = 0; c < channels; ++c) {v_add_with_gain(dst[c], src[c], gain, count);}
 }
 template<typename T>
 inline void v_subtract(T *const R__ dst,
                        const T *const R__ src,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {dst[i] -= src[i];}
+    int i = 0;
+    while(((intptr_t)(dst+i))&15){dst[i] -=src[i];i++;}
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
+    for (i = 0; i < count; ++i) {_dst[i] -= _src[i];}
 }
-#if defined HAVE_IPP
-template<>
-inline void v_subtract(float *const R__ dst,
-                       const float *const R__ src,
-                       const int count)
-{
-    ippsSub_32f_I(src, dst, count);
-}    
-inline void v_subtract(double *const R__ dst,
-                       const double *const R__ src,
-                       const int count)
-{
-    ippsSub_64f_I(src, dst, count);
-}    
-#endif
 template<typename T, typename G>
 inline void v_scale(T *const R__ dst,
                     const G gain,
                     const int count)
 {
-    for (int i = 0; i < count; ++i) {dst[i] *= gain;}
+    int i = 0;
+    while(((intptr_t)(dst+i))&15){dst[i] =expf(dst[i]);i++;}
+    auto srcdst = (__typeof__(dst))__builtin_assume_aligned(dst+i,16);
+    for (i = 0; i < count; ++i) {srcdst[i] *= gain;}
+    while(i<count){dst[i] = expf(dst[i]);}
 }
-#if defined HAVE_IPP 
-template<>
-inline void v_scale(float *const R__ dst,
-                    const float gain,
-                    const int count)
-{
-    ippsMulC_32f_I(gain, dst, count);
-}
-template<>
-inline void v_scale(double *const R__ dst,
-                    const double gain,
-                    const int count)
-{
-    ippsMulC_64f_I(gain, dst, count);
-}
-#endif
 template<typename T>
 inline void v_multiply(T *const R__ dst,
                        const T *const R__ src,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {dst[i] *= src[i];}
+    auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {_dst[i] *= _src[i];}
 }
-#if defined HAVE_IPP 
-template<>
-inline void v_multiply(float *const R__ dst,
-                       const float *const R__ src,
-                       const int count)
-{
-    ippsMul_32f_I(src, dst, count);
-}
-template<>
-inline void v_multiply(double *const R__ dst,
-                       const double *const R__ src,
-                       const int count)
-{
-    ippsMul_64f_I(src, dst, count);
-}
-#endif
-
 template<typename T>
 inline void v_multiply(T *const R__ dst,
                        const T *const R__ src1,
                        const T *const R__ src2,
                        const int count)
 {
-    for (int i = 0; i < count; ++i) {dst[i] = src1[i] * src2[i];}
+    auto _src1 = (__typeof__(src1))__builtin_assume_aligned(src1,16);
+    auto _src2 = (__typeof__(src2))__builtin_assume_aligned(src2,16);
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {_dst[i] = _src1[i] * _src2[i];}
 }
 template<typename T>
 inline void v_divide(
         T *const R__ dst
       , const T *const R__ src
       , const int count)
-{for (int i = 0; i < count; ++i) {dst[i] /= src[i];}}
-
-#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
+{
+    auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {_dst[i] /= _src[i];}
+}
 template<> 
 inline void v_divide(
         float*const R__ dst
@@ -283,46 +209,25 @@ inline void v_divide(
       , const int count)
 {
     int i=0;
-    while(((intptr_t)(dst+i))&15){dst[i] /= (src[i]);i++;}
-    for(; i+4<count; i+=4){
-        *(__m128*)(dst+i)=
-            _mm_mul_ps ( *(__m128*)(dst+i),_mm_rcp_ps(*(__m128*)(src+i)));
+    auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    while(((intptr_t)(_dst+i))&15){_dst[i] /= (_src[i]);i++;}
+    for(; i+3<count; i+=4){
+        *(v4sf*)(_dst+i)= _approx_div_ps( *(v4sf*)(_dst+i),*(v4sf*)(_src+i));
     }
-    while(i < count ){
-        dst[i]/=src[i];
-        i++;
-    }
+    for(;i<count;i++) _dst[i]/=_src[i];
 }
-#endif
-
 template<typename T>
 inline void v_multiply_and_add(T *const R__ dst,
                                const T *const R__ src1,
                                const T *const R__ src2,
                                const int count)
 {
-    for (int i = 0; i < count; ++i) {dst[i] += src1[i] * src2[i];}
+    auto _src1 = (__typeof__(src1))__builtin_assume_aligned(src1,16);
+    auto _src2 = (__typeof__(src2))__builtin_assume_aligned(src2,16);
+    auto _dst = (__typeof__(dst))__builtin_assume_aligned(dst,16);
+    for (int i = 0; i < count; ++i) {_dst[i] += _src1[i] * _src2[i];}
 }
-
-#if defined HAVE_IPP
-template<>
-inline void v_multiply_and_add(float *const R__ dst,
-                               const float *const R__ src1,
-                               const float *const R__ src2,
-                               const int count)
-{
-    ippsAddProduct_32f(src1, src2, dst, count);
-}
-template<>
-inline void v_multiply_and_add(double *const R__ dst,
-                               const double *const R__ src1,
-                               const double *const R__ src2,
-                               const int count)
-{
-    ippsAddProduct_64f(src1, src2, dst, count);
-}
-#endif
-
 template<typename T>
 inline T v_sum(const T *const R__ src,
                const int count)
@@ -331,7 +236,15 @@ inline T v_sum(const T *const R__ src,
     for (int i = 0; i < count; ++i) {result += src[i];}
     return result;
 }
-
+template<>
+inline float v_sum(const float *const R__ src, const int count)
+{
+    v4sf accum = _mm_setzero_ps();
+    for(int i = 0; i+3<count; i+=4){accum = _mm_add_ps(accum,*(v4sf*)(src+i));}
+    accum = _mm_hadd_ps(accum,accum);
+    accum = _mm_hadd_ps(accum,accum);
+    return accum[0];
+}
 template<typename T>
 inline void v_log(T *const R__ dst,
                   const int count)
@@ -339,55 +252,17 @@ inline void v_log(T *const R__ dst,
     for (int i = 0; i < count; ++i) {dst[i] = log(dst[i]);}
 }
 
-#if defined HAVE_IPP
-template<>
-inline void v_log(float *const R__ dst,
-                  const int count)
-{
-    ippsLn_32f_I(dst, count);
-}
-template<>
-inline void v_log(double *const R__ dst,
-                  const int count)
-{
-    ippsLn_64f_I(dst, count);
-}
-#elif defined HAVE_VDSP
-// no in-place vForce functions for these -- can we use the
-// out-of-place functions with equal input and output vectors? can we
-// use an out-of-place one with temporary buffer and still be faster
-// than doing it any other way?
-template<>
-inline void v_log(float *const R__ dst,
-                  const int count)
-{
-    float tmp[count];
-    vvlogf(tmp, dst, &count);
-    v_copy(dst, tmp, count);
-}
-template<>
-inline void v_log(double *const R__ dst,
-                  const int count)
-{
-    double tmp[count];
-    vvlog(tmp, dst, &count);
-    v_copy(dst, tmp, count);
-}
-#endif
 
 template<typename T>
 inline void v_exp(T *const R__ dst,const int count){for (int i = 0; i < count; ++i) {dst[i] = exp(dst[i]);}}
 
-#ifdef USE_POMMIER_MATHFUN
 template<>
 inline  void v_exp(float *const R__ dst, const int count)
 {
     int i=0;
     while(((intptr_t)(dst+i))&15){dst[i] = expf(dst[i]);i++;}
     for(; i + 4 < count; i+=4 ){
-        v4sf x = *(v4sf*)(dst+i);
-        v4sf e = exp_ps(x);
-        *(v4sf*)(dst+i) = e;
+        *(v4sf*)(dst+i)=log_ps(*(v4sf*)(dst+i));
     }
     while(i<count){dst[i] = expf(dst[i]);}
 }
@@ -397,13 +272,10 @@ inline  void v_log(float *const R__ dst, const int count)
     int i=0;
     while(((intptr_t)(dst+i))&15){dst[i] = logf(dst[i]);i++;}
     for(; i + 4 < count; i+=4 ){
-        v4sf x = *(v4sf*)(dst+i);
-        v4sf l = log_ps(x);
-        *(v4sf*)(dst+i) = l;
+        *(v4sf*)(dst+i) = log_ps(*(v4sf*)(dst+i));
     }
     while(i<count){dst[i] = logf(dst[i]);i++;}
 }
-#endif
 
 #if defined HAVE_IPP
 template<>
@@ -451,8 +323,8 @@ inline void v_sqrt(T *const R__ dst,
 template<> 
 inline void v_sqrt(float*const R__ srcdst, const int count){
     int i=0;
-    for(i=0; i+4<count;i+=4){
-        *(__m128*)(srcdst+i) = _approx_sqrt_ps (*(__m128*)(srcdst+i));
+    for(i=0; i+3<count;i+=4){
+        *(v4sf*)(srcdst+i) = _approx_sqrt_ps (*(v4sf*)(srcdst+i));
     }
     while(i<count){srcdst[i]=sqrtf(srcdst[i]);}
 }
@@ -527,12 +399,12 @@ template<>
 inline  void v_abs(float *const R__ dst, const int count)
 {
     int i=0;
-    while(((intptr_t)(dst+i))&15){dst[i] = fabsf(dst[i]);i++;}
+    while(((intptr_t)(dst+i))&15){dst[i] = std::abs(dst[i]);i++;}
     for(; i + 4 < count; i+=4 ){
         v4sf x = *(v4sf*)(dst+i);
-        *(v4sf*)(dst+i) = fabsf_ps(x);
+        *(v4sf*)(dst+i) = fabs_ps(x);
     }
-    while(i<count){dst[i] = fabsf(dst[i]);i++;}
+    while(i<count){dst[i] = fabs(dst[i]);i++;}
 }
 #if defined HAVE_IPP
 template<>

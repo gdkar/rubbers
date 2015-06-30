@@ -84,17 +84,13 @@ public:
     float getFrequencyCutoff(int n) const;
     void setFrequencyCutoff(int n, float f);
 
-    size_t getInputIncrement() const {
-        return m_increment;
-    }
+    size_t getInputIncrement() const {return m_increment;}
 
     std::vector<int> getOutputIncrements() const;
     std::vector<float> getPhaseResetCurve() const;
     std::vector<int> getExactTimePoints() const;
 
-    size_t getChannelCount() const {
-        return m_channels;
-    }
+    size_t getChannelCount() const {return m_channels;}
     
     void calculateStretch();
 
@@ -153,7 +149,13 @@ protected:
         }
     }
 
-    bool resampleBeforeStretching() const;
+    constexpr bool inline resampleBeforeStretching() const{
+        // We can't resample before stretching in offline mode, because
+        // the stretch calculation is based on doing it the other way
+        // around.  It would take more work (and testing) to enable this.
+        return m_realtime && ((m_options&OptionPitchHighQuality)?(m_pitchScale<1.0)
+                    : (m_options&OptionPitchHighConsistency)?false:(m_pitchScale>1.0));
+    }
     
     double m_timeRatio;
     double m_pitchScale;

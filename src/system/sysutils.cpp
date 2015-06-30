@@ -59,7 +59,8 @@
 #ifdef _WIN32
 #include <fstream>
 #endif
-
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 
 namespace RubberBand {
 
@@ -208,17 +209,8 @@ void clock_gettime(int, struct timespec *ts)
 
 void system_specific_initialise()
 {
-#if defined HAVE_IPP
-#ifndef USE_IPP_DYNAMIC_LIBS
-//    std::cerr << "Calling ippStaticInit" << std::endl;
-    ippStaticInit();
-#endif
-    ippSetDenormAreZeros(1);
-#elif defined HAVE_VDSP
-#if defined __i386__ || defined __x86_64__ 
-    fesetenv(FE_DFL_DISABLE_SSE_DENORMS_ENV);
-#endif
-#endif
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 #if defined __ARMEL__
     static const unsigned int x = 0x04086060;
     static const unsigned int y = 0x03000000;
@@ -234,8 +226,9 @@ void system_specific_initialise()
 #endif
 }
 
-void system_specific_application_initialise()
-{
+void system_specific_application_initialise(){
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 }
 
 

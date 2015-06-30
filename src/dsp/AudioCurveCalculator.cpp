@@ -47,4 +47,8 @@ AudioCurveCalculator::recalculateLastPerceivedBin(){
     m_lastPerceivedBin = ((MaxPerceivedFreq * m_fftSize) / m_sampleRate);
     if (m_lastPerceivedBin > m_fftSize/2) {m_lastPerceivedBin = m_fftSize/2;}
 }
+void AudioCurveCalculator::setParameters(Parameters p){
+    setSampleRate(p.sampleRate);
+    setFftSize(p.fftSize);
+}
 }

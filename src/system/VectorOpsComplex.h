@@ -67,22 +67,25 @@ inline void c_phasor(T *real, T *imag, T phase)
 #endif
 }
 void
-inline v_polar_to_cartesian_pommier(float *const R__ real,
-                             float *const R__ imag,
-                             const float *const R__ mag,
-                             const float *const R__ phase,
+inline v_polar_to_cartesian_pommier(float *const R__ _real,
+                             float *const R__ _imag,
+                             const float *const R__ _mag,
+                             const float *const R__ _phase,
                              const int count){
     int i = 0;
-
-    for (int i = 0; i + 4 < count; i += 4) {
-	__m128 fmag, fphase, fre, fim;
-        fmag = *(__m128*)(mag+i);
-        fphase = *(__m128*)(phase+i);
+    auto real  = (typeof(_real))__builtin_assume_aligned(_real,16); 
+    auto imag  = (typeof(_imag))__builtin_assume_aligned(_imag,16); 
+    auto mag   = (typeof(_mag))__builtin_assume_aligned(_mag,16); 
+    auto phase = (typeof(_phase))__builtin_assume_aligned(_phase,16); 
+    for (int i = 0; i + 3 < count; i += 4) {
+	v4sf fmag, fphase, fre, fim;
+        fmag = *(v4sf*)(mag+i);
+        fphase = *(v4sf*)(phase+i);
 	sincos_ps(fphase, &fim, &fre);
         fim = _mm_mul_ps(fim, fmag);
         fre = _mm_mul_ps(fre,fmag);
-        *(__m128*)(real + i ) = fre;
-        *(__m128*)(imag + i ) = fim;
+        *(v4sf*)(real + i ) = fre;
+        *(v4sf*)(imag + i ) = fim;
     }
     while (i < count) {
         float re, im;
@@ -94,12 +97,13 @@ inline v_polar_to_cartesian_pommier(float *const R__ real,
 }    
 
 void
-inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
+inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ _srcdst,
                                                  const int count){
     int i;
     int idx = 0, tidx = 0;
-    for (i = 0; i + 4 < count; i += 4) {
-	__m128 fmag, fphase, fre, fim;
+    auto srcdst= (typeof(_srcdst))__builtin_assume_aligned(_srcdst,16); 
+    for (i = 0; i + 3 < count; i += 4) {
+	v4sf fmag, fphase, fre, fim;
         for (int j = 0; j < 3; ++j) {
             fmag[j] = srcdst[idx++];
             fphase[j] = srcdst[idx++];
@@ -127,15 +131,15 @@ inline v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
                                          const float *const R__ phase,
                                          const int count){
     int i;
-    for (i = 0; i + 4 <= count; i += 4) {
-	__m128 fmag, fphase, fre, fim;
-        fmag = *(__m128*)(mag+i);
-        fphase = *(__m128*)(phase+i);
+    for (i = 0; i + 3 <= count; i += 4) {
+	v4sf fmag, fphase, fre, fim;
+        fmag = *(v4sf*)(mag+i);
+        fphase = *(v4sf*)(phase+i);
 	sincos_ps(fphase, &fim, &fre);
         fim = _mm_mul_ps(fim, fmag);
         fre = _mm_mul_ps(fre,fmag);
-        *(__m128*)(dst+(2*i))   = _mm_unpacklo_ps(fre,fim);
-        *(__m128*)(dst+(2*i+4)) = _mm_unpackhi_ps(fre,fim);
+        *(v4sf*)(dst+(2*i))   = _mm_unpacklo_ps(fre,fim);
+        *(v4sf*)(dst+(2*i+4)) = _mm_unpackhi_ps(fre,fim);
     }
     while (i < count) {
         float real, imag;
@@ -229,7 +233,6 @@ void v_polar_to_cartesian_interleaved(T *const R__ dst,
     }
 }    
 
-#if defined USE_POMMIER_MATHFUN
 template<>
 inline void v_polar_to_cartesian(float *const R__ real,
                                  float *const R__ imag,
@@ -254,9 +257,6 @@ inline void v_polar_to_cartesian_interleaved(float *const R__ dst,
 {
     v_polar_to_cartesian_interleaved_pommier(dst, mag, phase, count);
 }
-
-#endif
-
 template<typename S, typename T> // S source, T target
 void v_cartesian_to_polar(T *const R__ mag,
                           T *const R__ phase,
@@ -279,40 +279,8 @@ void v_cartesian_interleaved_to_polar(T *const R__ mag,
         c_magphase<T>(mag + i, phase + i, src[i*2], src[i*2+1]);
     }
 }
-#ifdef HAVE_VDSP
-template<>
-inline void v_cartesian_to_polar(float *const R__ mag,
-                                 float *const R__ phase,
-                                 const float *const R__ real,
-                                 const float *const R__ imag,
-                                 const int count)
-{
-    DSPSplitComplex c;
-    c.realp = const_cast<float *>(real);
-    c.imagp = const_cast<float *>(imag);
-    vDSP_zvmags(&c, 1, phase, 1, count); // using phase as a temporary dest
-    vvsqrtf(mag, phase, &count); // using phase as the source
-    vvatan2f(phase, imag, real, &count);
-}
-template<>
-inline void v_cartesian_to_polar(double *const R__ mag,
-                                 double *const R__ phase,
-                                 const double *const R__ real,
-                                 const double *const R__ imag,
-                                 const int count)
-{
-    // double precision, this is significantly faster than using vDSP_polar
-    DSPDoubleSplitComplex c;
-    c.realp = const_cast<double *>(real);
-    c.imagp = const_cast<double *>(imag);
-    vDSP_zvmagsD(&c, 1, phase, 1, count); // using phase as a temporary dest
-    vvsqrt(mag, phase, &count); // using phase as the source
-    vvatan2(phase, imag, real, &count);
-}
-#endif
-
 template<typename T>
-void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
+inline void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
                                               const int count)
 {
     T mag, phase;
@@ -323,13 +291,17 @@ void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
     }
 }
 template<>
-inline void v_cartesian_to_polar(float *const R__ mag,
-                                 float *const R__ phase,
-                                 const float *const R__ real,
-                                 const float *const R__ imag,
+inline void v_cartesian_to_polar(float *const R__ _mag,
+                                 float *const R__ _phase,
+                                 const float *const R__ _real,
+                                 const float *const R__ _imag,
                                  const int count)
 {
     int i;
+    auto mag = (typeof(_mag))__builtin_assume_aligned(_mag,16);
+    auto phase = (typeof(_phase))__builtin_assume_aligned(_phase,16);
+    auto real  = (typeof(_real))__builtin_assume_aligned(_real,16);
+    auto imag  = (typeof(_imag))__builtin_assume_aligned(_imag,16);
     for(i=0;i+4<count;i+=4){
         _approx_magphase_ps ( (v4sf*)(mag + i), (v4sf*)(phase+i),
                 *(v4sf*)(real+i),*(v4sf*)(imag+i));

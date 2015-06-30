@@ -554,7 +554,6 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
         std::cerr << "region of " << df.size() << " chunks, output duration " << duration << ", increment " << m_increment << ", toAllot " << toAllot << std::endl;
     }
     size_t totalIncrement = 0;
-
     // We place limits on the amount of displacement per chunk.  if
     // ratio < 0, no increment should be larger than increment*ratio
     // or smaller than increment*ratio/2; if ratio > 0, none should be
@@ -697,16 +696,8 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
         increments.push_back(increment);
         totalIncrement += increment;
         totalDisplacement -= displacement;
-        if (m_debugLevel > 2) {
-            std::cerr << "df " << df[i] << ", smoothed " << df[i] << ", disp " << displacement << ", allot " << theoreticalAllotment << ", incr " << increment << ", remain " << toAllot << std::endl;
-        }
     }
-    if (m_debugLevel > 2) {
-        std::cerr << "total increment: " << totalIncrement << ", left over: " << toAllot << " to allot, displacement " << totalDisplacement << std::endl;
-    }
-    if (totalIncrement != duration) {
-        std::cerr << "*** WARNING: calculated output duration " << totalIncrement << " != expected " << duration << std::endl;
-    }
+
     return increments;
 }
 void

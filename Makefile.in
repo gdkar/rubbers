@@ -1,5 +1,5 @@
 
-OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math\
+OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math -fwrapv\
 	-march=native -ftree-vectorize -funsafe-math-optimizations
 PREFIX		:= @prefix@
 CXX		:= @CXX@

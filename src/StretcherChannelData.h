@@ -52,10 +52,7 @@ public:
      * the pitch scale factor and any maximum processing block
      * size specified by the user of the code.
      */
-    ChannelData(size_t windowSize,
-                size_t fftSize,
-                size_t outbufSize);
-
+    ChannelData(size_t windowSize,size_t fftSize,size_t outbufSize);
     /**
      * Construct a ChannelData structure that can process at different
      * FFT sizes without requiring reallocation when the size changes.
@@ -67,17 +64,13 @@ public:
      * avoid reallocation, which will happen if setOutbufSize is
      * called subsequently.
      */
-    ChannelData(const std::set<size_t> &sizes,
-                size_t initialWindowSize,
-                size_t initialFftSize,
-                size_t outbufSize);
+    ChannelData(std::initializer_list<size_t> sizes, size_t initalWindowSize, size_t initialFFTSize, size_t outbufSize);
+    ChannelData(const std::set<size_t> &sizes,size_t initialWindowSize,size_t initialFftSize,size_t outbufSize);
     ~ChannelData();
-
     /**
      * Reset buffers
      */
     void reset();
-
     /**
      * Set the FFT, analysis window, and buffer sizes.  If this
      * ChannelData was constructed with a set of sizes and the given
@@ -85,22 +78,18 @@ public:
      * be required.
      */
     void setSizes(size_t windowSize, size_t fftSizes);
-
     /**
      * Set the outbufSize for the channel data.  Reallocation will
      * occur.
      */
     void setOutbufSize(size_t outbufSize);
-
     /**
      * Set the resampler buffer size.  Default if not called is no
      * buffer allocated at all.
      */
     void setResampleBufSize(size_t resamplebufSize);
-    
     RingBuffer<float> *inbuf;
     RingBuffer<float> *outbuf;
-
     float *mag;
     float *phase;
 
@@ -138,9 +127,7 @@ public:
     size_t resamplebufSize;
 
 private:
-    void construct(const std::set<size_t> &sizes,
-                   size_t initialWindowSize, size_t initialFftSize,
-                   size_t outbufSize);
+    void construct(const std::set<size_t> &sizes,size_t initialWindowSize, size_t initialFftSize,size_t outbufSize);
 };        
 
 }

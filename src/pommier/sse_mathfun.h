@@ -11,7 +11,14 @@
    the SSE2 intrinsics will be used in place of the MMX intrinsics. Do
    not expect any significant performance improvement with SSE2.
 */
+/* Copyright (C) 2015 Gabriel D. Karpman 
+   under original zlib license ( see below. )
 
+   dropped SSE1 restriction / non-SSE2 support; added fast approximate 
+   divide, sqrt, invsqrt,atan2, hypot and magphase on behalf of 
+   librubberband, for polar <--> cartesian handling. added bindings to
+   fabs_ps via _mm_and_ps
+*/
 /* Copyright (C) 2007  Julien Pommier
 
   This software is provided 'as-is', without any express or implied
@@ -34,6 +41,7 @@
 */
 
 #include <xmmintrin.h>
+# include <emmintrin.h>
 
 /* yes I know, the top of this file is quite ugly */
 
@@ -46,13 +54,8 @@
 #endif
 /* __m128 is ugly to write */
 typedef __m128 v4sf;  // vector of 4 float (sse1)
-
-#ifdef USE_SSE2
-# include <emmintrin.h>
 typedef __m128i v4si; // vector of 4 int (sse2)
-#else
-typedef __m64 v2si;   // vector of 2 int (mmx)
-#endif
+
 #include <math.h>
 #include <cmath>
 
@@ -93,110 +96,24 @@ _PS_CONST(cephes_log_p8, + 3.3333331174E-1);
 _PS_CONST(cephes_log_q1, -2.12194440e-4);
 _PS_CONST(cephes_log_q2, 0.693359375);
 
-#if defined (__MINGW32__)
-
-/* the ugly part below: many versions of gcc used to be completely buggy with respect to some intrinsics
-   The movehl_ps is fixed in mingw 3.4.5, but I found out that all the _mm_cmp* intrinsics were completely
-   broken on my mingw gcc 3.4.5 ...
-
-   Note that the bug on _mm_cmp* does occur only at -O0 optimization level
-*/
-
-inline __m128 my_movehl_ps(__m128 a, const __m128 b) {
-	asm (
-			"movhlps %2,%0\n\t"
-			: "=x" (a)
-			: "0" (a), "x"(b)
-	    );
-	return a;                                 }
-#warning "redefined _mm_movehl_ps (see gcc bug 21179)"
-#define _mm_movehl_ps my_movehl_ps
-
-inline __m128 my_cmplt_ps(__m128 a, const __m128 b) {
-	asm (
-			"cmpltps %2,%0\n\t"
-			: "=x" (a)
-			: "0" (a), "x"(b)
-	    );
-	return a;               
-                  }
-inline __m128 my_cmpgt_ps(__m128 a, const __m128 b) {
-	asm (
-			"cmpnleps %2,%0\n\t"
-			: "=x" (a)
-			: "0" (a), "x"(b)
-	    );
-	return a;               
-}
-inline __m128 my_cmpeq_ps(__m128 a, const __m128 b) {
-	asm (
-			"cmpeqps %2,%0\n\t"
-			: "=x" (a)
-			: "0" (a), "x"(b)
-	    );
-	return a;               
-}
-#warning "redefined _mm_cmpxx_ps functions..."
-#define _mm_cmplt_ps my_cmplt_ps
-#define _mm_cmpgt_ps my_cmpgt_ps
-#define _mm_cmpeq_ps my_cmpeq_ps
-#endif
-
-#ifndef USE_SSE2
-typedef union xmm_mm_union {
-  __m128 xmm;
-  __m64 mm[2];
-} xmm_mm_union;
-
-#define COPY_XMM_TO_MM(xmm_, mm0_, mm1_) {          \
-    xmm_mm_union u; u.xmm = xmm_;                   \
-    mm0_ = u.mm[0];                                 \
-    mm1_ = u.mm[1];                                 \
-}
-
-#define COPY_MM_TO_XMM(mm0_, mm1_, xmm_) {                         \
-    xmm_mm_union u; u.mm[0]=mm0_; u.mm[1]=mm1_; xmm_ = u.xmm;      \
-  }
-
-#endif // USE_SSE2
-
 /* natural logarithm computed for 4 simultaneous float 
    return NaN for x <= 0
 */
 static inline v4sf log_ps(v4sf x) {
-#ifdef USE_SSE2
   v4si emm0;
-#else
-  v2si mm0, mm1;
-#endif
   v4sf one = *(v4sf*)_ps_1;
 
   v4sf invalid_mask = _mm_cmple_ps(x, _mm_setzero_ps());
 
   x = _mm_max_ps(x, *(v4sf*)_ps_min_norm_pos);  /* cut off denormalized stuff */
 
-#ifndef USE_SSE2
-  /* part 1: x = frexpf(x, &e); */
-  COPY_XMM_TO_MM(x, mm0, mm1);
-  mm0 = _mm_srli_pi32(mm0, 23);
-  mm1 = _mm_srli_pi32(mm1, 23);
-#else
   emm0 = _mm_srli_epi32(_mm_castps_si128(x), 23);
-#endif
   /* keep only the fractional part */
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_mant_mask);
   x = _mm_or_ps(x, *(v4sf*)_ps_0p5);
 
-#ifndef USE_SSE2
-  /* now e=mm0:mm1 contain the really base-2 exponent */
-  mm0 = _mm_sub_pi32(mm0, *(v2si*)_pi32_0x7f);
-  mm1 = _mm_sub_pi32(mm1, *(v2si*)_pi32_0x7f);
-  v4sf e = _mm_cvtpi32x2_ps(mm0, mm1);
-  _mm_empty(); /* bye bye mmx */
-#else
   emm0 = _mm_sub_epi32(emm0, *(v4si*)_pi32_0x7f);
   v4sf e = _mm_cvtepi32_ps(emm0);
-#endif
 
   e = _mm_add_ps(e, one);
 
@@ -267,11 +184,7 @@ _PS_CONST(cephes_exp_p5, 5.0000001201E-1);
 
 static inline v4sf exp_ps(v4sf x) {
   v4sf tmp = _mm_setzero_ps(), fx;
-#ifdef USE_SSE2
-  v4si emm0;
-#else
-  v2si mm0, mm1;
-#endif
+  v4sf emm0;
   v4sf one = *(v4sf*)_ps_1;
 
   x = _mm_min_ps(x, *(v4sf*)_ps_exp_hi);
@@ -282,17 +195,9 @@ static inline v4sf exp_ps(v4sf x) {
   fx = _mm_add_ps(fx, *(v4sf*)_ps_0p5);
 
   /* how to perform a floorf with SSE: just below */
-#ifndef USE_SSE2
-  /* step 1 : cast to int */
-  tmp = _mm_movehl_ps(tmp, fx);
-  mm0 = _mm_cvttps_pi32(fx);
-  mm1 = _mm_cvttps_pi32(tmp);
-  /* step 2 : cast back to float */
-  tmp = _mm_cvtpi32x2_ps(mm0, mm1);
-#else
+
   emm0 = _mm_cvttps_epi32(fx);
   tmp  = _mm_cvtepi32_ps(emm0);
-#endif
   /* if greater, substract 1 */
   v4sf mask = _mm_cmpgt_ps(tmp, fx);    
   mask = _mm_and_ps(mask, one);
@@ -321,24 +226,10 @@ static inline v4sf exp_ps(v4sf x) {
   y = _mm_add_ps(y, one);
 
   /* build 2^n */
-#ifndef USE_SSE2
-  z = _mm_movehl_ps(z, fx);
-  mm0 = _mm_cvttps_pi32(fx);
-  mm1 = _mm_cvttps_pi32(z);
-  mm0 = _mm_add_pi32(mm0, *(v2si*)_pi32_0x7f);
-  mm1 = _mm_add_pi32(mm1, *(v2si*)_pi32_0x7f);
-  mm0 = _mm_slli_pi32(mm0, 23); 
-  mm1 = _mm_slli_pi32(mm1, 23);
-  
-  v4sf pow2n; 
-  COPY_MM_TO_XMM(mm0, mm1, pow2n);
-  _mm_empty();
-#else
   emm0 = _mm_cvttps_epi32(fx);
   emm0 = _mm_add_epi32(emm0, *(v4si*)_pi32_0x7f);
   emm0 = _mm_slli_epi32(emm0, 23);
   v4sf pow2n = _mm_castsi128_ps(emm0);
-#endif
   y = _mm_mul_ps(y, pow2n);
   return y;
 }
@@ -355,9 +246,7 @@ _PS_CONST(coscof_p2,  4.166664568298827E-002);
 _PS_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
 
 
-/* evaluation of 4 sines at onces, using only SSE1+MMX intrinsics so
-   it runs also on old athlons XPs and the pentium III of your grand
-   mother.
+/* evaluation of 4 sines at onces, using only SSE+MMX intrinsics 
 
    The code is the exact rewriting of the cephes sinf function.
    Precision is excellent as long as x < 8192 (I did not bother to
@@ -371,7 +260,7 @@ _PS_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
    Performance is also surprisingly good, 1.33 times faster than the
    macos vsinf SSE2 function, and 1.5 times faster than the
    __vrs4_sinf of amd's ACML (which is only available in 64 bits). Not
-   too bad for an SSE1 function (with no special tuning) !
+   too bad for an SSE function (with no special tuning) !
    However the latter libraries probably have a much better handling of NaN,
    Inf, denormalized and other special arguments..
 
@@ -385,24 +274,15 @@ _PS_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
 */
 static inline v4sf sin_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
-
-#ifdef USE_SSE2
   v4si emm0, emm2;
-#else
-  v2si mm0, mm1, mm2, mm3;
-#endif
-  sign_bit = x;
+  /* extract the sign bit (upper one) */
+  sign_bit = _mm_and_ps(x, *(v4sf*)_ps_sign_mask);
   /* take the absolute value */
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
-  /* extract the sign bit (upper one) */
-  sign_bit = _mm_and_ps(sign_bit, *(v4sf*)_ps_sign_mask);
-  
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
-
   //printf("plop:"); print4(y); 
-#ifdef USE_SSE2
-  /* store the integer part of y in mm0 */
+  /* store the integer part of y in emm2 */
   emm2 = _mm_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
   emm2 = _mm_add_epi32(emm2, *(v4si*)_pi32_1);
@@ -414,7 +294,6 @@ static inline v4sf sin_ps(v4sf x) { // any x
   /* get the polynom selection mask 
      there is one polynom for 0 <= x <= Pi/4
      and another one for Pi/4<x<=Pi/2
-
      Both branches will be computed.
   */
   emm2 = _mm_and_si128(emm2, *(v4si*)_pi32_2);
@@ -423,33 +302,6 @@ static inline v4sf sin_ps(v4sf x) { // any x
   v4sf swap_sign_bit = _mm_castsi128_ps(emm0);
   v4sf poly_mask = _mm_castsi128_ps(emm2);
   sign_bit = _mm_xor_ps(sign_bit, swap_sign_bit);
-#else
-  /* store the integer part of y in mm0:mm1 */
-  xmm2 = _mm_movehl_ps(xmm2, y);
-  mm2 = _mm_cvttps_pi32(y);
-  mm3 = _mm_cvttps_pi32(xmm2);
-  /* j=(j+1) & (~1) (see the cephes sources) */
-  mm2 = _mm_add_pi32(mm2, *(v2si*)_pi32_1);
-  mm3 = _mm_add_pi32(mm3, *(v2si*)_pi32_1);
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_inv1);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_inv1);
-  y = _mm_cvtpi32x2_ps(mm2, mm3);
-  /* get the swap sign flag */
-  mm0 = _mm_and_si64(mm2, *(v2si*)_pi32_4);
-  mm1 = _mm_and_si64(mm3, *(v2si*)_pi32_4);
-  mm0 = _mm_slli_pi32(mm0, 29);
-  mm1 = _mm_slli_pi32(mm1, 29);
-  /* get the polynom selection mask */
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_2);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_2);
-  mm2 = _mm_cmpeq_pi32(mm2, _mm_setzero_si64());
-  mm3 = _mm_cmpeq_pi32(mm3, _mm_setzero_si64());
-  v4sf swap_sign_bit, poly_mask;
-  COPY_MM_TO_XMM(mm0, mm1, swap_sign_bit);
-  COPY_MM_TO_XMM(mm2, mm3, poly_mask);
-  sign_bit = _mm_xor_ps(sign_bit, swap_sign_bit);
-  _mm_empty(); /* good-bye mmx */
-#endif
   
   /* The magic pass: "Extended precision modular arithmetic" 
      x = ((x - y * DP1) - y * DP2) - y * DP3; */
@@ -502,18 +354,13 @@ static inline v4sf sin_ps(v4sf x) { // any x
 /* almost the same as sin_ps */
 static inline v4sf cos_ps(v4sf x) { // any x
   v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
-#ifdef USE_SSE2
   v4si emm0, emm2;
-#else
-  v2si mm0, mm1, mm2, mm3;
-#endif
   /* take the absolute value */
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
   
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
   
-#ifdef USE_SSE2
   /* store the integer part of y in mm0 */
   emm2 = _mm_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
@@ -532,43 +379,6 @@ static inline v4sf cos_ps(v4sf x) { // any x
   
   v4sf sign_bit = _mm_castsi128_ps(emm0);
   v4sf poly_mask = _mm_castsi128_ps(emm2);
-#else
-  /* store the integer part of y in mm0:mm1 */
-  xmm2 = _mm_movehl_ps(xmm2, y);
-  mm2 = _mm_cvttps_pi32(y);
-  mm3 = _mm_cvttps_pi32(xmm2);
-
-  /* j=(j+1) & (~1) (see the cephes sources) */
-  mm2 = _mm_add_pi32(mm2, *(v2si*)_pi32_1);
-  mm3 = _mm_add_pi32(mm3, *(v2si*)_pi32_1);
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_inv1);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_inv1);
-
-  y = _mm_cvtpi32x2_ps(mm2, mm3);
-
-
-  mm2 = _mm_sub_pi32(mm2, *(v2si*)_pi32_2);
-  mm3 = _mm_sub_pi32(mm3, *(v2si*)_pi32_2);
-
-  /* get the swap sign flag in mm0:mm1 and the 
-     polynom selection mask in mm2:mm3 */
-
-  mm0 = _mm_andnot_si64(mm2, *(v2si*)_pi32_4);
-  mm1 = _mm_andnot_si64(mm3, *(v2si*)_pi32_4);
-  mm0 = _mm_slli_pi32(mm0, 29);
-  mm1 = _mm_slli_pi32(mm1, 29);
-
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_2);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_2);
-
-  mm2 = _mm_cmpeq_pi32(mm2, _mm_setzero_si64());
-  mm3 = _mm_cmpeq_pi32(mm3, _mm_setzero_si64());
-
-  v4sf sign_bit, poly_mask;
-  COPY_MM_TO_XMM(mm0, mm1, sign_bit);
-  COPY_MM_TO_XMM(mm2, mm3, poly_mask);
-  _mm_empty(); /* good-bye mmx */
-#endif
   /* The magic pass: "Extended precision modular arithmetic" 
      x = ((x - y * DP1) - y * DP2) - y * DP3; */
   xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
@@ -621,11 +431,7 @@ static inline v4sf cos_ps(v4sf x) { // any x
    it is almost as fast, and gives you a free cosine with your sine */
 static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   v4sf xmm1, xmm2, xmm3 = _mm_setzero_ps(), sign_bit_sin, y;
-#ifdef USE_SSE2
   v4si emm0, emm2, emm4;
-#else
-  v2si mm0, mm1, mm2, mm3, mm4, mm5;
-#endif
   sign_bit_sin = x;
   /* take the absolute value */
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
@@ -635,7 +441,6 @@ static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   /* scale by 4/Pi */
   y = _mm_mul_ps(x, *(v4sf*)_ps_cephes_FOPI);
     
-#ifdef USE_SSE2
   /* store the integer part of y in emm2 */
   emm2 = _mm_cvttps_epi32(y);
 
@@ -655,41 +460,6 @@ static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   emm2 = _mm_and_si128(emm2, *(v4si*)_pi32_2);
   emm2 = _mm_cmpeq_epi32(emm2, _mm_setzero_si128());
   v4sf poly_mask = _mm_castsi128_ps(emm2);
-#else
-  /* store the integer part of y in mm2:mm3 */
-  xmm3 = _mm_movehl_ps(xmm3, y);
-  mm2 = _mm_cvttps_pi32(y);
-  mm3 = _mm_cvttps_pi32(xmm3);
-
-  /* j=(j+1) & (~1) (see the cephes sources) */
-  mm2 = _mm_add_pi32(mm2, *(v2si*)_pi32_1);
-  mm3 = _mm_add_pi32(mm3, *(v2si*)_pi32_1);
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_inv1);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_inv1);
-
-  y = _mm_cvtpi32x2_ps(mm2, mm3);
-
-  mm4 = mm2;
-  mm5 = mm3;
-
-  /* get the swap sign flag for the sine */
-  mm0 = _mm_and_si64(mm2, *(v2si*)_pi32_4);
-  mm1 = _mm_and_si64(mm3, *(v2si*)_pi32_4);
-  mm0 = _mm_slli_pi32(mm0, 29);
-  mm1 = _mm_slli_pi32(mm1, 29);
-  v4sf swap_sign_bit_sin;
-  COPY_MM_TO_XMM(mm0, mm1, swap_sign_bit_sin);
-
-  /* get the polynom selection mask for the sine */
-
-  mm2 = _mm_and_si64(mm2, *(v2si*)_pi32_2);
-  mm3 = _mm_and_si64(mm3, *(v2si*)_pi32_2);
-  mm2 = _mm_cmpeq_pi32(mm2, _mm_setzero_si64());
-  mm3 = _mm_cmpeq_pi32(mm3, _mm_setzero_si64());
-  v4sf poly_mask;
-  COPY_MM_TO_XMM(mm2, mm3, poly_mask);
-#endif
-
   /* The magic pass: "Extended precision modular arithmetic" 
      x = ((x - y * DP1) - y * DP2) - y * DP3; */
   xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
@@ -702,26 +472,12 @@ static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   x = _mm_add_ps(x, xmm2);
   x = _mm_add_ps(x, xmm3);
 
-#ifdef USE_SSE2
   emm4 = _mm_sub_epi32(emm4, *(v4si*)_pi32_2);
   emm4 = _mm_andnot_si128(emm4, *(v4si*)_pi32_4);
   emm4 = _mm_slli_epi32(emm4, 29);
   v4sf sign_bit_cos = _mm_castsi128_ps(emm4);
-#else
-  /* get the sign flag for the cosine */
-  mm4 = _mm_sub_pi32(mm4, *(v2si*)_pi32_2);
-  mm5 = _mm_sub_pi32(mm5, *(v2si*)_pi32_2);
-  mm4 = _mm_andnot_si64(mm4, *(v2si*)_pi32_4);
-  mm5 = _mm_andnot_si64(mm5, *(v2si*)_pi32_4);
-  mm4 = _mm_slli_pi32(mm4, 29);
-  mm5 = _mm_slli_pi32(mm5, 29);
-  v4sf sign_bit_cos;
-  COPY_MM_TO_XMM(mm4, mm5, sign_bit_cos);
-  _mm_empty(); /* good-bye mmx */
-#endif
 
   sign_bit_sin = _mm_xor_ps(sign_bit_sin, swap_sign_bit_sin);
-
   
   /* Evaluate the first polynom  (0 <= x <= Pi/4) */
   v4sf z = _mm_mul_ps(x,x);
@@ -763,9 +519,9 @@ static inline void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   *c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
 static inline v4sf recip_ps(v4sf x ){
-  v4sf rcp = _mm_rcp_ps( x );
-  v4sf _2rcp= _mm_add_ps ( rcp, rcp );
-  v4sf rcp2= _mm_mul_ps ( rcp, rcp );
+  v4sf rcp    = _mm_rcp_ps( x );
+  v4sf _2rcp  = _mm_add_ps ( rcp, rcp );
+  v4sf rcp2   = _mm_mul_ps ( rcp, rcp );
   return _mm_sub_ps ( _2rcp, _mm_mul_ps ( x, rcp2 ) );
 }
 static inline v4sf _approx_div_ps ( v4sf x, v4sf y ){return _mm_mul_ps ( recip_ps ( y ), x );}
@@ -775,13 +531,10 @@ _PS_CONST(isqrt_c1, -0.5f);
 static inline v4sf _approx_rsqrt_ps( v4sf x )
 {
   const v4sf y0 = _mm_rsqrt_ps ( x );
-  const v4sf minus_half_x =
-    _mm_mul_ps(*(v4sf*)_ps_isqrt_c0 ,x );
-  const v4sf y0_2 = _mm_mul_ps(y0,y0);
-  const v4sf three_halfs_y0 =
-    _mm_mul_ps(*(v4sf*)_ps_isqrt_c1,y0);
-  return _mm_add_ps(three_halfs_y0,
-      _mm_mul_ps(y0_2,minus_half_x));
+  const v4sf minus_half_x   = _mm_mul_ps(*(v4sf*)_ps_isqrt_c0 ,x );
+  const v4sf y0_2           = _mm_mul_ps(y0,y0);
+  const v4sf three_halfs_y0 = _mm_mul_ps(*(v4sf*)_ps_isqrt_c1,y0);
+  return _mm_add_ps(three_halfs_y0,_mm_mul_ps(y0_2,minus_half_x));
 }
 static inline v4sf _approx_sqrt_ps ( v4sf x )
 {return _mm_mul_ps ( x, _mm_rsqrt_ps ( x ) );}
@@ -805,11 +558,10 @@ static inline v4sf _approx_atan2_ps ( v4sf y, v4sf x )
        angle2= _mm_add_ps(*(v4sf*)_ps_approx_atan2_pi_2,angle2);
   return  _mm_xor_ps(angle2,sign_bit_y);
 }
-static inline v4sf fabsf_ps ( v4sf x ){return   _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);}
-
+static inline v4sf fabs_ps ( v4sf x ){return   _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);}
 static inline void _approx_magphase_ps (v4sf *mag, v4sf *phase, v4sf real, v4sf imag){
   *phase = _approx_atan2_ps(imag,real);
   *mag   = _approx_sqrt_ps ( _mm_add_ps ( _mm_mul_ps ( real, real ),
-                                         _mm_mul_ps ( imag, imag ) ) );}
-  /* take the absolute value */
+                                         _mm_mul_ps ( imag, imag ) ) );
+}
 #endif

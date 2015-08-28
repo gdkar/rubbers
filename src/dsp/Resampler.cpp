@@ -64,13 +64,13 @@ namespace RubberBand {
 class ResamplerImpl{
 public:
     virtual ~ResamplerImpl() { }
-    virtual int resample(const float *const R__ *const R__ in, 
-                         float *const R__ *const R__ out,
+    virtual int resample(const float *const *const  in, 
+                         float *const  *const  out,
                          int incount,
                          float ratio,
                          bool final) = 0;
-    virtual int resampleInterleaved(const float *const R__ in, 
-                                    float *const R__ out,
+    virtual int resampleInterleaved(const float *const  in, 
+                                    float *const  out,
                                     int incount,
                                     float ratio,
                                     bool final) = 0;
@@ -83,13 +83,13 @@ class D_IPP : public ResamplerImpl{
 public:
     D_IPP(Resampler::Quality quality, int channels, int maxBufferSize,int debugLevel);
     virtual ~D_IPP();
-    int resample(const float *const R__ *const R__ in,
-                 float *const R__ *const R__ out,
+    int resample(const float *const  *const  in,
+                 float *const  *const  out,
                  int incount,
                  float ratio,
                  bool final);
-    int resampleInterleaved(const float *const R__ in,
-                            float *const R__ out,
+    int resampleInterleaved(const float *const  in,
+                            float *const  out,
                             int incount,
                             float ratio,
                             bool final = false);
@@ -194,8 +194,8 @@ D_IPP::setBufSize(int sz){
     m_outbufsz = n2;
 }
 int
-D_IPP::resample(const float *const R__ *const R__ in,
-                float *const R__ *const R__ out,
+D_IPP::resample(const float *const  *const  in,
+                float *const  *const  out,
                 int incount,
                 float ratio,
                 bool final)
@@ -261,8 +261,8 @@ D_IPP::resample(const float *const R__ *const R__ in,
     return outcount;
 }
 int
-D_IPP::resampleInterleaved(const float *const R__ in,
-                           float *const R__ out,
+D_IPP::resampleInterleaved(const float *const  in,
+                           float *const  out,
                            int incount,
                            float ratio,
                            bool final)
@@ -344,14 +344,14 @@ public:
           int m_debugLevel);
     virtual ~D_SRC();
 
-    int resample(const float *const R__ *const R__ in,
-                 float *const R__ *const R__ out,
+    int resample(const float *const  *const  in,
+                 float *const  *const  out,
                  int incount,
                  float ratio,
                  bool final);
 
-    int resampleInterleaved(const float *const R__ in,
-                            float *const R__ out,
+    int resampleInterleaved(const float *const  in,
+                            float *const  out,
                             int incount,
                             float ratio,
                             bool final = false);
@@ -410,8 +410,8 @@ D_SRC::D_SRC(Resampler::Quality quality, int channels, int maxBufferSize,
 }
 D_SRC::~D_SRC(){src_delete(m_src);}
 int
-D_SRC::resample(const float *const R__ *const R__ in,
-                float *const R__ *const R__ out,
+D_SRC::resample(const float *const  *const  in,
+                float *const  *const  out,
                 int incount,
                 float ratio,
                 bool final){
@@ -449,8 +449,8 @@ D_SRC::resample(const float *const R__ *const R__ in,
     return data.output_frames_gen;
 }
 int
-D_SRC::resampleInterleaved(const float *const R__ in,
-                           float *const R__ out,
+D_SRC::resampleInterleaved(const float *const  in,
+                           float *const  out,
                            int incount,
                            float ratio,
                            bool final){
@@ -482,13 +482,13 @@ class D_Resample : public ResamplerImpl{
 public:
     D_Resample(Resampler::Quality quality, int channels, int maxBufferSize, int m_debugLevel);
     virtual ~D_Resample();
-    int resample(const float *const R__ *const R__ in,
-                 float *const R__ *const R__ out,
+    int resample(const float *const  *const  in,
+                 float *const  *const  out,
                  int incount,
                  float ratio,
                  bool final);
-    int resampleInterleaved(const float *const R__ in,
-                            float *const R__ out,
+    int resampleInterleaved(const float *const  in,
+                            float *const  out,
                             int incount,
                             float ratio,
                             bool final);
@@ -536,8 +536,8 @@ D_Resample::D_Resample(Resampler::Quality quality, int channels, int maxBufferSi
 }
 D_Resample::~D_Resample(){resample_close(m_src);}
 int
-D_Resample::resample(const float *const R__ *const R__ in,
-                     float *const R__ *const R__ out,
+D_Resample::resample(const float *const  *const  in,
+                     float *const  *const  out,
                      int incount,
                      float ratio,
                      bool final){
@@ -588,8 +588,8 @@ D_Resample::resample(const float *const R__ *const R__ in,
 }
 
 int
-D_Resample::resampleInterleaved(const float *const R__ in,
-                                float *const R__ out,
+D_Resample::resampleInterleaved(const float *const  in,
+                                float *const  out,
                                 int incount,
                                 float ratio,
                                 bool final)
@@ -629,13 +629,13 @@ class D_Speex : public ResamplerImpl{
 public:
     D_Speex(Resampler::Quality quality, int channels, int maxBufferSize,int debugLevel);
     virtual ~D_Speex();
-    int resample(const float *const R__ *const R__ in,
-                 float *const R__ *const R__ out,
+    int resample(const float *const  *const  in,
+                 float *const  *const  out,
                  int incount,
                  float ratio,
                  bool final);
-    int resampleInterleaved(const float *const R__ in,
-                            float *const R__ out,
+    int resampleInterleaved(const float *const  in,
+                            float *const  out,
                             int incount,
                             float ratio,
                             bool final = false);
@@ -731,8 +731,8 @@ D_Speex::setRatio(float ratio){
     }
 }
 int
-D_Speex::resample(const float *const R__ *const R__ in,
-                  float *const R__ *const R__ out,
+D_Speex::resample(const float *const  *const  in,
+                  float *const  *const  out,
                   int incount,
                   float ratio,
                   bool final){
@@ -777,8 +777,8 @@ D_Speex::resample(const float *const R__ *const R__ in,
 }
 
 int
-D_Speex::resampleInterleaved(const float *const R__ in,
-                             float *const R__ out,
+D_Speex::resampleInterleaved(const float *const  in,
+                             float *const  out,
                              int incount,
                              float ratio,
                              bool final)
@@ -915,7 +915,7 @@ Resampler::Resampler(Resampler::Quality quality, int channels,
 Resampler::~Resampler(){}
 
 int 
-Resampler::resample(const float *const R__ *in,float *const *const out,int incount, float ratio, bool final){
+Resampler::resample(const float *const  *in,float *const *const out,int incount, float ratio, bool final){
     Profiler profiler("Resampler::resample");
     return d->resample(in, out, incount, ratio, final);
 }

@@ -28,16 +28,12 @@
 #include <fcntl.h>
 #include <io.h>
 #else /* !_WIN32 */
-#include <signal.h>
 #include <unistd.h>
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-#else /* !__APPLE__, !_WIN32 */
-#include <stdio.h>
-#include <string.h>
-#endif /* !__APPLE__, !_WIN32 */
+#endif
 #endif /* !_WIN32 */
 
 #ifdef __sun
@@ -45,6 +41,9 @@
 #endif
 
 #include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <csignal>
 #include <iostream>
 
 #ifdef HAVE_IPP
@@ -61,7 +60,7 @@
 #endif
 #include <xmmintrin.h>
 #include <pmmintrin.h>
-
+#include "dsp/FFT.h"
 namespace RubberBand {
 
 const char *
@@ -229,6 +228,8 @@ void system_specific_initialise()
 void system_specific_application_initialise(){
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+
+    std::cerr << FFT::tune();
 }
 
 

@@ -113,9 +113,7 @@ public:
     static std::string getDefaultImplementation();
     static void setDefaultImplementation(std::string);
 
-#ifdef FFT_MEASUREMENT
     static std::string tune();
-#endif
 
 protected:
     FFTImpl *d;

@@ -40,8 +40,8 @@ class MovingMedian : public SampleFilter<T>{
     std::unique_ptr<T[]> m_frame        = nullptr;
     std::unique_ptr<T[]> m_sorted       = nullptr;
     T *                  m_sorted_end   = nullptr;
-    size_t      m_index                    = 0;
-    size_t      m_head                     = 0;
+    size_t      m_index                 = 0;
+    size_t      m_head                  = 0;
     void put(T value) {
 	// precondition: m_sorted contains m_size-1 values, packed at start
 	// postcondition: m_sorted contains m_size values, one of which is value
@@ -53,7 +53,6 @@ class MovingMedian : public SampleFilter<T>{
 	// precondition: m_sorted contains m_size values, one of which is value
 	// postcondition: m_sorted contains m_size-1 values, packed at start
         auto index = static_cast<T*>(std::lower_bound(&m_sorted[0],m_sorted_end+1,value));
-	assert(*index == value);
         std::memmove(index,index+1,reinterpret_cast<char*>(m_sorted_end) - reinterpret_cast<char*>(index));
 	*m_sorted_end = T(0);
     }

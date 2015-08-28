@@ -60,13 +60,18 @@ RubberBandStretcher::Impl::prepareChannelMS(size_t c,
                                             size_t samples, 
                                             float *prepared)
 {
-    for (size_t i = 0; i < samples; ++i) {
-        auto left = inputs[0][i + offset];
-        auto right = inputs[1][i + offset];
-        auto mid = (left + right) / 2;
-        auto side = (left - right) / 2;
-        if (c == 0) {prepared[i] = mid;
-        } else {prepared[i] = side;}
+    if ( c == 0 ){
+        for ( auto i = decltype(samples){0}; i < samples; ++i){
+            auto left   = inputs[0][i + offset];
+            auto right  = inputs[1][i + offset];
+            prepared[i] = (left + right) * 0.5f;
+        }
+    }else{
+        for ( auto i = decltype(samples){0};i<samples; ++i){
+            auto left  = inputs[0][i + offset];
+            auto right = inputs[1][i + offset];
+            prepared[i] = (left - right) * 0.5f;
+        }
     }
 }
 size_t
@@ -441,8 +446,8 @@ void
 RubberBandStretcher::Impl::analyseChunk(size_t channel){
     Profiler profiler("RubberBandStretcher::Impl::analyseChunk");
     ChannelData &cd = *m_channelData[channel];
-    float *const R__ dblbuf = cd.dblbuf;
-    float *const R__ fltbuf = cd.fltbuf;
+    float *const  dblbuf = cd.dblbuf;
+    float *const  fltbuf = cd.fltbuf;
     // cd.fltbuf is known to contain m_aWindowSize samples
     if (m_aWindowSize > m_fftSize) {m_afilter->cut(fltbuf);}
     cutShiftAndFold(dblbuf, m_fftSize, fltbuf, m_awindow);
@@ -460,8 +465,8 @@ RubberBandStretcher::Impl::modifyChunk(size_t channel,size_t outputIncrement,boo
     auto fullReset = phaseReset;
     auto laminar = !(m_options & OptionPhaseIndependent);
     auto bandlimited = (m_options & OptionTransientsMixed);
-    auto bandlow = static_cast<int>(lrint((150 * m_fftSize) / rate));
-    auto bandhigh = static_cast<int>(lrint((1000 * m_fftSize) / rate));
+    auto bandlow = static_cast<decltype(count)>(lrint((150 * m_fftSize) / rate));
+    auto bandhigh = static_cast<decltype(count)>(lrint((1000 * m_fftSize) / rate));
     auto freq0 = m_freq0;
     auto freq1 = m_freq1;
     auto freq2 = m_freq2;
@@ -476,9 +481,9 @@ RubberBandStretcher::Impl::modifyChunk(size_t channel,size_t outputIncrement,boo
             freq2 = freq0 * f2ratio;
         }
     }
-    auto limit0 = static_cast<int>(lrint((freq0 * m_fftSize) / rate));
-    auto limit1 = static_cast<int>(lrint((freq1 * m_fftSize) / rate));
-    auto limit2 = static_cast<int>(lrint((freq2 * m_fftSize) / rate));
+    auto limit0 = static_cast<decltype(count)>(lrint((freq0 * m_fftSize) / rate));
+    auto limit1 = static_cast<decltype(count)>(lrint((freq1 * m_fftSize) / rate));
+    auto limit2 = static_cast<decltype(count)>(lrint((freq2 * m_fftSize) / rate));
     if (limit1 < limit0) limit1 = limit0;
     if (limit2 < limit1) limit2 = limit1;
     auto prevInstability = 0.0f;
@@ -545,18 +550,18 @@ void
 RubberBandStretcher::Impl::formantShiftChunk(size_t channel){
     Profiler profiler("RubberBandStretcher::Impl::formantShiftChunk");
     auto &cd = *m_channelData[channel];
-    float *const R__ mag = cd.mag;
-    float *const R__ envelope = cd.envelope;
-    float *const R__ dblbuf = cd.dblbuf;
+    float *const  mag = cd.mag;
+    float *const  envelope = cd.envelope;
+    float *const  dblbuf = cd.dblbuf;
     const auto  sz = m_fftSize;
     const auto  hs = sz / 2;
     const auto  factor = 1.0f / sz;
     cd.fft->inverseCepstral(mag, dblbuf);
-    const auto cutoff = m_sampleRate / 700;
+    const auto cutoff = static_cast<decltype(sz)>(m_sampleRate / 700);
 //    cerr <<"cutoff = "<< cutoff << ", m_sampleRate/cutoff = " << m_sampleRate/cutoff << endl;
     dblbuf[0] /= 2;
     dblbuf[cutoff-1] /= 2;
-    for (int i = cutoff; i < sz; ++i) {dblbuf[i] = 0.0;}
+    for (auto i = cutoff; i < sz; ++i) {dblbuf[i] = 0.0;}
     v_scale(dblbuf, factor, cutoff);
     auto spare = (float *)alloca((hs + 1) * sizeof(float));
     cd.fft->forward(dblbuf, envelope, spare);
@@ -564,8 +569,8 @@ RubberBandStretcher::Impl::formantShiftChunk(size_t channel){
     v_divide(mag, envelope, hs + 1);
     if (m_pitchScale > 1.0) {
         // scaling up, we want a new envelope that is lower by the pitch factor
-        for (int target = 0; target <= hs; ++target) {
-            int source = lrint(target * m_pitchScale);
+        for (auto target = decltype(hs){0}; target <= hs; ++target) {
+            auto source = static_cast<decltype(hs)>(lrint(target * m_pitchScale));
             if (source > hs) {envelope[target] = 0.0;}
             else {envelope[target] = envelope[source];}
         }
@@ -589,10 +594,10 @@ RubberBandStretcher::Impl::synthesiseChunk(size_t channel,size_t shiftIncrement)
         formantShiftChunk(channel);
     }
     auto &cd = *m_channelData[channel];
-    float *const R__ dblbuf = cd.dblbuf;
-    float *const R__ fltbuf = cd.fltbuf;
-    float *const R__ accumulator = cd.accumulator;
-    float *const R__ windowAccumulator = cd.windowAccumulator;
+    float *const  dblbuf = cd.dblbuf;
+    float *const  fltbuf = cd.fltbuf;
+    float *const  accumulator = cd.accumulator;
+    float *const  windowAccumulator = cd.windowAccumulator;
     const auto fsz = m_fftSize;
     const auto hs = fsz / 2;
     const auto wsz = m_sWindowSize;
@@ -606,9 +611,9 @@ RubberBandStretcher::Impl::synthesiseChunk(size_t channel,size_t shiftIncrement)
         if (wsz == fsz) {v_convert(fltbuf, dblbuf + hs, hs);v_convert(fltbuf + hs, dblbuf, hs);
         } else {
             v_zero(fltbuf, wsz);
-            auto j = static_cast<int>(fsz - wsz/2);
+            auto j = (fsz - wsz/2);
             while (j < 0) j += fsz;
-            for (int i = 0; i < wsz; ++i) {
+            for (auto i = decltype(wsz){0}; i < wsz; ++i) {
                 fltbuf[i] += dblbuf[j];
                 if (++j == fsz) j = 0;
             }
@@ -638,8 +643,8 @@ void
 RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, bool last){
     Profiler profiler("RubberBandStretcher::Impl::writeChunk");
     auto &cd = *m_channelData[channel];
-    float *const R__ accumulator = cd.accumulator;
-    float *const R__ windowAccumulator = cd.windowAccumulator;
+    float *const  accumulator = cd.accumulator;
+    float *const  windowAccumulator = cd.windowAccumulator;
     const auto sz = m_sWindowSize;
     const auto si = shiftIncrement;
     if (m_debugLevel > 2) {cerr << "writeChunk(" << channel << ", " << shiftIncrement << ", " << last << ")" << endl;}
@@ -669,7 +674,7 @@ RubberBandStretcher::Impl::writeChunk(size_t channel, size_t shiftIncrement, boo
     v_zero(accumulator + sz - si, si);
     v_move(windowAccumulator, windowAccumulator + si, sz - si);
     v_zero(windowAccumulator + sz - si, si);
-    if (int(cd.accumulatorFill) > si) {cd.accumulatorFill -= si;}
+    if (cd.accumulatorFill > si) {cd.accumulatorFill -= si;}
     else {
         cd.accumulatorFill = 0;
         if (cd.draining) {

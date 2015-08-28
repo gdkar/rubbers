@@ -201,23 +201,31 @@ JNIEXPORT void JNICALL Java_com_breakfastquay_rubberband_RubberBandStretcher_ini
 RubberBandStretcher *
 getStretcher(JNIEnv *env, jobject obj)
 {
-    jclass c = env->GetObjectClass(obj);
-    jfieldID fid = env->GetFieldID(c, "handle", "J");
-    jlong handle = env->GetLongField(obj, fid);
+    auto c = env->GetObjectClass(obj);
+    auto fid = env->GetFieldID(c, "handle", "J");
+    auto handle = env->GetLongField(obj, fid);
     return (RubberBandStretcher *)handle;
 }
 
 void
 setStretcher(JNIEnv *env, jobject obj, RubberBandStretcher *stretcher)
 {
-    jclass c = env->GetObjectClass(obj);
-    jfieldID fid = env->GetFieldID(c, "handle", "J");
-    jlong handle = (jlong)stretcher;
+    auto c = env->GetObjectClass(obj);
+    auto fid = env->GetFieldID(c, "handle", "J");
+    auto handle = (jlong)stretcher;
     env->SetLongField(obj, fid, handle);
 }
 
 JNIEXPORT void JNICALL
-Java_com_breakfastquay_rubberband_RubberBandStretcher_initialise(JNIEnv *env, jobject obj, jint sampleRate, jint channels, jint options, jdouble initialTimeRatio, jdouble initialPitchScale)
+Java_com_breakfastquay_rubberband_RubberBandStretcher_initialise(
+        JNIEnv *env, 
+        jobject obj, 
+        jint sampleRate, 
+        jint channels, 
+        jint options, 
+        jdouble initialTimeRatio, 
+        jdouble initialPitchScale
+        )
 {
     setStretcher(env, obj, new RubberBandStretcher
                  (sampleRate, channels, options, initialTimeRatio, initialPitchScale));
@@ -321,44 +329,39 @@ Java_com_breakfastquay_rubberband_RubberBandStretcher_getSamplesRequired(JNIEnv 
 }
 
 JNIEXPORT void JNICALL
-Java_com_breakfastquay_rubberband_RubberBandStretcher_study(JNIEnv *env, jobject obj, jobjectArray data, jint offset, jint n, jboolean final)
+Java_com_breakfastquay_rubberband_RubberBandStretcher_study(JNIEnv *env, jobject obj, jobjectArray data, jint offset, jint n, jboolean flush)
 {
-    int channels = env->GetArrayLength(data);
-    float **arr = allocate<float *>(channels);
-    float **input = allocate<float *>(channels);
-    for (int c = 0; c < channels; ++c) {
+    auto channels = env->GetArrayLength(data);
+    auto arr = allocate<float *>(channels);
+    auto input = allocate<float *>(channels);
+    for (auto c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         arr[c] = env->GetFloatArrayElements(cdata, 0);
         input[c] = arr[c] + offset;
     }
-
-    getStretcher(env, obj)->study(input, n, final);
-
-    for (int c = 0; c < channels; ++c) {
+    getStretcher(env, obj)->study(input, n, flush);
+    for (auto c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         env->ReleaseFloatArrayElements(cdata, arr[c], 0);
     }
 }
 
 JNIEXPORT void JNICALL
-Java_com_breakfastquay_rubberband_RubberBandStretcher_process(JNIEnv *env, jobject obj, jobjectArray data, jint offset, jint n, jboolean final)
+Java_com_breakfastquay_rubberband_RubberBandStretcher_process(JNIEnv *env, jobject obj, jobjectArray data, jint offset, jint n, jboolean flush)
 {
-    int channels = env->GetArrayLength(data);
-    float **arr = allocate<float *>(channels);
-    float **input = allocate<float *>(channels);
-    for (int c = 0; c < channels; ++c) {
+    auto channels = env->GetArrayLength(data);
+    auto arr = allocate<float *>(channels);
+    auto input = allocate<float *>(channels);
+    for (auto c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         arr[c] = env->GetFloatArrayElements(cdata, 0);
         input[c] = arr[c] + offset;
     }
-
-    getStretcher(env, obj)->process(input, n, final);
-
-    for (int c = 0; c < channels; ++c) {
+    getStretcher(env, obj)->process(input, n, flush);
+    for (auto c = 0; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(data, c);
         env->ReleaseFloatArrayElements(cdata, arr[c], 0);
     }
-
     deallocate(input);
     deallocate(arr);
 }
@@ -372,11 +375,11 @@ Java_com_breakfastquay_rubberband_RubberBandStretcher_available(JNIEnv *env, job
 JNIEXPORT jint JNICALL
 Java_com_breakfastquay_rubberband_RubberBandStretcher_retrieve(JNIEnv *env, jobject obj, jobjectArray output, jint offset, jint n)
 {
-    RubberBandStretcher *stretcher = getStretcher(env, obj);
-    size_t channels = stretcher->getChannelCount();
+    auto stretcher = getStretcher(env, obj);
+    auto channels = stretcher->getChannelCount();
     
-    float **outbuf = allocate_channels<float>(channels, n);
-    size_t retrieved = stretcher->retrieve(outbuf, n);
+    auto outbuf = allocate_channels<float>(channels, n);
+    auto retrieved = stretcher->retrieve(outbuf, n);
 
     for (auto c = size_t{0}; c < channels; ++c) {
         jfloatArray cdata = (jfloatArray)env->GetObjectArrayElement(output, c);

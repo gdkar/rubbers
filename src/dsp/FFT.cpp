@@ -3800,6 +3800,8 @@ FFT::tune()
     return os.str();
 }
 
-#endif
+#else
 
+/*static*/ std::string FFT::tune(){return std::string{};}
+#endif
 }

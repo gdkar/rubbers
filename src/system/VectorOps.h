@@ -54,6 +54,19 @@ namespace RubberBand {
 // auto-vectorizable by a sensible compiler (definitely gcc-4.3 on
 // Linux, ideally also gcc-4.0 on OS/X).
 
+
+template<typename T>
+constexpr T roundup(T x ){
+    x--;
+    x|=x>>1;
+    x|=x>>2;
+    x|=x>>4;
+    x|=x>> ( sizeof(T)>1 ? 8 : 0 );
+    x|=x>> ( sizeof(T)>2 ? 16: 0 );
+    x|=x>> ( sizeof(T)>4 ? 32: 0 );
+    return x+1;
+}
+
 template<typename T>
 inline void v_zero(T *const  ptr,
                    const int count)

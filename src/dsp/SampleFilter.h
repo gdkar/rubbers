@@ -30,30 +30,21 @@ namespace RubberBand
 {
 
 template <typename T>
-class SampleFilter
-{
+class SampleFilter{
+protected:
+        const size_t m_size;
+public:
     SampleFilter(const SampleFilter &) = delete;
     SampleFilter &operator=(const SampleFilter &) = delete;
     SampleFilter(SampleFilter &&) = default;
     SampleFilter &operator=(SampleFilter &&) = default;
-
-public:
-    SampleFilter(int size) : m_size(size) {
-	assert(m_size > 0);
-    }
+    SampleFilter(int size) : m_size(size) {assert(m_size > 0);}
     virtual ~SampleFilter() { }
-    int getSize() const { return m_size; }
+    virtual int getSize() const { return m_size; }
     virtual void push(T) = 0;
     virtual T get() const = 0;
     virtual void reset() = 0;
-
-protected:
-    const size_t m_size = 0;
-
-private:
 };
-
 }
-
 #endif
 

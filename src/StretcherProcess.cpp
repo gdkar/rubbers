@@ -161,9 +161,9 @@ RubberBandStretcher::Impl::processChunks(size_t c, bool &any, bool &last){
             }
             if (!tmp) tmp = allocate<float>(m_aWindowSize);
             analyseChunk(c);
-            v_copy(tmp, cd.fltbuf, m_aWindowSize);
+            std::copy_n ( cd.fltbuf, m_aWindowSize, tmp );
             for (size_t i = 0; i < shiftIncrement; i += bit) {
-                v_copy(cd.fltbuf, tmp, m_aWindowSize);
+                std::copy_n ( tmp, m_aWindowSize, cd.fltbuf );
                 size_t thisIncrement = bit;
                 if (i + thisIncrement > shiftIncrement) {thisIncrement = shiftIncrement - i;}
                 last = processChunkForChannel(c, phaseIncrement + i, thisIncrement, phaseReset);
@@ -344,8 +344,10 @@ RubberBandStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,size_t 
         silent = (m_silentAudioCurve->process((float *)cd.mag, m_increment) > 0.f);
     } else {
         auto tmp = (float *)alloca(hs * sizeof(float));
-        v_zero(tmp, hs);
-        for (size_t c = 0; c < m_channels; ++c) {v_add(tmp, m_channelData[c]->mag, hs);}
+        std::fill_n ( tmp, hs, 0.f );
+        for (auto c = decltype(m_channels){0}; c < m_channels; ++c) {
+            v_add(tmp, m_channelData[c]->mag, hs);
+        }
         df = m_phaseResetAudioCurve->process((float *)tmp, m_increment);
         silent = (m_silentAudioCurve->process((float *)tmp, m_increment) > 0.f);
     }

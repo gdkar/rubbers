@@ -223,8 +223,8 @@ template <typename T>
 RingBuffer<T> *
 RingBuffer<T>::resized(int newSize) const{
     auto newBuffer = new RingBuffer<T>(newSize);
-    int w = m_writer.load();
-    int r = m_reader.load();
+    auto w = m_writer.load();
+    auto r = m_reader.load();
     while (r != w) {
         auto value = m_buffer[r%m_size];
         newBuffer->write(&value, 1);
@@ -251,26 +251,18 @@ RingBuffer<T>::reset(){
 
 template <typename T>
 int
-RingBuffer<T>::getReadSpace() const
-{
-    return readSpaceFor(m_writer.load(), m_reader.load());
-}
+RingBuffer<T>::getReadSpace() const {return readSpaceFor(m_writer.load(), m_reader.load());}
 
 template <typename T>
 int
-RingBuffer<T>::getWriteSpace() const
-{
-    return writeSpaceFor(m_writer.load(), m_reader.load());
-}
+RingBuffer<T>::getWriteSpace() const {return writeSpaceFor(m_writer.load(), m_reader.load());}
 
 template <typename T>
 template <typename S>
 int
-RingBuffer<T>::read(S *const R__ destination, int n)
-{
+RingBuffer<T>::read(S *const R__ destination, int n){
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     auto available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::read: " << n << " requested, only "
@@ -281,8 +273,7 @@ RingBuffer<T>::read(S *const R__ destination, int n)
     if (n == 0) return n;
     auto off = r%m_size;
     auto here = m_size - off;
-    T *const R__ bufbase = m_buffer + off;
-
+    auto bufbase = m_buffer + off;
     if (here >= n) {
         v_convert(destination, bufbase, n);
     } else {
@@ -299,7 +290,6 @@ int
 RingBuffer<T>::readAdding(S *const R__ destination, int n){
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     auto available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::read: " << n << " requested, only "
@@ -309,7 +299,7 @@ RingBuffer<T>::readAdding(S *const R__ destination, int n){
     if (n == 0) return n;
     auto off = r %m_size;
     auto here = m_size - off;
-    T *const bufbase = m_buffer + off;
+    auto bufbase = m_buffer + off;
 
     if (here >= n) {
         v_add(destination, bufbase, n);
@@ -324,11 +314,9 @@ RingBuffer<T>::readAdding(S *const R__ destination, int n){
 
 template <typename T>
 T
-RingBuffer<T>::readOne()
-{
+RingBuffer<T>::readOne(){
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     if (w == r) {
 	std::cerr << "WARNING: RingBuffer::readOne: no sample available"
 		  << std::endl;
@@ -342,11 +330,9 @@ RingBuffer<T>::readOne()
 
 template <typename T>
 int
-RingBuffer<T>::peek(T *const destination, int n) const
-{
+RingBuffer<T>::peek(T *const destination, int n) const{
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     auto available = readSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::peek: " << n << " requested, only "
@@ -382,8 +368,7 @@ RingBuffer<T>::peekOne() const{
 
 template <typename T>
 int
-RingBuffer<T>::skip(int n)
-{
+RingBuffer<T>::skip(int n){
     auto w = m_writer.load();
     auto r = m_reader.load();
     auto available = readSpaceFor(w, r);
@@ -400,11 +385,9 @@ RingBuffer<T>::skip(int n)
 template <typename T>
 template <typename S>
 int
-RingBuffer<T>::write(const S *const source, int n)
-{
+RingBuffer<T>::write(const S *const source, int n){
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     auto available = writeSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::write: " << n
@@ -415,7 +398,6 @@ RingBuffer<T>::write(const S *const source, int n)
     auto off = w % m_size;
     auto here = m_size - off;
     auto bufbase = m_buffer + off;
-
     if (here >= n) {
         v_convert<S, T>(bufbase, source, n);
     } else {
@@ -428,11 +410,9 @@ RingBuffer<T>::write(const S *const source, int n)
 
 template <typename T>
 int
-RingBuffer<T>::zero(int n)
-{
+RingBuffer<T>::zero(int n){
     auto w = m_writer.load();
     auto r = m_reader.load();
-
     auto available = writeSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::zero: " << n
@@ -443,16 +423,12 @@ RingBuffer<T>::zero(int n)
     auto off = w %m_size;
     auto here = m_size - off;
     auto  bufbase = m_buffer + off;
-
-    if (here >= n) {
-        v_zero(bufbase, n);
-    } else {
+    if (here >= n) {v_zero(bufbase, n);}
+    else {
         v_zero(bufbase, here);
         v_zero(m_buffer, n - here);
     }
-
     m_writer += n;
-
     return n;
 }
 

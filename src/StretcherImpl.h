@@ -224,12 +224,9 @@ protected:
     std::vector<float> m_stretchDf;
     std::vector<bool>  m_silence;
     int m_silentHistory;
-
     class ChannelData; 
     std::vector<ChannelData *> m_channelData;
-
     std::vector<int> m_outputIncrements;
-
     mutable RingBuffer<int>       m_lastProcessOutputIncrements;
     mutable RingBuffer<float>     m_lastProcessPhaseResetDf;
     Scavenger<RingBuffer<float> > m_emergencyScavenger;

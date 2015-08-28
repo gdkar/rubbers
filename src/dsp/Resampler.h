@@ -47,17 +47,6 @@ public:
                  int incount,
                  float ratio,
                  bool final = false);
-    /**
-     * Resample the given interleaved buffer, where incount is the
-     * number of frames in the input buffer (i.e. it has incount *
-     * getChannelCount() samples).  Returns the number of frames
-     * written to the output buffer.
-     */
-    int resampleInterleaved(float *const in,
-                            float *const out,
-                            int incount,
-                            float ratio,
-                            bool final = false);
     int getChannelCount() const;
     void reset();
 protected:

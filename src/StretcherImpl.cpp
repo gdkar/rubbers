@@ -653,7 +653,7 @@ RubberBandStretcher::Impl::setPitchOption(Options options)
 }
 
 void
-RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool final){
+RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool flushing ){
     Profiler profiler("RubberBandStretcher::Impl::study");
     if (m_realtime) {
         if (m_debugLevel > 1) {
@@ -669,19 +669,17 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
     auto consumed = size_t{0};
     auto&cd = *m_channelData[0];
     auto &inbuf = *cd.inbuf;
-    const float *mixdown;
-    float *mdalloc = nullptr;
-    if (m_channels > 1 || final) {
+    auto mixdown = static_cast<float const *>(0);
+    auto mdalloc = static_cast<float*>(0);
+    if (m_channels > 1 || flushing ) {
         // mix down into a single channel for analysis
-        mdalloc = new float[samples];
-        for (size_t i = 0; i < samples; ++i) {
-            if (i < samples) {mdalloc[i] = input[0][i];
-            } else {mdalloc[i] = 0.f;}
-        }
+        mdalloc = static_cast<float*>(alloca(samples * sizeof(float)));
+        std::copy_n ( input[0], samples, mdalloc );
         for (size_t c = 1; c < m_channels; ++c) {
             for (size_t i = 0; i < samples; ++i) {mdalloc[i] += input[c][i];}
         }
-        for (size_t i = 0; i < samples; ++i) {mdalloc[i] /= m_channels;}
+        auto invchannels = 1.f / m_channels;
+        std::for_each ( mdalloc, &mdalloc[samples], [=](auto & val){val *= invchannels;});
         mixdown = mdalloc;
     } else {mixdown = input[0];}
     while (consumed < samples) {
@@ -694,8 +692,8 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
             inbuf.write(mixdown + consumed, writable);
             consumed += writable;
         }
-	while ((inbuf.getReadSpace() >= int(m_aWindowSize)) ||
-               (final && (inbuf.getReadSpace() >= int(m_aWindowSize/2)))) {
+	while ((static_cast<size_t>(inbuf.getReadSpace()) >= m_aWindowSize) ||
+               (flushing && (static_cast<size_t>(inbuf.getReadSpace()) >= m_aWindowSize/2))) {
 	    // We know we have at least m_aWindowSize samples
 	    // available in m_inbuf.  We need to peek m_aWindowSize of
 	    // them for processing, and then skip m_increment to
@@ -703,7 +701,6 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
             // cd.accumulator is not otherwise used during studying,
             // so we can use it as a temporary buffer here
             auto ready = static_cast<size_t>(inbuf.getReadSpace());
-            assert(final || ready >= m_aWindowSize);
             inbuf.peek(cd.accumulator, std::min(ready, m_aWindowSize));
             if (m_aWindowSize == m_fftSize) {
                 // We don't need the fftshift for studying, as we're
@@ -722,7 +719,7 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
                 auto tmp = (float *)alloca (std::max(m_fftSize, m_aWindowSize) * sizeof(float));
                 if (m_aWindowSize > m_fftSize) {m_afilter->cut(cd.accumulator);}
                 cutShiftAndFold(tmp, m_fftSize, cd.accumulator, m_awindow);
-                v_copy(cd.accumulator, tmp, m_fftSize);
+                std::copy_n ( tmp, m_fftSize, cd.accumulator );
             }
             m_studyFFT->forwardMagnitude(cd.accumulator, cd.fltbuf);
             auto df = m_phaseResetAudioCurve->process(cd.fltbuf, m_increment);
@@ -746,19 +743,18 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
             inbuf.skip(m_increment);
 	}
     }
-    if (final) {
+    if (flushing) {
         auto rs = inbuf.getReadSpace();
         m_inputDuration += rs;
 //        cerr << "incr input duration by read space: " << rs << " -> " << m_inputDuration << endl;
         if (m_inputDuration > m_aWindowSize/2) { m_inputDuration -= m_aWindowSize/2;}
     }
-    if (m_channels > 1 || final) delete[] mdalloc;
 }
 vector<int>
 RubberBandStretcher::Impl::getOutputIncrements() const{
     if (!m_realtime) {return m_outputIncrements;}
     else {
-        vector<int> increments;
+        auto increments = std::vector<int>{};
         while (m_lastProcessOutputIncrements.getReadSpace() > 0) {
             increments.push_back(m_lastProcessOutputIncrements.readOne());
         }
@@ -769,18 +765,17 @@ vector<float>
 RubberBandStretcher::Impl::getPhaseResetCurve() const{
     if (!m_realtime) {return m_phaseResetDf;}
     else {
-        vector<float> df;
+        auto df = std::vector<float>{};
         while (m_lastProcessPhaseResetDf.getReadSpace() > 0) {df.push_back(m_lastProcessPhaseResetDf.readOne());}
         return df;
     }
 }
 vector<int>
 RubberBandStretcher::Impl::getExactTimePoints() const{
-    std::vector<int> points;
+    auto points = std::vector<int>{};
     if (!m_realtime) {
-        std::vector<StretchCalculator::Peak> peaks =
-            m_stretchCalculator->getLastCalculatedPeaks();
-        for (size_t i = 0; i < peaks.size(); ++i) {points.push_back(peaks[i].chunk);}
+        auto peaks = m_stretchCalculator->getLastCalculatedPeaks();
+        std::transform ( peaks.cbegin(),peaks.cend(),std::back_inserter(points),[] ( auto &p ) { return p.chunk;});
     }
     return points;
 }
@@ -805,8 +800,8 @@ RubberBandStretcher::Impl::calculateStretch(){
         sdm /= m_stretchDf.size();
     }
 //    std::cerr << "phase reset df mean = " << prdm << ", stretch df mean = " << sdm << std::endl;
-    auto increments = m_stretchCalculator->calculate
-        (getEffectiveRatio(),
+    auto increments = m_stretchCalculator->calculate(
+         getEffectiveRatio(),
          inputDuration,
          m_phaseResetDf,
          m_stretchDf);
@@ -823,7 +818,7 @@ RubberBandStretcher::Impl::calculateStretch(){
         }
     }
     if (m_outputIncrements.empty()) m_outputIncrements = increments;
-    else {for (size_t i = 0; i < increments.size(); ++i) {m_outputIncrements.push_back(increments[i]);}}
+    else std::copy(increments.begin(),increments.end(),std::back_inserter(m_outputIncrements));
     return;
 }
 void
@@ -836,7 +831,7 @@ size_t
 RubberBandStretcher::Impl::getSamplesRequired() const{
     Profiler profiler("RubberBandStretcher::Impl::getSamplesRequired");
     auto reqd = size_t{0};
-    for (size_t c = 0; c < m_channels; ++c) {
+    for (auto c = decltype(m_channels){0}; c < m_channels; ++c) {
         auto reqdHere = size_t{0};
         auto &cd = *m_channelData[c];
         auto &inbuf = *cd.inbuf;
@@ -867,7 +862,7 @@ RubberBandStretcher::Impl::getSamplesRequired() const{
     return reqd;
 }    
 void
-RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bool final){
+RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bool flushing){
     Profiler profiler("RubberBandStretcher::Impl::process");
     if (m_mode == Finished) {
         cerr << "RubberBandStretcher::Impl::process: Cannot process again after final chunk" << endl;
@@ -882,7 +877,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
                 if (m_debugLevel > 1) {
                     cerr << "Not real time mode: prefilling" << endl;
                 }
-                for (size_t c = 0; c < m_channels; ++c) {
+                for (auto c = decltype(m_channels){0}; c < m_channels; ++c) {
                     m_channelData[c]->reset();
                     m_channelData[c]->inbuf->zero(m_aWindowSize/2);
                 }
@@ -891,7 +886,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
         m_mode = Processing;
     }
     auto allConsumed = false;
-    auto consumed = (size_t *)alloca(m_channels * sizeof(size_t));
+    auto consumed = reinterpret_cast<size_t*>(alloca(m_channels * sizeof(size_t)));
     for (size_t c = 0; c < m_channels; ++c) {consumed[c] = 0;}
     while (!allConsumed) {
         // In a threaded mode, our "consumed" counters only indicate
@@ -905,16 +900,15 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
                                           input,
                                           consumed[c],
                                           samples - consumed[c],
-                                          final);
+                                          flushing);
             if (consumed[c] < samples) {
                 allConsumed = false;
 //                cerr << "process: waiting on input consumption for channel " << c << endl;
             } else {
-                if (final) {m_channelData[c]->inputSize = m_channelData[c]->inCount;}
+                if (flushing) {m_channelData[c]->inputSize = m_channelData[c]->inCount;}
 //                cerr << "process: happy with channel " << c << endl;
             }
-            if (
-                !m_realtime) {
+            if (!m_realtime) {
                 auto any = false, last = false;
                 processChunks(c, any, last);
             }
@@ -929,7 +923,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
         if (m_debugLevel > 2) {if (!allConsumed) cerr << "process looping" << endl;}
     }
     if (m_debugLevel > 2) {cerr << "process returning" << endl;}
-    if (final) m_mode = Finished;
+    if (flushing) m_mode = Finished;
 }
 }
 

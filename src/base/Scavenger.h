@@ -124,8 +124,6 @@ public:
 private:
     T *m_array;
 };
-
-
 template <typename T>
 Scavenger<T>::Scavenger(int sec, int defaultObjectListSize) :
     m_objects(ObjectTimeList(defaultObjectListSize)),
@@ -134,12 +132,9 @@ Scavenger<T>::Scavenger(int sec, int defaultObjectListSize) :
     m_claimed(0),
     m_scavenged(0),
     m_asExcess(0)
-{
-}
-
+{}
 template <typename T>
-Scavenger<T>::~Scavenger()
-{
+Scavenger<T>::~Scavenger(){
     if (m_scavenged < m_claimed) {
 	for (size_t i = 0; i < m_objects.size(); ++i) {
 	    ObjectTimePair &pair = m_objects[i];
@@ -157,14 +152,11 @@ Scavenger<T>::~Scavenger()
 
 template <typename T>
 void
-Scavenger<T>::claim(T *t)
-{
+Scavenger<T>::claim(T *t){
 //    std::cerr << "Scavenger::claim(" << t << ")" << std::endl;
-
     struct timeval tv;
     (void)gettimeofday(&tv, 0);
     int sec = tv.tv_sec;
-
     for (size_t i = 0; i < m_objects.size(); ++i) {
 	ObjectTimePair &pair = m_objects[i];
 	if (pair.first == 0) {
@@ -174,7 +166,6 @@ Scavenger<T>::claim(T *t)
 	    return;
 	}
     }
-
 #ifdef DEBUG_SCAVENGER
     std::cerr << "WARNING: Scavenger::claim(" << t << "): run out of slots (at "
               << m_objects.size() << "), using non-RT-safe method" << std::endl;
@@ -184,14 +175,11 @@ Scavenger<T>::claim(T *t)
 
 template <typename T>
 void
-Scavenger<T>::scavenge(bool clearNow)
-{
+Scavenger<T>::scavenge(bool clearNow){
 #ifdef DEBUG_SCAVENGER
     std::cerr << "Scavenger::scavenge: claimed " << m_claimed << ", scavenged " << m_scavenged << ", cleared as excess " << m_asExcess << std::endl;
 #endif
-
     if (m_scavenged >= m_claimed) return;
-    
     struct timeval tv;
     (void)gettimeofday(&tv, 0);
     int sec = tv.tv_sec;
@@ -208,16 +196,12 @@ Scavenger<T>::scavenge(bool clearNow)
             anything = true;
 	}
     }
-
-    if (clearNow || anything || (sec > m_lastExcess + m_sec)) {
-        clearExcess(sec);
-    }
+    if (clearNow || anything || (sec > m_lastExcess + m_sec)) {clearExcess(sec);}
 }
 
 template <typename T>
 void
-Scavenger<T>::pushExcess(T *t)
-{
+Scavenger<T>::pushExcess(T *t){
     std::unique_lock<std::mutex> lock(m_excessMutex);
     m_excess.push_back(t);
     struct timeval tv;
@@ -227,12 +211,10 @@ Scavenger<T>::pushExcess(T *t)
 
 template <typename T>
 void
-Scavenger<T>::clearExcess(int sec)
-{
+Scavenger<T>::clearExcess(int sec){
 #ifdef DEBUG_SCAVENGER
     std::cerr << "Scavenger::clearExcess: Excess now " << m_excess.size() << std::endl;
 #endif
-
     std::unique_lock<std::mutex> lock(m_excessMutex);
     for (typename ObjectList::iterator i = m_excess.begin();
 	 i != m_excess.end(); ++i) {

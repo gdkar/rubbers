@@ -61,11 +61,11 @@ typedef __m128i v4si; // vector of 4 int (sse2)
 
 /* declare some SSE constants -- why can't I figure a better way to do that? */
 #define _PS_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  static const ALIGN16_BEG float _ps_##Name[4] ALIGN16_END = { (float)Val, (float)Val, (float)Val, (float)Val }
 #define _PI32_CONST(Name, Val)                                            \
-  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  static const ALIGN16_BEG int _pi32_##Name[4] ALIGN16_END = { (int)Val, (int)Val, (int)Val, (int)Val }
 #define _PS_CONST_TYPE(Name, Type, Val)                                 \
-  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { Val, Val, Val, Val }
+  static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = { (Type)Val, (Type)Val, (Type)Val, (Type)Val }
 
 _PS_CONST(1  , 1.0f);
 _PS_CONST(0p5, 0.5f);
@@ -102,19 +102,14 @@ _PS_CONST(cephes_log_q2, 0.693359375);
 static inline v4sf log_ps(v4sf x) {
   v4si emm0;
   v4sf one = *(v4sf*)_ps_1;
-
   v4sf invalid_mask = _mm_cmple_ps(x, _mm_setzero_ps());
-
   x = _mm_max_ps(x, *(v4sf*)_ps_min_norm_pos);  /* cut off denormalized stuff */
-
   emm0 = _mm_srli_epi32(_mm_castps_si128(x), 23);
   /* keep only the fractional part */
   x = _mm_and_ps(x, *(v4sf*)_ps_inv_mant_mask);
   x = _mm_or_ps(x, *(v4sf*)_ps_0p5);
-
   emm0 = _mm_sub_epi32(emm0, *(v4si*)_pi32_0x7f);
   v4sf e = _mm_cvtepi32_ps(emm0);
-
   e = _mm_add_ps(e, one);
 
   /* part2: 
@@ -184,7 +179,7 @@ _PS_CONST(cephes_exp_p5, 5.0000001201E-1);
 
 static inline v4sf exp_ps(v4sf x) {
   v4sf tmp = _mm_setzero_ps(), fx;
-  v4sf emm0;
+  v4si emm0;
   v4sf one = *(v4sf*)_ps_1;
 
   x = _mm_min_ps(x, *(v4sf*)_ps_exp_hi);

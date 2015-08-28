@@ -22,51 +22,35 @@
 */
 
 #include "HighFrequencyAudioCurve.h"
-
+#include <numeric>
+#include <algorithm>
+#include <utility>
 namespace RubberBand
 {
 
 
 HighFrequencyAudioCurve::HighFrequencyAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters)
-{
-}
+{}
 
 HighFrequencyAudioCurve::~HighFrequencyAudioCurve()
-{
-}
+{}
 
 void
 HighFrequencyAudioCurve::reset()
-{
-}
+{}
 
 float
-HighFrequencyAudioCurve::process(const float *R__ mag, int increment)
-{
-    float result = 0.0;
+HighFrequencyAudioCurve::process(const float *R__ mag, int increment){
+    auto n = 0;
+    return std::accumulate(mag, mag+m_lastPerceivedBin,0.f,[&n](const auto &a, const auto &b){auto c = a + n*b;n++;return c;});
 
-    const int sz = m_lastPerceivedBin;
-
-    for (int n = 0; n <= sz; ++n) {
-        result = result + mag[n] * n;
-    }
-
-    return result;
 }
 
 double
-HighFrequencyAudioCurve::process(const double *R__ mag, int increment)
-{
-    float result = 0.0;
-
-    const int sz = m_lastPerceivedBin;
-
-    for (int n = 0; n <= sz; ++n) {
-        result = result + mag[n] * n;
-    }
-
-    return result;
+HighFrequencyAudioCurve::process(const double *R__ mag, int increment){
+    auto n = 0;
+    return std::accumulate(mag, mag+m_lastPerceivedBin,0.0,[&n](const auto &a, const auto &b){auto c = a + n*b;n++;return c;});
 }
 
 }

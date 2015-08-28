@@ -42,8 +42,8 @@ public:
      * number of frames in the input buffers.  Returns the number of
      * frames written to the output buffers.
      */
-    int resample(const float *const R__ *const R__ in,
-                 float *const R__ *const R__ out,
+    int resample(float const *const *in,
+                 float *const *const out,
                  int incount,
                  float ratio,
                  bool final = false);
@@ -53,8 +53,8 @@ public:
      * getChannelCount() samples).  Returns the number of frames
      * written to the output buffer.
      */
-    int resampleInterleaved(const float *const R__ in,
-                            float *const R__ out,
+    int resampleInterleaved(float *const in,
+                            float *const out,
                             int incount,
                             float ratio,
                             bool final = false);

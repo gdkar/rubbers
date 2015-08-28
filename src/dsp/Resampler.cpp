@@ -915,16 +915,12 @@ Resampler::Resampler(Resampler::Quality quality, int channels,
 Resampler::~Resampler(){}
 
 int 
-Resampler::resample(const float *const R__ *const R__ in,
-                    float *const R__ *const R__ out,
-                    int incount, float ratio, bool final){
+Resampler::resample(const float *const R__ *in,float *const *const out,int incount, float ratio, bool final){
     Profiler profiler("Resampler::resample");
     return d->resample(in, out, incount, ratio, final);
 }
 int 
-Resampler::resampleInterleaved(const float *const R__ in,
-                               float *const R__ out,
-                               int incount, float ratio, bool final){
+Resampler::resampleInterleaved(float *const in,float *const out,int incount, float ratio, bool final){
     Profiler profiler("Resampler::resample");
     return d->resampleInterleaved(in, out, incount, ratio, final);
 }

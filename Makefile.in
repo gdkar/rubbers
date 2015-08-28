@@ -102,7 +102,6 @@ LIBRARY_SOURCES := \
 	src/audiocurves/PercussiveAudioCurve.cpp \
 	src/dsp/Resampler.cpp \
 	src/dsp/FFT.cpp \
-	src/system/Allocators.cpp \
 	src/system/sysutils.cpp \
 	src/StretcherChannelData.cpp \
 	src/StretcherImpl.cpp
@@ -268,8 +267,6 @@ src/dsp/Resampler.o: src/base/Profiler.h
 src/dsp/FFT.o: src/dsp/FFT.h src/system/sysutils.h src/system/Thread.h
 src/dsp/FFT.o: src/base/Profiler.h src/system/VectorOps.h
 src/dsp/FFT.o: src/system/sysutils.h
-src/system/Allocators.o: src/system/Allocators.h src/system/VectorOps.h
-src/system/Allocators.o: src/system/sysutils.h
 src/system/sysutils.o: src/system/sysutils.h
 src/system/Thread.o: src/system/Thread.h
 src/StretcherChannelData.o: src/StretcherChannelData.h src/StretcherImpl.h

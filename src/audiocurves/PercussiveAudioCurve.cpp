@@ -47,41 +47,33 @@ PercussiveAudioCurve::setFftSize(int newSize){
 }
 float
 PercussiveAudioCurve::process(const float *R__ mag, int increment){
-    static float threshold = powf(10.f, 0.15f); // 3dB rise in square of magnitude
-    static float zeroThresh = powf(10.f, -8);
-    int count = 0;
-    int nonZeroCount = 0;
-    const int sz = m_lastPerceivedBin;
-    for (int n = 1; n <= sz; ++n) {
-        float v = 0.f;
-        if (m_prevMag[n] > zeroThresh) v = mag[n] / m_prevMag[n];
-        else if (mag[n] > zeroThresh) v = threshold;
-        bool above = (v >= threshold);
-        if (above) ++count;
-        if (mag[n] > zeroThresh) ++nonZeroCount;
+    static const auto threshold = static_cast<float>(std::pow(10.f, 0.15f)); // 3dB rise in square of magnitude
+    static const auto zeroThresh = static_cast<float>(pow(10.f, -8.f));
+    auto count = 0;
+    auto nonZeroCount = 0;
+    const auto sz = m_lastPerceivedBin;
+    for ( auto n = 1; n <= sz; ++n ){
+        count += ( ( m_prevMag[n] > zeroThresh ) && ( mag[n] / m_prevMag[n] > threshold ) ) || ( mag[n] > zeroThresh );
+        nonZeroCount += mag[n] > zeroThresh;
+        m_prevMag[n] = mag[n];
     }
-    v_convert(&m_prevMag[0], mag, sz + 1);
+    return nonZeroCount ? (static_cast<float>(count)/nonZeroCount) : 0;
     if (nonZeroCount == 0) return 0;
     else return float(count) / float(nonZeroCount);
 }
 double
 PercussiveAudioCurve::process(const double *R__ mag, int increment){
-    static double threshold = powf(10., 0.15); // 3dB rise in square of magnitude
-    static double zeroThresh = powf(10., -8);
-    int count = 0;
-    int nonZeroCount = 0;
-    const int sz = m_lastPerceivedBin;
-    for (int n = 1; n <= sz; ++n) {
-        double v = 0.0;
-        if (m_prevMag[n] > zeroThresh) v = mag[n] / m_prevMag[n];
-        else if (mag[n] > zeroThresh) v = threshold;
-        bool above = (v >= threshold);
-        if (above) ++count;
-        if (mag[n] > zeroThresh) ++nonZeroCount;
+    static const auto threshold = std::pow(10., 0.15); // 3dB rise in square of magnitude
+    static const auto  zeroThresh = std::pow(10., -8);
+    auto count = 0;
+    auto nonZeroCount = 0;
+    const auto sz = m_lastPerceivedBin;
+    for ( auto n = 1; n <= sz; ++n ){
+        count += ( ( m_prevMag[n] > zeroThresh ) && ( mag[n] / m_prevMag[n] > threshold ) ) || (mag[n] > zeroThresh);
+        nonZeroCount += mag[n] > zeroThresh;
+        m_prevMag[n] = mag[n];
     }
-    v_convert(&m_prevMag[0], mag, sz + 1);
-    if (nonZeroCount == 0) return 0;
-    else return double(count) / double(nonZeroCount);
+    return nonZeroCount ? ( static_cast<double>(count) / nonZeroCount ) : 0;
 }
 
 

@@ -55,10 +55,10 @@ typedef ALIGN16_BEG union {
 #endif
 
 void
-v_polar_to_cartesian_pommier(float *const R__ real,
-                             float *const R__ imag,
-                             const float *const R__ mag,
-                             const float *const R__ phase,
+v_polar_to_cartesian_pommier(float *const real,
+                             float *const imag,
+                             const float *const mag,
+                             const float *const phase,
                              const int count){
     int i = 0;
 
@@ -80,9 +80,8 @@ v_polar_to_cartesian_pommier(float *const R__ real,
         ++i;
     }
 }    
-
 void
-v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
+v_polar_interleaved_to_cartesian_inplace_pommier(float *const srcdst,
                                                  const int count){
     int i;
     int idx = 0, tidx = 0;
@@ -108,11 +107,10 @@ v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ srcdst,
         ++i;
     }
 }    
-
 void
-v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
-                                         const float *const R__ mag,
-                                         const float *const R__ phase,
+v_polar_to_cartesian_interleaved_pommier(float *const dst,
+                                         const float *const mag,
+                                         const float *const phase,
                                          const int count){
     int i;
     for (i = 0; i + 4 <= count; i += 4) {
@@ -134,6 +132,4 @@ v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
     }
 }    
 #endif
-
-
 }

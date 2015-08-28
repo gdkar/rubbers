@@ -38,7 +38,7 @@ RubberBandStretcher::Impl::ChannelData::ChannelData(size_t windowSize,
 }
 RubberBandStretcher::Impl::ChannelData::ChannelData(std::initializer_list<size_t> sizes,
         size_t initialWindowSize, size_t initialFftSize,size_t initialOutbufSize){
-    std::set<size_t> s(sizes.begin(),sizes.end());
+    auto s = std::set<size_t> (sizes.begin(),sizes.end());
     construct(s,initialWindowSize,initialFftSize,initialOutbufSize);
 }
 RubberBandStretcher::Impl::ChannelData::ChannelData(const std::set<size_t> &sizes,
@@ -51,20 +51,20 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
                                                   size_t initialWindowSize,
                                                   size_t initialFftSize,
                                                   size_t outbufSize){
-    size_t maxSize = initialWindowSize * 2;
+    auto maxSize = initialWindowSize * 2;
     if (initialFftSize > maxSize) maxSize = initialFftSize;
 //    std::cerr << "ChannelData::construct: initialWindowSize = " << initialWindowSize << ", initialFftSize = " << initialFftSize << ", outbufSize = " << outbufSize << std::endl;
     // std::set is ordered by value
-    std::set<size_t>::const_iterator i = sizes.end();
-    if (i != sizes.begin()) {
+    auto i = sizes.cend();
+    if (i != sizes.cbegin()) {
         --i;
         if (*i > maxSize) maxSize = *i;
     }
     // max possible size of the real "half" of freq data
-    size_t realSize = maxSize / 2 + 1;
+    auto realSize = maxSize / 2 + 1;
 //    std::cerr << "ChannelData::construct([" << sizes.size() << "], " << maxSize << ", " << realSize << ", " << outbufSize << ")" << std::endl;
     if (outbufSize < maxSize) outbufSize = maxSize;
-    inbuf = new RingBuffer<float>(maxSize);
+    inbuf  = new RingBuffer<float>(maxSize);
     outbuf = new RingBuffer<float>(outbufSize);
     mag = allocate_and_zero<float>(realSize);
     phase = allocate_and_zero<float>(realSize);
@@ -79,8 +79,7 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
     ms = allocate_and_zero<float>(maxSize);
     interpolator = allocate_and_zero<float>(maxSize);
     interpolatorScale = 0;
-    for (std::set<size_t>::const_iterator i = sizes.begin();
-         i != sizes.end(); ++i) {
+    for (auto i = sizes.cbegin(); i != sizes.cend(); ++i) {
         ffts[*i] = new FFT(*i);
         ffts[*i]->initFloat();
     }
@@ -95,10 +94,10 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
 void
 RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSize){
 //    std::cerr << "ChannelData::setSizes: windowSize = " << windowSize << ", fftSize = " << fftSize << std::endl;
-    size_t maxSize = 2 * std::max(windowSize, fftSize);
-    size_t realSize = maxSize / 2 + 1;
-    size_t oldMax = inbuf->getSize();
-    size_t oldReal = oldMax / 2 + 1;
+    auto  maxSize = 2 * std::max(windowSize, fftSize);
+    auto  realSize = maxSize / 2 + 1;
+    auto  oldMax = static_cast<decltype(maxSize)>(inbuf->getSize());
+    auto  oldReal = oldMax / 2 + 1;
     if (oldMax >= maxSize) {
         // no need to reallocate buffers, just reselect fft
         //!!! we can't actually do this without locking against the
@@ -126,7 +125,7 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSiz
     //mode, then the process call should trylock and fail if the lock
     //is unavailable (since this should never normally be the case in
     //general use in RT mode)
-    RingBuffer<float> *newbuf = inbuf->resized(maxSize);
+    auto newbuf = inbuf->resized(maxSize);
     delete inbuf;
     inbuf = newbuf;
     // We don't want to preserve data in these arrays
@@ -153,12 +152,12 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSiz
 }
 void
 RubberBandStretcher::Impl::ChannelData::setOutbufSize(size_t outbufSize){
-    size_t oldSize = outbuf->getSize();
+    auto oldSize = static_cast<decltype(outbufSize)>(outbuf->getSize());
 //    std::cerr << "ChannelData::setOutbufSize(" << outbufSize << ") [from " << oldSize << "]" << std::endl;
     if (oldSize < outbufSize) {
         //!!! at this point we need a lock in case a different client
         //thread is calling process()
-        RingBuffer<float> *newbuf = outbuf->resized(outbufSize);
+        auto newbuf = outbuf->resized(outbufSize);
         delete outbuf;
         outbuf = newbuf;
     }
@@ -186,8 +185,7 @@ RubberBandStretcher::Impl::ChannelData::~ChannelData(){
     deallocate(windowAccumulator);
     deallocate(fltbuf);
     deallocate(dblbuf);
-    for (std::map<size_t, FFT *>::iterator i = ffts.begin();
-         i != ffts.end(); ++i) {
+    for (auto i = ffts.begin(); i != ffts.end(); ++i) {
         delete i->second;
     }
 }
@@ -197,8 +195,8 @@ RubberBandStretcher::Impl::ChannelData::reset(){
     inbuf->reset();
     outbuf->reset();
     if (resampler) resampler->reset();
-    size_t size = inbuf->getSize();
-    for (size_t i = 0; i < size; ++i) {
+    auto size = inbuf->getSize();
+    for (auto i = 0; i < size; ++i) {
         accumulator[i] = 0.f;
         windowAccumulator[i] = 0.f;
     }

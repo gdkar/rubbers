@@ -276,9 +276,9 @@ RubberBandStretcher::Impl::roundUp(size_t value){
 
 void
 RubberBandStretcher::Impl::calculateSizes(){
-    size_t inputIncrement = m_defaultIncrement;
-    size_t windowSize = m_baseFftSize;
-    size_t outputIncrement;
+    auto inputIncrement = m_defaultIncrement;
+    auto windowSize = m_baseFftSize;
+    auto outputIncrement = size_t{0};
     if (m_pitchScale <= 0.0) {
         // This special case is likelier than one might hope, because
         // of naive initialisations in programs that set it from a
@@ -291,14 +291,14 @@ RubberBandStretcher::Impl::calculateSizes(){
         std::cerr << "RubberBandStretcher: WARNING: Time ratio must be greater than zero!\nResetting it from " << m_timeRatio << " to the default of 1.0: no time stretch will occur" << std::endl;
         m_timeRatio = 1.0;
     }
-    float r = getEffectiveRatio();
+    auto r = getEffectiveRatio();
     if (m_realtime) {
         if (r < 1) {
-            bool rsb = (m_pitchScale < 1.0 && !resampleBeforeStretching());
-            float windowIncrRatio = 4.5;
-            if (r == 1.0) windowIncrRatio = 4;
-            else if (rsb) windowIncrRatio = 4.5;
-            else windowIncrRatio = 6;
+            auto rsb = (m_pitchScale < 1.0 && !resampleBeforeStretching());
+            auto windowIncrRatio = 4.5f;
+            if (r == 1.0) windowIncrRatio = 4.f;
+            else if (rsb) windowIncrRatio = 4.5f;
+            else windowIncrRatio = 6.f;
             inputIncrement = int(windowSize / windowIncrRatio);
             outputIncrement = int(floor(inputIncrement * r));
             // Very long stretch or very low pitch shift
@@ -311,24 +311,24 @@ RubberBandStretcher::Impl::calculateSizes(){
                 }
             }
         } else {
-            bool rsb = (m_pitchScale > 1.0 && resampleBeforeStretching());
-            float windowIncrRatio = 4.5;
-            if (r == 1.0) windowIncrRatio = 4;
-            else if (rsb) windowIncrRatio = 4.5;
-            else windowIncrRatio = 8;
+            auto rsb = (m_pitchScale > 1.0 && resampleBeforeStretching());
+            auto windowIncrRatio = 4.5f;
+            if (r == 1.0) windowIncrRatio = 4.f;
+            else if (rsb) windowIncrRatio = 4.5f;
+            else windowIncrRatio = 8.f;
             outputIncrement = int(windowSize / windowIncrRatio);
             inputIncrement = int(outputIncrement / r);
             while (outputIncrement > 1024 * m_rateMultiple && inputIncrement > 1) {
                 outputIncrement /= 2;
                 inputIncrement = int(outputIncrement / r);
             }
-            size_t minwin = roundUp(lrint(outputIncrement * windowIncrRatio));
+            auto minwin = roundUp(lrint(outputIncrement * windowIncrRatio));
             if (windowSize < minwin) windowSize = minwin;
             if (rsb) {
 //                cerr << "adjusting window size from " << windowSize;
-                size_t newWindowSize = roundUp(lrint(windowSize / m_pitchScale));
+                auto newWindowSize = roundUp(lrint(windowSize / m_pitchScale));
                 if (newWindowSize < 512) newWindowSize = 512;
-                size_t div = windowSize / newWindowSize;
+                auto  div = windowSize / newWindowSize;
                 if (inputIncrement > div && outputIncrement > div) {
                     inputIncrement /= div;
                     outputIncrement /= div;
@@ -401,10 +401,10 @@ RubberBandStretcher::Impl::configure(){
 //    std::cerr << "configure[" << this << "]: realtime = " << m_realtime << ", pitch scale = "
 //              << m_pitchScale << ", channels = " << m_channels << std::endl;
 
-    size_t prevFftSize = m_fftSize;
-    size_t prevAWindowSize = m_aWindowSize;
-    size_t prevSWindowSize = m_sWindowSize;
-    size_t prevOutbufSize = m_outbufSize;
+    auto prevFftSize     = m_fftSize;
+    auto prevAWindowSize = m_aWindowSize;
+    auto prevSWindowSize = m_sWindowSize;
+    auto prevOutbufSize  = m_outbufSize;
     if (m_windows.empty()) {
         prevFftSize = 0;
         prevAWindowSize = 0;
@@ -414,10 +414,9 @@ RubberBandStretcher::Impl::configure(){
 
     calculateSizes();
 
-    bool fftSizeChanged = (prevFftSize != m_fftSize);
-    bool windowSizeChanged = ((prevAWindowSize != m_aWindowSize) ||
-                              (prevSWindowSize != m_sWindowSize));
-    bool outbufSizeChanged = (prevOutbufSize != m_outbufSize);
+    auto fftSizeChanged = (prevFftSize != m_fftSize);
+    auto windowSizeChanged = ((prevAWindowSize != m_aWindowSize) || (prevSWindowSize != m_sWindowSize));
+    auto outbufSizeChanged = (prevOutbufSize != m_outbufSize);
 
     // This function may be called at any time in non-RT mode, after a
     // parameter has changed.  It shouldn't be legal to call it after
@@ -476,7 +475,7 @@ RubberBandStretcher::Impl::configure(){
             // rbs is the amount of buffer space we think we'll need
             // for resampling; but allocate a sensible amount in case
             // the pitch scale changes during use
-            size_t rbs =  lrintf(ceil((m_increment * m_timeRatio * 2) / m_pitchScale));
+            auto rbs =  static_cast<size_t>(lrintf(ceil((m_increment * m_timeRatio * 2) / m_pitchScale)));
             if (rbs < m_increment * 16) rbs = m_increment * 16;
             m_channelData[c]->setResampleBufSize(rbs);
         }
@@ -535,10 +534,10 @@ RubberBandStretcher::Impl::reconfigure(){
         }
         configure();
     }
-    size_t prevFftSize = m_fftSize;
-    size_t prevAWindowSize = m_aWindowSize;
-    size_t prevSWindowSize = m_sWindowSize;
-    size_t prevOutbufSize = m_outbufSize;
+    auto prevFftSize     = m_fftSize;
+    auto prevAWindowSize = m_aWindowSize;
+    auto prevSWindowSize = m_sWindowSize;
+    auto prevOutbufSize  = m_outbufSize;
     calculateSizes();
     // There are various allocations in this function, but they should
     // never happen in normal use -- they just recover from the case
@@ -595,7 +594,7 @@ RubberBandStretcher::Impl::setTransientsOption(Options options)
         cerr << "RubberBandStretcher::Impl::setTransientsOption: Not permissible in non-realtime mode" << endl;
         return;
     }
-    int mask = (OptionTransientsMixed | OptionTransientsSmooth | OptionTransientsCrisp);
+    auto mask = (OptionTransientsMixed | OptionTransientsSmooth | OptionTransientsCrisp);
     m_options &= ~mask;
     options &= mask;
     m_options |= options;
@@ -608,7 +607,7 @@ RubberBandStretcher::Impl::setDetectorOption(Options options){
         cerr << "RubberBandStretcher::Impl::setDetectorOption: Not permissible in non-realtime mode" << endl;
         return;
     }
-    int mask = (OptionDetectorPercussive | OptionDetectorCompound | OptionDetectorSoft);
+    auto mask = (OptionDetectorPercussive | OptionDetectorCompound | OptionDetectorSoft);
     m_options &= ~mask;
     options &= mask;
     m_options |= options;
@@ -621,7 +620,7 @@ RubberBandStretcher::Impl::setDetectorOption(Options options){
 }
 void
 RubberBandStretcher::Impl::setPhaseOption(Options options){
-    int mask = (OptionPhaseLaminar | OptionPhaseIndependent);
+    auto mask = (OptionPhaseLaminar | OptionPhaseIndependent);
     m_options &= ~mask;
     options &= mask;
     m_options |= options;
@@ -630,7 +629,7 @@ RubberBandStretcher::Impl::setPhaseOption(Options options){
 void
 RubberBandStretcher::Impl::setFormantOption(Options options)
 {
-    int mask = (OptionFormantShifted | OptionFormantPreserved);
+    auto mask = (OptionFormantShifted | OptionFormantPreserved);
     m_options &= ~mask;
     options &= mask;
     m_options |= options;
@@ -643,8 +642,8 @@ RubberBandStretcher::Impl::setPitchOption(Options options)
         cerr << "RubberBandStretcher::Impl::setPitchOption: Pitch option is not used in non-RT mode" << endl;
         return;
     }
-    Options prior = m_options;
-    int mask = (OptionPitchHighQuality |
+    auto  prior = m_options;
+    auto mask = (OptionPitchHighQuality |
                 OptionPitchHighSpeed |
                 OptionPitchHighConsistency);
     m_options &= ~mask;
@@ -667,11 +666,11 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
         return;
     }
     m_mode = Studying;
-    size_t consumed = 0;
-    ChannelData &cd = *m_channelData[0];
-    RingBuffer<float> &inbuf = *cd.inbuf;
+    auto consumed = size_t{0};
+    auto&cd = *m_channelData[0];
+    auto &inbuf = *cd.inbuf;
     const float *mixdown;
-    float *mdalloc = 0;
+    float *mdalloc = nullptr;
     if (m_channels > 1 || final) {
         // mix down into a single channel for analysis
         mdalloc = new float[samples];
@@ -686,8 +685,8 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
         mixdown = mdalloc;
     } else {mixdown = input[0];}
     while (consumed < samples) {
-	size_t writable = inbuf.getWriteSpace();
-	writable = min(writable, samples - consumed);
+	auto writable = static_cast<size_t>(inbuf.getWriteSpace());
+	writable = std::min(writable, samples - consumed);
 	if (writable == 0) {
             // warn
             cerr << "WARNING: writable == 0 (consumed = " << consumed << ", samples = " << samples << ")" << endl;
@@ -703,7 +702,7 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
 	    // advance the read pointer.
             // cd.accumulator is not otherwise used during studying,
             // so we can use it as a temporary buffer here
-            size_t ready = inbuf.getReadSpace();
+            auto ready = static_cast<size_t>(inbuf.getReadSpace());
             assert(final || ready >= m_aWindowSize);
             inbuf.peek(cd.accumulator, std::min(ready, m_aWindowSize));
             if (m_aWindowSize == m_fftSize) {
@@ -720,19 +719,19 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
                 // We get fftshift as well, which we don't want, but
                 // the penalty is nominal.
                 // Note that we can't do this in-place.  Pity
-                float *tmp = (float *)alloca (std::max(m_fftSize, m_aWindowSize) * sizeof(float));
+                auto tmp = (float *)alloca (std::max(m_fftSize, m_aWindowSize) * sizeof(float));
                 if (m_aWindowSize > m_fftSize) {m_afilter->cut(cd.accumulator);}
                 cutShiftAndFold(tmp, m_fftSize, cd.accumulator, m_awindow);
                 v_copy(cd.accumulator, tmp, m_fftSize);
             }
             m_studyFFT->forwardMagnitude(cd.accumulator, cd.fltbuf);
-            float df = m_phaseResetAudioCurve->process(cd.fltbuf, m_increment);
+            auto df = m_phaseResetAudioCurve->process(cd.fltbuf, m_increment);
             m_phaseResetDf.push_back(df);
 //            cout << m_phaseResetDf.size() << " [" << final << "] -> " << df << " \t: ";
             df = m_stretchAudioCurve->process(cd.fltbuf, m_increment);
             m_stretchDf.push_back(df);
             df = m_silentAudioCurve->process(cd.fltbuf, m_increment);
-            bool silent = (df > 0.f);
+            auto silent = (df > 0.f);
             if (silent && m_debugLevel > 1) {cerr << "silence found at " << m_inputDuration << endl;}
             m_silence.push_back(silent);
 //            cout << df << endl;
@@ -748,7 +747,7 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
 	}
     }
     if (final) {
-        int rs = inbuf.getReadSpace();
+        auto rs = inbuf.getReadSpace();
         m_inputDuration += rs;
 //        cerr << "incr input duration by read space: " << rs << " -> " << m_inputDuration << endl;
         if (m_inputDuration > m_aWindowSize/2) { m_inputDuration -= m_aWindowSize/2;}
@@ -789,14 +788,14 @@ RubberBandStretcher::Impl::getExactTimePoints() const{
 void
 RubberBandStretcher::Impl::calculateStretch(){
     Profiler profiler("RubberBandStretcher::Impl::calculateStretch");
-    size_t inputDuration = m_inputDuration;
+    auto inputDuration = m_inputDuration;
     if (!m_realtime && m_expectedInputDuration > 0) {
         if (m_expectedInputDuration != inputDuration) {
             std::cerr << "RubberBandStretcher: WARNING: Actual study() duration differs from duration set by setExpectedInputDuration (" << m_inputDuration << " vs " << m_expectedInputDuration << ", diff = " << (m_expectedInputDuration - m_inputDuration) << "), using the latter for calculation" << std::endl;
             inputDuration = m_expectedInputDuration;
         }
     }
-    float prdm = 0, sdm = 0;
+    auto prdm = 0.f, sdm = 0.f;
     if (!m_phaseResetDf.empty()) {
         for (int i = 0; i < (int)m_phaseResetDf.size(); ++i) {prdm += m_phaseResetDf[i];}
         prdm /= m_phaseResetDf.size();
@@ -806,12 +805,12 @@ RubberBandStretcher::Impl::calculateStretch(){
         sdm /= m_stretchDf.size();
     }
 //    std::cerr << "phase reset df mean = " << prdm << ", stretch df mean = " << sdm << std::endl;
-    std::vector<int> increments = m_stretchCalculator->calculate
+    auto increments = m_stretchCalculator->calculate
         (getEffectiveRatio(),
          inputDuration,
          m_phaseResetDf,
          m_stretchDf);
-    int history = 0;
+    auto history = 0;
     for (size_t i = 0; i < increments.size(); ++i) {
         if (i >= m_silence.size()) break;
         if (m_silence[i]) ++history;
@@ -836,14 +835,14 @@ RubberBandStretcher::Impl::setDebugLevel(int level){
 size_t
 RubberBandStretcher::Impl::getSamplesRequired() const{
     Profiler profiler("RubberBandStretcher::Impl::getSamplesRequired");
-    size_t reqd = 0;
+    auto reqd = size_t{0};
     for (size_t c = 0; c < m_channels; ++c) {
-        size_t reqdHere = 0;
-        ChannelData &cd = *m_channelData[c];
-        RingBuffer<float> &inbuf = *cd.inbuf;
-        RingBuffer<float> &outbuf = *cd.outbuf;
-        size_t rs = inbuf.getReadSpace();
-        size_t ws = outbuf.getReadSpace();
+        auto reqdHere = size_t{0};
+        auto &cd = *m_channelData[c];
+        auto &inbuf = *cd.inbuf;
+        auto &outbuf = *cd.outbuf;
+        auto rs = inbuf.getReadSpace();
+        auto ws = outbuf.getReadSpace();
         if (m_debugLevel > 2) {cerr << "getSamplesRequired: ws = " << ws << ", rs = " << rs << ", m_aWindowSize = " << m_aWindowSize << endl;}
         // We should never return zero in non-threaded modes if
         // available() would also return zero, i.e. if ws == 0.  If we
@@ -891,8 +890,8 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
         }
         m_mode = Processing;
     }
-    bool allConsumed = false;
-    size_t *consumed = (size_t *)alloca(m_channels * sizeof(size_t));
+    auto allConsumed = false;
+    auto consumed = (size_t *)alloca(m_channels * sizeof(size_t));
     for (size_t c = 0; c < m_channels; ++c) {consumed[c] = 0;}
     while (!allConsumed) {
         // In a threaded mode, our "consumed" counters only indicate
@@ -916,7 +915,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
             }
             if (
                 !m_realtime) {
-                bool any = false, last = false;
+                auto any = false, last = false;
                 processChunks(c, any, last);
             }
         }
@@ -932,7 +931,5 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
     if (m_debugLevel > 2) {cerr << "process returning" << endl;}
     if (final) m_mode = Finished;
 }
-
-
 }
 

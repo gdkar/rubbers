@@ -67,10 +67,10 @@ inline void c_phasor(T *real, T *imag, T phase)
 #endif
 }
 void
-inline v_polar_to_cartesian_pommier(float *const R__ _real,
-                             float *const R__ _imag,
-                             const float *const R__ _mag,
-                             const float *const R__ _phase,
+inline v_polar_to_cartesian_pommier(float *const _real,
+                             float *const _imag,
+                             const float *const _mag,
+                             const float *const _phase,
                              const int count){
     int i = 0;
     auto real  = (typeof(_real))__builtin_assume_aligned(_real,16); 
@@ -97,7 +97,7 @@ inline v_polar_to_cartesian_pommier(float *const R__ _real,
 }    
 
 void
-inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ _srcdst,
+inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const _srcdst,
                                                  const int count){
     int i;
     int idx = 0, tidx = 0;
@@ -126,9 +126,9 @@ inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const R__ _srcdst
 }    
 
 void
-inline v_polar_to_cartesian_interleaved_pommier(float *const R__ dst,
-                                         const float *const R__ mag,
-                                         const float *const R__ phase,
+inline v_polar_to_cartesian_interleaved_pommier(float *const dst,
+                                         const float *const mag,
+                                         const float *const phase,
                                          const int count){
     int i;
     for (i = 0; i + 3 <= count; i += 4) {
@@ -192,10 +192,10 @@ inline void c_magphase(T *mag, T *phase, T real, T imag)
 
 
 template<typename S, typename T> // S source, T target
-void v_polar_to_cartesian(T *const R__ real,
-                          T *const R__ imag,
-                          const S *const R__ mag,
-                          const S *const R__ phase,
+void v_polar_to_cartesian(T *const real,
+                          T *const imag,
+                          const S *const mag,
+                          const S *const phase,
                           const int count)
 {
     for (int i = 0; i < count; ++i) {c_phasor<T>(real + i, imag + i, phase[i]);}
@@ -204,7 +204,7 @@ void v_polar_to_cartesian(T *const R__ real,
 }
 
 template<typename T>
-void v_polar_interleaved_to_cartesian_inplace(T *const R__ srcdst,
+void v_polar_interleaved_to_cartesian_inplace(T *const srcdst,
                                               const int count)
 {
     T real, imag;
@@ -218,9 +218,9 @@ void v_polar_interleaved_to_cartesian_inplace(T *const R__ srcdst,
 }
 
 template<typename S, typename T> // S source, T target
-void v_polar_to_cartesian_interleaved(T *const R__ dst,
-                                      const S *const R__ mag,
-                                      const S *const R__ phase,
+void v_polar_to_cartesian_interleaved(T *const dst,
+                                      const S *const mag,
+                                      const S *const phase,
                                       const int count)
 {
     T real, imag;
@@ -234,34 +234,34 @@ void v_polar_to_cartesian_interleaved(T *const R__ dst,
 }    
 
 template<>
-inline void v_polar_to_cartesian(float *const R__ real,
-                                 float *const R__ imag,
-                                 const float *const R__ mag,
-                                 const float *const R__ phase,
+inline void v_polar_to_cartesian(float *const real,
+                                 float *const imag,
+                                 const float *const mag,
+                                 const float *const phase,
                                  const int count)
 {
     v_polar_to_cartesian_pommier(real, imag, mag, phase, count);
 }
 template<>
-inline void v_polar_interleaved_to_cartesian_inplace(float *const R__ srcdst,
+inline void v_polar_interleaved_to_cartesian_inplace(float *const srcdst,
                                                      const int count)
 {
     v_polar_interleaved_to_cartesian_inplace_pommier(srcdst, count);
 }
 
 template<>
-inline void v_polar_to_cartesian_interleaved(float *const R__ dst,
-                                             const float *const R__ mag,
-                                             const float *const R__ phase,
+inline void v_polar_to_cartesian_interleaved(float *const dst,
+                                             const float *const mag,
+                                             const float *const phase,
                                              const int count)
 {
     v_polar_to_cartesian_interleaved_pommier(dst, mag, phase, count);
 }
 template<typename S, typename T> // S source, T target
-void v_cartesian_to_polar(T *const R__ mag,
-                          T *const R__ phase,
-                          const S *const R__ real,
-                          const S *const R__ imag,
+void v_cartesian_to_polar(T *const mag,
+                          T *const phase,
+                          const S *const real,
+                          const S *const imag,
                           const int count)
 {
     for (int i = 0; i < count; ++i) {
@@ -270,9 +270,9 @@ void v_cartesian_to_polar(T *const R__ mag,
 }
 
 template<typename S, typename T> // S source, T target
-void v_cartesian_interleaved_to_polar(T *const R__ mag,
-                                      T *const R__ phase,
-                                      const S *const R__ src,
+void v_cartesian_interleaved_to_polar(T *const mag,
+                                      T *const phase,
+                                      const S *const src,
                                       const int count)
 {
     for (int i = 0; i < count; ++i) {
@@ -280,7 +280,7 @@ void v_cartesian_interleaved_to_polar(T *const R__ mag,
     }
 }
 template<typename T>
-inline void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
+inline void v_cartesian_to_polar_interleaved_inplace(T *const srcdst,
                                               const int count)
 {
     T mag, phase;
@@ -291,10 +291,10 @@ inline void v_cartesian_to_polar_interleaved_inplace(T *const R__ srcdst,
     }
 }
 template<>
-inline void v_cartesian_to_polar(float *const R__ _mag,
-                                 float *const R__ _phase,
-                                 const float *const R__ _real,
-                                 const float *const R__ _imag,
+inline void v_cartesian_to_polar(float *const _mag,
+                                 float *const _phase,
+                                 const float *const _real,
+                                 const float *const _imag,
                                  const int count)
 {
     int i;

@@ -55,32 +55,32 @@ namespace RubberBand {
 // Linux, ideally also gcc-4.0 on OS/X).
 
 template<typename T>
-inline void v_zero(T *const R__ ptr,
+inline void v_zero(T *const  ptr,
                    const int count)
 {memset(ptr, 0, count*sizeof(T));}
 
 template<typename T>
-inline void v_zero_channels(T *const R__ *const R__ ptr,
+inline void v_zero_channels(T *const  *const  ptr,
                             const int channels,
                             const int count)
 {for (int c = 0; c < channels; ++c) {v_zero(ptr[c], count);}}
 template<typename T>
-inline void v_set(T *const R__ ptr,
+inline void v_set(T *const  ptr,
                   const T value,
                   const int count){for (int i = 0; i < count; ++i) {ptr[i] = value;}}
 
 template<typename T>
-inline void v_copy(T *const R__ dst,
-                   const T *const R__ src,
+inline void v_copy(T *const  dst,
+                   const T *const  src,
                    const int count)
 {memmove(dst, src, count*sizeof(T));}
 
 template<typename T>
-inline void v_copy_channels(T *const R__ *const R__ dst,
-                            const T *const R__ *const R__ src,
+inline void v_copy_channels(T *const  *const  dst,
+                            const T *const  *const  src,
                             const int channels,
                             const int count){for (int c = 0; c < channels; ++c) {v_copy(dst[c], src[c], count);}}
-// src and dst alias by definition, so not R__ed
+// src and dst alias by definition, so not ed
 template<typename T>
 inline void v_move(T *const dst,
                    const T *const src,
@@ -88,52 +88,52 @@ inline void v_move(T *const dst,
 {memmove(dst, src, count * sizeof(T));}
 
 template<typename T, typename U>
-inline void v_convert(U *const R__ dst,
-                      const T *const R__ src,
+inline void v_convert(U *const  dst,
+                      const T *const  src,
                       const int count)
 {std::copy_n(src,count,dst);}
 
 template<typename T>
-inline void v_convert(T *const R__ dst, const T * R__ const src, const int count){
+inline void v_convert(T *const  dst, const T *  const src, const int count){
     memmove(dst, src, count*sizeof(T));
 }
 template<typename T, typename U>
-inline void v_convert_channels(U *const R__ *const R__ dst,
-                               const T *const R__ *const R__ src,
+inline void v_convert_channels(U *const  *const  dst,
+                               const T *const  *const  src,
                                const int channels,
                                const int count)
 {
     for (int c = 0; c < channels; ++c) {v_convert(dst[c], src[c], count);}
 }
 template<typename T>
-inline void v_add(T *const R__ dst,
-                  const T *const R__ src,
+inline void v_add(T *const  dst,
+                  const T *const  src,
                   const int count)
 {
-    auto _src=(const T*const R__)__builtin_assume_aligned(src,16);
-    auto _dst =(T*const R__)__builtin_assume_aligned(dst,16);
+    auto _src=(const T*const )__builtin_assume_aligned(src,16);
+    auto _dst =(T*const )__builtin_assume_aligned(dst,16);
     for (int i = 0; i < count; ++i) {
         _dst[i] += _src[i];
     }
 }
 template<typename T>
-inline void v_add(T *const R__ dst,
+inline void v_add(T *const  dst,
                   const T value,
                   const int count)
 {
-    auto _dst = (T *const R__ )__builtin_assume_aligned(dst,16);
+    auto _dst = (T *const  )__builtin_assume_aligned(dst,16);
     for (int i = 0; i < count; ++i) {dst[i] += value;}
 }
 template<typename T>
-inline void v_add_channels(T *const R__ *const R__ dst,
-                           const T *const R__ *const R__ src,
+inline void v_add_channels(T *const  *const  dst,
+                           const T *const  *const  src,
                            const int channels, const int count)
 {
     for (int c = 0; c < channels; ++c) {v_add(dst[c], src[c], count);}
 }
 template<typename T, typename G>
-inline void v_add_with_gain(T *const R__ dst,
-                            const T *const R__ src,
+inline void v_add_with_gain(T *const  dst,
+                            const T *const  src,
                             const G gain,
                             const int count)
 {
@@ -142,8 +142,8 @@ inline void v_add_with_gain(T *const R__ dst,
     for (int i = 0; i < count; ++i) {_dst[i] += _src[i] * gain;}
 }
 template<typename T, typename G>
-inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
-                                     const T *const R__ *const R__ src,
+inline void v_add_channels_with_gain(T *const  *const  dst,
+                                     const T *const  *const  src,
                                      const G gain,
                                      const int channels,
                                      const int count)
@@ -151,8 +151,8 @@ inline void v_add_channels_with_gain(T *const R__ *const R__ dst,
     for (int c = 0; c < channels; ++c) {v_add_with_gain(dst[c], src[c], gain, count);}
 }
 template<typename T>
-inline void v_subtract(T *const R__ dst,
-                       const T *const R__ src,
+inline void v_subtract(T *const  dst,
+                       const T *const  src,
                        const int count)
 {
     int i = 0;
@@ -162,7 +162,7 @@ inline void v_subtract(T *const R__ dst,
     for (i = 0; i < count; ++i) {_dst[i] -= _src[i];}
 }
 template<typename T, typename G>
-inline void v_scale(T *const R__ dst,
+inline void v_scale(T *const  dst,
                     const G gain,
                     const int count)
 {
@@ -173,8 +173,8 @@ inline void v_scale(T *const R__ dst,
     while(i<count){dst[i] = expf(dst[i]);}
 }
 template<typename T>
-inline void v_multiply(T *const R__ dst,
-                       const T *const R__ src,
+inline void v_multiply(T *const  dst,
+                       const T *const  src,
                        const int count)
 {
     auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
@@ -182,9 +182,9 @@ inline void v_multiply(T *const R__ dst,
     for (int i = 0; i < count; ++i) {_dst[i] *= _src[i];}
 }
 template<typename T>
-inline void v_multiply(T *const R__ dst,
-                       const T *const R__ src1,
-                       const T *const R__ src2,
+inline void v_multiply(T *const  dst,
+                       const T *const  src1,
+                       const T *const  src2,
                        const int count)
 {
     auto _src1 = (__typeof__(src1))__builtin_assume_aligned(src1,16);
@@ -194,8 +194,8 @@ inline void v_multiply(T *const R__ dst,
 }
 template<typename T>
 inline void v_divide(
-        T *const R__ dst
-      , const T *const R__ src
+        T *const  dst
+      , const T *const  src
       , const int count)
 {
     auto _src = (__typeof__(src))__builtin_assume_aligned(src,16);
@@ -204,8 +204,8 @@ inline void v_divide(
 }
 template<> 
 inline void v_divide(
-        float*const R__ dst
-      , const float *const R__ src
+        float*const  dst
+      , const float *const  src
       , const int count)
 {
     int i=0;
@@ -218,9 +218,9 @@ inline void v_divide(
     for(;i<count;i++) _dst[i]/=_src[i];
 }
 template<typename T>
-inline void v_multiply_and_add(T *const R__ dst,
-                               const T *const R__ src1,
-                               const T *const R__ src2,
+inline void v_multiply_and_add(T *const  dst,
+                               const T *const  src1,
+                               const T *const  src2,
                                const int count)
 {
     auto _src1 = (__typeof__(src1))__builtin_assume_aligned(src1,16);
@@ -229,7 +229,7 @@ inline void v_multiply_and_add(T *const R__ dst,
     for (int i = 0; i < count; ++i) {_dst[i] += _src1[i] * _src2[i];}
 }
 template<typename T>
-inline T v_sum(const T *const R__ src,
+inline T v_sum(const T *const  src,
                const int count)
 {
     T result = T();
@@ -237,7 +237,7 @@ inline T v_sum(const T *const R__ src,
     return result;
 }
 template<>
-inline float v_sum(const float *const R__ src, const int count)
+inline float v_sum(const float *const  src, const int count)
 {
     v4sf accum = _mm_setzero_ps();
     for(int i = 0; i+3<count; i+=4){accum = _mm_add_ps(accum,*(v4sf*)(src+i));}
@@ -246,7 +246,7 @@ inline float v_sum(const float *const R__ src, const int count)
     return accum[0];
 }
 template<typename T>
-inline void v_log(T *const R__ dst,
+inline void v_log(T *const  dst,
                   const int count)
 {
     for (int i = 0; i < count; ++i) {dst[i] = log(dst[i]);}
@@ -254,10 +254,10 @@ inline void v_log(T *const R__ dst,
 
 
 template<typename T>
-inline void v_exp(T *const R__ dst,const int count){for (int i = 0; i < count; ++i) {dst[i] = exp(dst[i]);}}
+inline void v_exp(T *const  dst,const int count){for (int i = 0; i < count; ++i) {dst[i] = exp(dst[i]);}}
 
 template<>
-inline  void v_exp(float *const R__ dst, const int count)
+inline  void v_exp(float *const  dst, const int count)
 {
     int i=0;
     while(((intptr_t)(dst+i))&15){dst[i] = expf(dst[i]);i++;}
@@ -267,7 +267,7 @@ inline  void v_exp(float *const R__ dst, const int count)
     while(i<count){dst[i] = expf(dst[i]);}
 }
 template<>
-inline  void v_log(float *const R__ dst, const int count)
+inline  void v_log(float *const  dst, const int count)
 {
     int i=0;
     while(((intptr_t)(dst+i))&15){dst[i] = logf(dst[i]);i++;}
@@ -279,13 +279,13 @@ inline  void v_log(float *const R__ dst, const int count)
 
 #if defined HAVE_IPP
 template<>
-inline void v_exp(float *const R__ dst,
+inline void v_exp(float *const  dst,
                   const int count)
 {
     ippsExp_32f_I(dst, count);
 }
 template<>
-inline void v_exp(double *const R__ dst,
+inline void v_exp(double *const  dst,
                   const int count)
 {
     ippsExp_64f_I(dst, count);
@@ -296,7 +296,7 @@ inline void v_exp(double *const R__ dst,
 // use an out-of-place one with temporary buffer and still be faster
 // than doing it any other way?
 template<>
-inline void v_exp(float *const R__ dst,
+inline void v_exp(float *const  dst,
                   const int count)
 {
     float tmp[count];
@@ -304,7 +304,7 @@ inline void v_exp(float *const R__ dst,
     v_copy(dst, tmp, count);
 }
 template<>
-inline void v_exp(double *const R__ dst,
+inline void v_exp(double *const  dst,
                   const int count)
 {
     double tmp[count];
@@ -314,14 +314,14 @@ inline void v_exp(double *const R__ dst,
 #endif
 
 template<typename T>
-inline void v_sqrt(T *const R__ dst,
+inline void v_sqrt(T *const  dst,
                    const int count)
 {
     for (int i = 0; i < count; ++i) {dst[i] = sqrt(dst[i]);}
 }
 //#if defined(x86_64) || defined(AMD64) || defined(__x86_64__) || defined(__AMD64__)
 template<> 
-inline void v_sqrt(float*const R__ srcdst, const int count){
+inline void v_sqrt(float*const  srcdst, const int count){
     int i=0;
     for(i=0; i+3<count;i+=4){
         *(v4sf*)(srcdst+i) = _approx_sqrt_ps (*(v4sf*)(srcdst+i));
@@ -333,13 +333,13 @@ inline void v_sqrt(float*const R__ srcdst, const int count){
 
 #if defined HAVE_IPP
 template<>
-inline void v_sqrt(float *const R__ dst,
+inline void v_sqrt(float *const  dst,
                    const int count)
 {
     ippsSqrt_32f_I(dst, count);
 }
 template<>
-inline void v_sqrt(double *const R__ dst,
+inline void v_sqrt(double *const  dst,
                    const int count)
 {
     ippsSqrt_64f_I(dst, count);
@@ -350,7 +350,7 @@ inline void v_sqrt(double *const R__ dst,
 // use an out-of-place one with temporary buffer and still be faster
 // than doing it any other way?
 template<>
-inline void v_sqrt(float *const R__ dst,
+inline void v_sqrt(float *const  dst,
                    const int count)
 {
     float tmp[count];
@@ -358,7 +358,7 @@ inline void v_sqrt(float *const R__ dst,
     v_copy(dst, tmp, count);
 }
 template<>
-inline void v_sqrt(double *const R__ dst,
+inline void v_sqrt(double *const  dst,
                    const int count)
 {
     double tmp[count];
@@ -368,7 +368,7 @@ inline void v_sqrt(double *const R__ dst,
 #endif
 
 template<typename T>
-inline void v_square(T *const R__ dst,
+inline void v_square(T *const  dst,
                    const int count)
 {
     for (int i = 0; i < count; ++i) {dst[i] = dst[i] * dst[i];}
@@ -376,13 +376,13 @@ inline void v_square(T *const R__ dst,
 
 #if defined HAVE_IPP
 template<>
-inline void v_square(float *const R__ dst,
+inline void v_square(float *const  dst,
                    const int count)
 {
     ippsSqr_32f_I(dst, count);
 }
 template<>
-inline void v_square(double *const R__ dst,
+inline void v_square(double *const  dst,
                    const int count)
 {
     ippsSqr_64f_I(dst, count);
@@ -390,13 +390,13 @@ inline void v_square(double *const R__ dst,
 #endif
 
 template<typename T>
-inline void v_abs(T *const R__ dst,
+inline void v_abs(T *const  dst,
                   const int count)
 {
     for (int i = 0; i < count; ++i) {dst[i] = fabs(dst[i]);}
 }
 template<>
-inline  void v_abs(float *const R__ dst, const int count)
+inline  void v_abs(float *const  dst, const int count)
 {
     int i=0;
     while(((intptr_t)(dst+i))&15){dst[i] = std::abs(dst[i]);i++;}
@@ -408,20 +408,20 @@ inline  void v_abs(float *const R__ dst, const int count)
 }
 #if defined HAVE_IPP
 template<>
-inline void v_abs(float *const R__ dst,
+inline void v_abs(float *const  dst,
                   const int count)
 {
     ippsAbs_32f_I(dst, count);
 }
 template<>
-inline void v_abs(double *const R__ dst,
+inline void v_abs(double *const  dst,
                   const int count)
 {
     ippsAbs_64f_I(dst, count);
 }
 #elif defined HAVE_VDSP
 template<>
-inline void v_abs(float *const R__ dst,
+inline void v_abs(float *const  dst,
                   const int count)
 {
     float tmp[count];
@@ -435,8 +435,8 @@ inline void v_abs(float *const R__ dst,
 #endif
 
 template<typename T>
-inline void v_interleave(T *const R__ dst,
-                         const T *const R__ *const R__ src,
+inline void v_interleave(T *const  dst,
+                         const T *const  *const  src,
                          const int channels, 
                          const int count){
     int idx = 0;
@@ -459,8 +459,8 @@ inline void v_interleave(T *const R__ dst,
 
 #if defined HAVE_IPP 
 template<>
-inline void v_interleave(float *const R__ dst,
-                         const float *const R__ *const R__ src,
+inline void v_interleave(float *const  dst,
+                         const float *const  *const  src,
                          const int channels, 
                          const int count)
 {
@@ -470,8 +470,8 @@ inline void v_interleave(float *const R__ dst,
 #endif
 
 template<typename T>
-inline void v_deinterleave(T *const R__ *const R__ dst,
-                           const T *const R__ src,
+inline void v_deinterleave(T *const  *const  dst,
+                           const T *const  src,
                            const int channels, 
                            const int count)
 {
@@ -494,14 +494,14 @@ inline void v_deinterleave(T *const R__ *const R__ dst,
 }
 #if defined HAVE_IPP
 template<>
-inline void v_deinterleave(float *const R__ *const R__ dst,
-                           const float *const R__ src,
+inline void v_deinterleave(float *const  *const  dst,
+                           const float *const  src,
                            const int channels, 
                            const int count){ippsDeinterleave_32f((const Ipp32f *)src, channels, count, (Ipp32f **)dst);}
 // IPP does not (currently?) provide double-precision deinterleave
 #endif
 template<typename T>
-inline void v_fftshift(T *const R__ ptr,const int count){
+inline void v_fftshift(T *const  ptr,const int count){
     const int hs = count/2;
     for (int i = 0; i < hs; ++i) {
         T t = ptr[i];
@@ -510,7 +510,7 @@ inline void v_fftshift(T *const R__ ptr,const int count){
     }
 }
 template<typename T>
-inline T v_mean(const T *const R__ ptr, const int count)
+inline T v_mean(const T *const  ptr, const int count)
 {
     T t = T(0);
     for (int i = 0; i < count; ++i) {t += ptr[i];}
@@ -518,7 +518,7 @@ inline T v_mean(const T *const R__ ptr, const int count)
     return t;
 }
 template<typename T>
-inline T v_mean_channels(const T *const R__ *const R__ ptr,
+inline T v_mean_channels(const T *const  *const  ptr,
                          const int channels,
                          const int count){
     T t = T(0);

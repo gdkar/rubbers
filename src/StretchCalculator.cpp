@@ -64,9 +64,9 @@ StretchCalculator::setKeyFrameMap(const std::map<size_t, size_t> &mapping){
 std::vector<int>
 StretchCalculator::calculate(double ratio, size_t inputDuration,const std::vector<float> &phaseResetDf,const std::vector<float> &stretchDf){
     assert(phaseResetDf.size() == stretchDf.size());
-    m_peaks = findPeaks(phaseResetDf);
-    size_t totalCount = phaseResetDf.size();
-    size_t outputDuration = lrint(inputDuration * ratio);
+    m_peaks             = findPeaks(phaseResetDf);
+    auto totalCount     = phaseResetDf.size();
+    auto outputDuration = static_cast<size_t>(lrint(inputDuration * ratio));
     if (m_debugLevel > 0) {
         std::cerr << "StretchCalculator::calculate(): inputDuration " << inputDuration << ", ratio " << ratio << ", outputDuration " << outputDuration;
     }
@@ -76,11 +76,11 @@ StretchCalculator::calculate(double ratio, size_t inputDuration,const std::vecto
         std::cerr << ", df size " << phaseResetDf.size() << ", increment "
                   << m_increment << std::endl;
     }
-    std::vector<Peak> peaks; // peak position (in chunks) and hardness
-    std::vector<size_t> targets; // targets for mapping peaks (in samples)
+    auto peaks   = std::vector<Peak>{};
+    auto targets = std::vector<size_t>{};
     mapPeaks(peaks, targets, outputDuration, totalCount);
     if (m_debugLevel > 1) {std::cerr << "have " << peaks.size() << " fixed positions" << std::endl;}
-    size_t totalInput = 0, totalOutput = 0;
+    auto totalInput = size_t{0}, totalOutput = size_t{0};
     // For each region between two consecutive time sync points, we
     // want to take the number of output chunks to be allocated and
     // the detection function values within the range, and produce a
@@ -88,43 +88,39 @@ StretchCalculator::calculate(double ratio, size_t inputDuration,const std::vecto
     // such that each increment is displaced from the input increment
     // by an amount inversely proportional to the magnitude of the
     // stretch detection function at that input step.
-    size_t regionTotalChunks = 0;
-    std::vector<int> increments;
-    for (size_t i = 0; i <= peaks.size(); ++i) {
-        size_t regionStart, regionStartChunk, regionEnd, regionEndChunk;
-        bool phaseReset = false;
-        if (i == 0) {
-            regionStartChunk = 0;
-            regionStart = 0;
-        } else {
+    auto regionTotalChunks = size_t{0};
+    auto increments = std::vector<int>{};
+    for (auto i = size_t{0}; i <= peaks.size(); ++i) {
+        auto regionStart = size_t{0}, regionStartChunk = size_t{0}, regionEnd = size_t{0}, regionEndChunk = size_t{0};
+        auto phaseReset = false;
+        if (i > 0) {
             regionStartChunk = peaks[i-1].chunk;
-            regionStart = targets[i-1];
-            phaseReset = peaks[i-1].hard;
+            regionStart      = targets[i-1];
+            phaseReset       = peaks[i-1].hard;
         }
         if (i == peaks.size()) {
 //            std::cerr << "note: i (=" << i << ") == peaks.size(); regionEndChunk " << regionEndChunk << " -> " << totalCount << ", regionEnd " << regionEnd << " -> " << outputDuration << std::endl;
             regionEndChunk = totalCount;
-            regionEnd = outputDuration;
+            regionEnd      = outputDuration;
         } else {
             regionEndChunk = peaks[i].chunk;
-            regionEnd = targets[i];
+            regionEnd      = targets[i];
         }
-        if (regionStartChunk > totalCount) regionStartChunk = totalCount;
-        if (regionStart > outputDuration) regionStart = outputDuration;
-        if (regionEndChunk > totalCount) regionEndChunk = totalCount;
-        if (regionEnd > outputDuration) regionEnd = outputDuration;
-        size_t regionDuration = regionEnd - regionStart;
+        regionStartChunk = std::min ( regionStartChunk, totalCount     );
+        regionStart      = std::min ( regionStart,      outputDuration );
+        regionEndChunk   = std::min ( regionEndChunk,   totalCount     );
+        regionEnd        = std::min ( regionEnd,        outputDuration );
+        auto regionDuration = regionEnd - regionStart;
         regionTotalChunks += regionDuration;
-        std::vector<float> dfRegion;
-        for (size_t j = regionStartChunk; j != regionEndChunk; ++j) {dfRegion.push_back(stretchDf[j]);}
+        auto dfRegion = std::vector<float>(stretchDf.cbegin() + regionStartChunk, stretchDf.cbegin()+regionEndChunk);
         if (m_debugLevel > 1) {
             std::cerr << "distributeRegion from " << regionStartChunk << " to " << regionEndChunk << " (samples " << regionStart << " to " << regionEnd << ")" << std::endl;
         }
         dfRegion = smoothDF(dfRegion);
-        std::vector<int> regionIncrements = distributeRegion (dfRegion, regionDuration, ratio, phaseReset);
-        size_t totalForRegion = 0;
+        auto regionIncrements = distributeRegion (dfRegion, regionDuration, ratio, phaseReset);
+        auto totalForRegion   = size_t{0};
         for (size_t j = 0; j < regionIncrements.size(); ++j) {
-            int incr = regionIncrements[j];
+            auto incr = regionIncrements[j];
             if (j == 0 && phaseReset) increments.push_back(-incr);
             else increments.push_back(incr);
             if (incr > 0) totalForRegion += incr;
@@ -142,13 +138,11 @@ StretchCalculator::calculate(double ratio, size_t inputDuration,const std::vecto
     }
     return increments;
 }
-
 void
 StretchCalculator::mapPeaks(std::vector<Peak> &peaks,
                             std::vector<size_t> &targets,
                             size_t outputDuration,
-                            size_t totalCount)
-{
+                            size_t totalCount){
     // outputDuration is in audio samples; totalCount is in chunks
     if (m_keyFrameMap.empty()) {
         // "normal" behaviour -- fixed points are strictly in
@@ -163,24 +157,24 @@ StretchCalculator::mapPeaks(std::vector<Peak> &peaks,
     // m_keyFrameMap.  We want to ensure that (to the nearest chunk) these
     // are followed exactly, and any fixed points that we calculated
     // ourselves are interpolated in linear proportion in between.
-    size_t peakidx = 0;
-    std::map<size_t, size_t>::const_iterator mi = m_keyFrameMap.begin();
+    auto peakidx = size_t{0};
+    auto mi = m_keyFrameMap.cbegin();
     // NB we know for certain we have a mapping from 0 -> 0 (or at
     // least, some mapping for source sample 0) because that is
     // enforced in setLockPoints above.  However, we aren't guaranteed
     // to have a mapping for the total duration -- we will usually
     // need to assume it maps to the normal duration * ratio sample
-    while (mi != m_keyFrameMap.end()) {
+    while (mi != m_keyFrameMap.cend()) {
 //        std::cerr << "mi->first is " << mi->first << ", second is " << mi->second <<std::endl;
         // The map we've been given is from sample to sample, but
         // we can only map from chunk to sample.  We should perhaps
         // adjust the target sample to compensate for the discrepancy
         // between the chunk position and the exact requested source
         // sample.  But we aren't doing that yet.
-        size_t sourceStartChunk = mi->first / m_increment;
-        size_t sourceEndChunk = totalCount;
-        size_t targetStartSample = mi->second;
-        size_t targetEndSample = outputDuration;
+        auto sourceStartChunk = mi->first / m_increment;
+        auto sourceEndChunk = totalCount;
+        auto targetStartSample = mi->second;
+        auto targetEndSample = outputDuration;
         ++mi;
         if (mi != m_keyFrameMap.end()) {
             sourceEndChunk = mi->first / m_increment;
@@ -195,14 +189,12 @@ StretchCalculator::mapPeaks(std::vector<Peak> &peaks,
         }
         // one peak and target for the mapping, then one for each of
         // the computed peaks that appear before the following mapping
-        Peak p;
-        p.chunk = sourceStartChunk;
-        p.hard = false; // mappings are in time only, not phase reset points
+        auto p = Peak{sourceStartChunk,false};
         peaks.push_back(p);
         targets.push_back(targetStartSample);
         if (m_debugLevel > 1) {std::cerr << "mapped chunk " << sourceStartChunk << " (frame " << sourceStartChunk * m_increment << ") -> " << targetStartSample << std::endl;}
         while (peakidx < m_peaks.size()) {
-            size_t pchunk = m_peaks[peakidx].chunk;
+            auto pchunk = m_peaks[peakidx].chunk;
             if (pchunk < sourceStartChunk) {
                 // shouldn't happen, should have been dealt with
                 // already -- but no harm in ignoring it explicitly
@@ -218,10 +210,10 @@ StretchCalculator::mapPeaks(std::vector<Peak> &peaks,
             if (pchunk >= sourceEndChunk) {break;}
             p.chunk = pchunk;
             p.hard = m_peaks[peakidx].hard;
-            double proportion =
+            auto proportion =
                 double(pchunk - sourceStartChunk) /
                 double(sourceEndChunk - sourceStartChunk);
-            size_t target = targetStartSample + lrint(proportion * (targetEndSample - targetStartSample));
+            auto target = static_cast<size_t>(targetStartSample + lrint(proportion * (targetEndSample - targetStartSample)));
             if (target <= targets[targets.size()-1] + m_increment) {
                 // peaks will become too close together afterwards, ignore
                 ++peakidx;
@@ -235,12 +227,9 @@ StretchCalculator::mapPeaks(std::vector<Peak> &peaks,
     }
 }    
 int
-StretchCalculator::calculateSingle(double ratio,
-                                   float df,
-                                   size_t increment)
-{
+StretchCalculator::calculateSingle(double ratio, float df, size_t increment){
     if (increment == 0) increment = m_increment;
-    bool isTransient = false;
+    auto isTransient = false;
     // We want to ensure, as close as possible, that the phase reset
     // points appear at _exactly_ the right audio frame numbers.
     // In principle, the threshold depends on chunk size: larger chunk
@@ -248,7 +237,7 @@ StretchCalculator::calculateSingle(double ratio,
     // ratio, I suppose we could in theory calculate the threshold
     // from the ratio directly.  For the moment we're happy if it
     // works well in common situations.
-    float transientThreshold = 0.35f;
+    const auto transientThreshold = 0.35f;
 //    if (ratio > 1) transientThreshold = 0.25f;
     if (m_useHardPeaks && df > m_prevDf * 1.1f && df > transientThreshold) {isTransient = true;}
     if (m_debugLevel > 2) {
@@ -256,7 +245,7 @@ StretchCalculator::calculateSingle(double ratio,
                   << ", thresh = " << transientThreshold << std::endl;
     }
     m_prevDf = df;
-    bool ratioChanged = (ratio != m_prevRatio);
+    auto ratioChanged = (ratio != m_prevRatio);
     m_prevRatio = ratio;
     if (isTransient && m_transientAmnesty == 0) {
         if (m_debugLevel > 1) {
@@ -270,15 +259,15 @@ StretchCalculator::calculateSingle(double ratio,
     }
     if (ratioChanged) {m_recovery = m_divergence / ((m_sampleRate / 10.0) / increment);}
     if (m_transientAmnesty > 0) --m_transientAmnesty;
-    int incr = lrint(increment * ratio - m_recovery);
+    auto incr = static_cast<int>(lrint(increment * ratio - m_recovery));
     if (m_debugLevel > 2 || (m_debugLevel > 1 && m_divergence != 0)) {
         std::cerr << "divergence = " << m_divergence << ", recovery = " << m_recovery << ", incr = " << incr << ", ";
     }
     if (incr < lrint((increment * ratio) / 2)) {incr = lrint((increment * ratio) / 2);}
     else if (incr > lrint(increment * ratio * 2)) {incr = lrint(increment * ratio * 2);}
-    double divdiff = (increment * ratio) - incr;
+    auto divdiff = (increment * ratio) - incr;
     if (m_debugLevel > 2 || (m_debugLevel > 1 && m_divergence != 0)) {std::cerr << "divdiff = " << divdiff << std::endl;}
-    double prevDivergence = m_divergence;
+    auto prevDivergence = m_divergence;
     m_divergence -= divdiff;
     if ((prevDivergence < 0 && m_divergence > 0) ||
         (prevDivergence > 0 && m_divergence < 0)) {
@@ -291,10 +280,9 @@ StretchCalculator::reset(){
     m_prevDf = 0;
     m_divergence = 0;
 }
-
 std::vector<StretchCalculator::Peak>
 StretchCalculator::findPeaks(const std::vector<float> &rawDf){
-    std::vector<float> df = smoothDF(rawDf);
+    auto df = smoothDF(rawDf);
     // We distinguish between "soft" and "hard" peaks.  A soft peak is
     // simply the result of peak-picking on the smoothed onset
     // detection function, and it represents any (strong-ish) onset.
@@ -306,43 +294,31 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
     // reset at the first point where we notice enough of a rapid
     // rise, rather than necessarily at the peak itself, in order to
     // preserve the shape of the transient.
-    std::set<size_t> hardPeakCandidates;
-    std::set<size_t> softPeakCandidates;
+    auto hardPeakCandidates = std::set<size_t>{}, softPeakCandidates = std::set<size_t>{};
     if (m_useHardPeaks) {
         // 0.05 sec approx min between hard peaks
-        size_t hardPeakAmnesty = lrint(ceil(double(m_sampleRate) /(20 * double(m_increment))));
-        size_t prevHardPeak = 0;
+        auto hardPeakAmnesty = static_cast<size_t>(lrint(ceil(double(m_sampleRate) /(20 * double(m_increment)))));
+        auto prevHardPeak = size_t{0};
         if (m_debugLevel > 1) {std::cerr << "hardPeakAmnesty = " << hardPeakAmnesty << std::endl;}
         for (size_t i = 1; i + 1 < df.size(); ++i) {
-            if (df[i] < 0.1) continue;
-            if (df[i] <= df[i-1] * 1.1) continue;
-            if (df[i] < 0.22) continue;
-            if (!hardPeakCandidates.empty() &&
-                i < prevHardPeak + hardPeakAmnesty) {
+            if (df[i] < 0.1f) continue;
+            if (df[i] <= df[i-1] * 1.1f) continue;
+            if (df[i] < 0.22f) continue;
+            if (!hardPeakCandidates.empty() && i < prevHardPeak + hardPeakAmnesty) {
                 continue;
             }
-            bool hard = (df[i] > 0.4);
-            
+            auto hard = (df[i] > 0.4f);
             if (hard && (m_debugLevel > 1)) {
-                std::cerr << "hard peak at " << i << ": " << df[i] 
-                          << " > absolute " << 0.4
-                          << std::endl;
+                std::cerr << "hard peak at " << i << ": " << df[i]  << " > absolute " << 0.4 << std::endl;
             }
-
             if (!hard) {
-                hard = (df[i] > df[i-1] * 1.4);
-
+                hard = (df[i] > df[i-1] * 1.4f);
                 if (hard && (m_debugLevel > 1)) {
-                    std::cerr << "hard peak at " << i << ": " << df[i] 
-                              << " > prev " << df[i-1] << " * 1.4"
-                              << std::endl;
+                    std::cerr << "hard peak at " << i << ": " << df[i]  << " > prev " << df[i-1] << " * 1.4" << std::endl;
                 }
             }
-
             if (!hard && i > 1) {
-                hard = (df[i]   > df[i-1] * 1.2 &&
-                        df[i-1] > df[i-2] * 1.2);
-
+                hard = (df[i]   > df[i-1] * 1.2f && df[i-1] > df[i-2] * 1.2f);
                 if (hard && (m_debugLevel > 1)) {
                     std::cerr << "hard peak at " << i << ": " << df[i] 
                               << " > prev " << df[i-1] << " * 1.2 and "
@@ -350,13 +326,9 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
                               << std::endl;
                 }
             }
-
             if (!hard && i > 2) {
                 // have already established that df[i] > df[i-1] * 1.1
-                hard = (df[i] > 0.3 &&
-                        df[i-1] > df[i-2] * 1.1 &&
-                        df[i-2] > df[i-3] * 1.1);
-
+                hard = (df[i] > 0.3f && df[i-1] > df[i-2] * 1.1f && df[i-2] > df[i-3] * 1.1f);
                 if (hard && (m_debugLevel > 1)) {
                     std::cerr << "hard peak at " << i << ": " << df[i] 
                               << " > prev " << df[i-1] << " * 1.1 and "
@@ -368,9 +340,8 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
             if (!hard) continue;
 //            (df[i+1] > df[i] && df[i+1] > df[i-1] * 1.8) ||
 //                df[i] > 0.4) {
-            size_t peakLocation = i;
-            if (i + 1 < rawDf.size() &&
-                rawDf[i + 1] > rawDf[i] * 1.4) {
+            auto peakLocation = i;
+            if (i + 1 < rawDf.size() && rawDf[i + 1] > rawDf[i] * 1.4f) {
                 ++peakLocation;
                 if (m_debugLevel > 1) {
                     std::cerr << "pushing hard peak forward to " << peakLocation << ": " << df[peakLocation] << " > " << df[peakLocation-1] << " * " << 1.4 << std::endl;
@@ -380,41 +351,38 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
             prevHardPeak = peakLocation;
         }
     }
-    size_t medianmaxsize = lrint(ceil(double(m_sampleRate) /double(m_increment))); // 1 sec ish
+    auto medianmaxsize = static_cast<size_t>(lrint(ceil(double(m_sampleRate) /double(m_increment)))); // 1 sec ish
     if (m_debugLevel > 1) {std::cerr << "mediansize = " << medianmaxsize << std::endl;}
     if (medianmaxsize < 7) {
         medianmaxsize = 7;
-        if (m_debugLevel > 1) {
-            std::cerr << "adjusted mediansize = " << medianmaxsize << std::endl;
-        }
+        if (m_debugLevel > 1) { std::cerr << "adjusted mediansize = " << medianmaxsize << std::endl; }
     }
-    int minspacing = lrint(ceil(double(m_sampleRate) / (20 * double(m_increment)))); // 0.05 sec ish
-    std::deque<float> medianwin;
+    auto minspacing = static_cast<int>(lrint(ceil(double(m_sampleRate) / (20 * double(m_increment))))); // 0.05 sec ish
+    std::deque<float>  medianwin;
     std::vector<float> sorted;
-    int softPeakAmnesty = 0;
-    for (size_t i = 0; i < medianmaxsize/2; ++i) {medianwin.push_back(0);}
-    for (size_t i = 0; i < medianmaxsize/2 && i < df.size(); ++i) {medianwin.push_back(df[i]);}
-    size_t lastSoftPeak = 0;
+    auto softPeakAmnesty = 0;
+    std::fill_n(std::back_inserter(medianwin), medianmaxsize/2, 0.f);
+    std::copy_n(df.begin(),std::min(medianmaxsize/2,df.size()),std::back_inserter(medianwin));
+    auto lastSoftPeak = size_t{0};
     for (size_t i = 0; i < df.size(); ++i) {
-        size_t mediansize = medianmaxsize;
+        auto  mediansize = medianmaxsize;
         if (medianwin.size() < mediansize) {mediansize = medianwin.size();}
-        size_t middle = medianmaxsize / 2;
+        auto  middle = medianmaxsize / 2;
         if (middle >= mediansize) middle = mediansize-1;
-        size_t nextDf = i + mediansize - middle;
+        auto  nextDf = i + mediansize - middle;
         if (mediansize < 2) {
             if (mediansize > medianmaxsize) {medianwin.pop_front();}
             if (nextDf < df.size()) {medianwin.push_back(df[nextDf]);}
             else {medianwin.push_back(0);}
             continue;
         }
-        sorted.clear();
-        for (size_t j = 0; j < mediansize; ++j) {sorted.push_back(medianwin[j]);}
+        sorted = std::vector<float>(medianwin.begin(),medianwin.begin()+mediansize);
         std::sort(sorted.begin(), sorted.end());
-        size_t n = 90; // percentile above which we pick peaks
-        size_t index = (sorted.size() * n) / 100;
+        auto n = .9; // percentile above which we pick peaks
+        auto index = static_cast<size_t>((sorted.size() * n));
         if (index >= sorted.size()) index = sorted.size()-1;
         if (index == sorted.size()-1 && index > 0) --index;
-        float thresh = sorted[index];
+        auto thresh = sorted[index];
 //        if (m_debugLevel > 2) {
 //            std::cerr << "medianwin[" << middle << "] = " << medianwin[middle] << ", thresh = " << thresh << std::endl;
 //            if (medianwin[middle] == 0.f) {
@@ -429,15 +397,15 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
             medianwin[middle] > medianwin[middle-1] &&
             medianwin[middle] > medianwin[middle+1] &&
             softPeakAmnesty == 0) {
-            size_t maxindex = middle;
-            float maxval = medianwin[middle];
-            for (size_t j = middle+1; j < mediansize; ++j) {
+            auto maxindex = middle;
+            auto maxval   = medianwin[middle];
+            for (size_t j = middle+1; j < mediansize && medianwin[j] >= medianwin[middle]; ++j) {
                 if (medianwin[j] > maxval) {
                     maxval = medianwin[j];
                     maxindex = j;
-                } else if (medianwin[j] < medianwin[middle]) {break;}
+                }
             }
-            size_t peak = i + maxindex - middle;
+            auto peak = i + maxindex - middle;
 //            std::cerr << "i = " << i << ", maxindex = " << maxindex << ", middle = " << middle << ", so peak at " << peak << std::endl;
             if (softPeakCandidates.empty() || lastSoftPeak != peak) {
                 if (m_debugLevel > 1) {
@@ -463,17 +431,14 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
         if (nextDf < df.size()) {medianwin.push_back(df[nextDf]);
         } else {medianwin.push_back(0);}
     }
-
-    std::vector<Peak> peaks;
+    auto peaks = std::vector<Peak>{};
     while (!hardPeakCandidates.empty() || !softPeakCandidates.empty()) {
-        bool haveHardPeak = !hardPeakCandidates.empty();
-        bool haveSoftPeak = !softPeakCandidates.empty();
-        size_t hardPeak = (haveHardPeak ? *hardPeakCandidates.begin() : 0);
-        size_t softPeak = (haveSoftPeak ? *softPeakCandidates.begin() : 0);
-        Peak peak;
-        peak.hard = false;
-        peak.chunk = softPeak;
-        bool ignore = false;
+        auto haveHardPeak = !hardPeakCandidates.empty();
+        auto haveSoftPeak = !softPeakCandidates.empty();
+        auto hardPeak = (haveHardPeak ? *hardPeakCandidates.begin() : size_t{0});
+        auto softPeak = (haveSoftPeak ? *softPeakCandidates.begin() : size_t{0});
+        auto peak = Peak{softPeak,false};
+        auto ignore = false;
         if (haveHardPeak &&
             (!haveSoftPeak || hardPeak <= softPeak)) {
             if (m_debugLevel > 2) {std::cerr << "Hard peak: " << hardPeak << std::endl;}
@@ -495,29 +460,26 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
         {softPeakCandidates.erase(softPeakCandidates.begin());}
         if (!ignore) {peaks.push_back(peak);}
     }                
-
     return peaks;
 }
 std::vector<float>
 StretchCalculator::smoothDF(const std::vector<float> &df){
-    std::vector<float> smoothedDF;
+    auto smoothedDF = std::vector<float>{};
     for (size_t i = 0; i < df.size(); ++i) {
         // three-value moving mean window for simple smoothing
-        float total = 0.f, count = 0;
+        auto total = 0.f, count = 0.f;
         if (i > 0) { total += df[i-1]; ++count; }
         total += df[i]; ++count;
         if (i+1 < df.size()) { total += df[i+1]; ++count; }
-        float mean = total / count;
+        auto mean = total / count;
         smoothedDF.push_back(mean);
     }
     return smoothedDF;
 }
 std::vector<int>
-StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
-                                    size_t duration, float ratio, bool phaseReset){
-    std::vector<float> df(dfIn);
-    std::vector<int> increments;
-
+StretchCalculator::distributeRegion(const std::vector<float> &dfIn,size_t duration, float ratio, bool phaseReset){
+    auto df = dfIn;
+    auto increments = std::vector<int>{};
     // The peak for the stretch detection function may appear after
     // the peak that we're using to calculate the start of the region.
     // We don't want that.  If we find a peak in the first half of
@@ -537,23 +499,23 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
             break;
         }
     }
-    float maxDf = 0;
+    auto maxDf = 0.f;
     for (size_t i = 0; i < df.size(); ++i) {if (i == 0 || df[i] > maxDf) maxDf = df[i];}
     // We want to try to ensure the last 100ms or so (if possible) are
     // tending back towards the maximum df, so that the stretchiness
     // reduces at the end of the stretched region.
     
-    int reducedRegion = lrint((0.1 * m_sampleRate) / m_increment);
+    auto reducedRegion = static_cast<int>(lrint((0.1 * m_sampleRate) / m_increment));
     if (reducedRegion > int(df.size()/5)) reducedRegion = df.size()/5;
-    for (int i = 0; i < reducedRegion; ++i) {
-        size_t index = df.size() - reducedRegion + i;
+    for (auto i = 0; i < reducedRegion; ++i) {
+        auto index = df.size() - reducedRegion + i;
         df[index] = df[index] + ((maxDf - df[index]) * i) / reducedRegion;
     }
-    long toAllot = long(duration) - long(m_increment * df.size());
+    auto toAllot = long(duration) - long(m_increment * df.size());
     if (m_debugLevel > 1) {
         std::cerr << "region of " << df.size() << " chunks, output duration " << duration << ", increment " << m_increment << ", toAllot " << toAllot << std::endl;
     }
-    size_t totalIncrement = 0;
+    auto totalIncrement = size_t{0};
     // We place limits on the amount of displacement per chunk.  if
     // ratio < 0, no increment should be larger than increment*ratio
     // or smaller than increment*ratio/2; if ratio > 0, none should be
@@ -572,15 +534,15 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
     // maxDisplacement / totalDisplacement < increment * ratio/2
     // (for ratio < 1)
     // then we need to adjust and accommodate
-    double totalDisplacement = 0;
-    double maxDisplacement = 0; // min displacement will be 0 by definition
+    auto  totalDisplacement = 0.0;
+    auto  maxDisplacement = 0.0; // min displacement will be 0 by definition
     maxDf = 0;
-    float adj = 0;
-    bool tooShort = true, tooLong = true;
-    const int acceptableIterations = 10;
-    int iteration = 0;
-    int prevExtreme = 0;
-    bool better = false;
+    auto adj = 0.f;
+    auto tooShort = true, tooLong = true;
+    const auto acceptableIterations = 10;
+    auto iteration = 0;
+    auto  prevExtreme = 0;
+    auto better = false;
     while ((tooLong || tooShort) && iteration < acceptableIterations) {
         ++iteration;
         tooLong = false;
@@ -598,7 +560,7 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
             }
             continue;
         }
-        int extremeIncrement = m_increment +lrint((toAllot * maxDisplacement) / totalDisplacement);
+        auto extremeIncrement = static_cast<int>(m_increment +lrint((toAllot * maxDisplacement) / totalDisplacement));
         if (extremeIncrement < 0) {
             if (m_debugLevel > 0) {
                 std::cerr << "NOTE: extreme increment " << extremeIncrement << " < 0, adjusting" << std::endl;
@@ -664,7 +626,7 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
         calculateDisplacements(df, maxDf, totalDisplacement, maxDisplacement,adj);
     }
     for (size_t i = 0; i < df.size(); ++i) {
-        double displacement = maxDf - df[i];
+        auto displacement = maxDf - df[i];
         if (displacement < 0) displacement -= adj;
         else displacement += adj;
         if (i == 0 && phaseReset) {
@@ -679,11 +641,11 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
             totalDisplacement -= displacement;
             continue;
         }
-        double theoreticalAllotment = 0;
+        auto theoreticalAllotment = 0.0;
         if (totalDisplacement != 0) {theoreticalAllotment = (toAllot * displacement) / totalDisplacement;}
-        int allotment = lrint(theoreticalAllotment);
+        auto allotment = static_cast<int>(lrint(theoreticalAllotment));
         if (i + 1 == df.size()) allotment = toAllot;
-        int increment = m_increment + allotment;
+        auto increment = static_cast<int>(m_increment + allotment);
         if (increment < 0) {
             // this is a serious problem, the allocation is quite
             // wrong if it allows increment to diverge so far from the
@@ -697,7 +659,6 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,
         totalIncrement += increment;
         totalDisplacement -= displacement;
     }
-
     return increments;
 }
 void
@@ -713,7 +674,7 @@ StretchCalculator::calculateDisplacements(const std::vector<float> &df,
     maxDisplacement = maxDf - df[0] + adj;
     totalDisplacement = maxDisplacement;
     for (size_t i = 1; i < df.size(); ++i) {
-        double displacement = maxDf - df[i] + adj;
+        auto displacement = maxDf - df[i] + adj;
         totalDisplacement += displacement;
         maxDisplacement = (maxDisplacement<displacement)?displacement:maxDisplacement;
     }

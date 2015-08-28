@@ -27,67 +27,27 @@
 #include "VectorOps.h"
 
 #include <new> // for std::bad_alloc
+#include <memory>
 #include <cstdlib>
 #include <climits>
 #include <limits>
-#ifndef HAVE_POSIX_MEMALIGN
-#ifndef _WIN32
-#ifndef __APPLE__
-#ifndef LACK_POSIX_MEMALIGN
-#define HAVE_POSIX_MEMALIGN
-#endif
-#endif
-#endif
-#endif
 
 #ifdef HAVE_POSIX_MEMALIGN
 #include <sys/mman.h>
 #endif
 
-#ifdef LACK_BAD_ALLOC
-namespace std { struct bad_alloc { }; }
-#endif
-
 namespace RubberBand {
 
 template <typename T>
-T *allocate(size_t count)
-{
+T *allocate(size_t count){
     void *ptr = 0;
     // 32-byte alignment is required for at least OpenMAX
-#ifdef USE_OWN_ALIGNED_MALLOC
-    // Alignment must be a power of two, bigger than the pointer
-    // size. Stuff the actual malloc'd pointer in just before the
-    // returned value.  This is the least desirable way to do this --
-    // the other options below are all better
-    size_t allocd = count * sizeof(T) + alignment;
-    void *buf = malloc(allocd);
-    if (buf) {
-        char *adj = (char *)buf;
-        while ((unsigned long long)adj & (alignment-1)) --adj;
-        ptr = ((char *)adj) + alignment;
-        ((void **)ptr)[-1] = buf;
-    }
-#else /* !USE_OWN_ALIGNED_MALLOC */
 #ifndef MALLOC_IS_ALIGNED
     static const int alignment = 32;
-#ifdef HAVE_POSIX_MEMALIGN
-    if (posix_memalign(&ptr, alignment, count * sizeof(T))) {
-        ptr = malloc(count * sizeof(T));
-    }
-#else /* !HAVE_POSIX_MEMALIGN */
-#ifdef __MSVC__
-    ptr = _aligned_malloc(count * sizeof(T), alignment);
-#else /* !__MSVC__ */
-#warning "No aligned malloc available or defined"
-    // Note that malloc always aligns to 16 byte boundaries on OS/X
-    ptr = malloc(count * sizeof(T));
-#endif /* !__MSVC__ */
-#endif /* !HAVE_POSIX_MEMALIGN */
+    ptr = aligned_alloc(alignment, count*sizeof(T));
 #else /* MALLOC_IS_ALIGNED */
     ptr = malloc(count * sizeof(T));
 #endif /* MALLOC_IS_ALIGNED */
-#endif /* !USE_OWN_ALIGNED_MALLOC */
     if (!ptr) {
 #ifndef NO_EXCEPTIONS
         throw(std::bad_alloc());
@@ -98,47 +58,14 @@ T *allocate(size_t count)
     return reinterpret_cast<T*>(ptr);
 }
 
-#ifdef HAVE_IPP
-
-template <>
-float *allocate(size_t count);
-
-template <>
-double *allocate(size_t count);
-
-#endif
-	
 template <typename T>
-T *allocate_and_zero(size_t count)
-{
+T *allocate_and_zero(size_t count){
     T *ptr = allocate<T>(count);
     v_zero(ptr, count);
     return ptr;
 }
-
 template <typename T>
-void deallocate(T *ptr)
-{
-#ifdef USE_OWN_ALIGNED_MALLOC
-    if (ptr) free(((void **)ptr)[-1]);
-#else /* !USE_OWN_ALIGNED_MALLOC */
-#ifdef __MSVC__
-    if (ptr) _aligned_free((void *)ptr);
-#else /* !__MSVC__ */
-    if (ptr) free((void *)ptr);
-#endif /* !__MSVC__ */
-#endif /* !USE_OWN_ALIGNED_MALLOC */
-}
-
-#ifdef HAVE_IPP
-
-template <>
-void deallocate(float *);
-
-template <>
-void deallocate(double *);
-
-#endif
+void deallocate(T *ptr) { if (ptr) free((void *)ptr);}
 
 /// Reallocate preserving contents but leaving additional memory uninitialised	
 template <typename T>
@@ -176,7 +103,7 @@ T *reallocate_and_zero_extension(T *ptr, size_t oldcount, size_t count)
 template <typename T>
 T **allocate_channels(size_t channels, size_t count)
 {
-    T **ptr = allocate<T *>(channels);
+    auto ptr = allocate<T *>(channels);
     for (size_t c = 0; c < channels; ++c) {
         ptr[c] = allocate<T>(count);
     }
@@ -186,7 +113,7 @@ T **allocate_channels(size_t channels, size_t count)
 template <typename T>
 T **allocate_and_zero_channels(size_t channels, size_t count)
 {
-    T **ptr = allocate<T *>(channels);
+    auto ptr = allocate<T *>(channels);
     for (size_t c = 0; c < channels; ++c) {
         ptr[c] = allocate_and_zero<T>(count);
     }

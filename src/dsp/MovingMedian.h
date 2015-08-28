@@ -25,86 +25,70 @@
 #define _MOVING_MEDIAN_H_
 
 #include "SampleFilter.h"
-
-#include "system/Allocators.h"
-
+#include <memory>
+#include <cstring>
 #include <algorithm>
-
 #include <iostream>
 
 namespace RubberBand
 {
 
 template <typename T>
-class MovingMedian : public SampleFilter<T>
-{
+class MovingMedian : public SampleFilter<T>{
     typedef SampleFilter<T> P;
-
+    using SampleFilter<T>::m_size;
+    std::unique_ptr<T[]> m_frame        = nullptr;
+    std::unique_ptr<T[]> m_sorted       = nullptr;
+    T *                  m_sorted_end   = nullptr;
+    size_t      m_index                    = 0;
+    size_t      m_head                     = 0;
+    void put(T value) {
+	// precondition: m_sorted contains m_size-1 values, packed at start
+	// postcondition: m_sorted contains m_size values, one of which is value
+	auto index = static_cast<T*>(std::lower_bound(&m_sorted[0], m_sorted_end, value));
+        std::memmove(index + 1, index, (reinterpret_cast<char*>(m_sorted_end) - reinterpret_cast<char*>(index)));
+	*index = value;
+    }
+    void drop(T value) {
+	// precondition: m_sorted contains m_size values, one of which is value
+	// postcondition: m_sorted contains m_size-1 values, packed at start
+        auto index = static_cast<T*>(std::lower_bound(&m_sorted[0],m_sorted_end+1,value));
+	assert(*index == value);
+        std::memmove(index,index+1,reinterpret_cast<char*>(m_sorted_end) - reinterpret_cast<char*>(index));
+	*m_sorted_end = T(0);
+    }
 public:
-    MovingMedian(int size, float percentile = 50.f) :
+    MovingMedian(int size, float percentile = 0.5f) :
         SampleFilter<T>(size),
-	m_frame(allocate_and_zero<T>(size)),
-	m_sorted(allocate_and_zero<T>(size)),
-	m_sortend(m_sorted + P::m_size - 1) {
+	m_frame(std::make_unique<T[]>(size)),
+	m_sorted(std::make_unique<T[]>(size)),
+	m_sorted_end(&m_sorted[0] + m_size - 1) {
         setPercentile(percentile);
+        reset();
     }
-
-    ~MovingMedian() { 
-	deallocate(m_frame);
-	deallocate(m_sorted);
-    }
-
+    virtual ~MovingMedian() { }
     void setPercentile(float p) {
-        m_index = int((P::m_size * p) / 100.f);
-        if (m_index >= P::m_size) m_index = P::m_size-1;
+        m_index = static_cast<size_t>((m_size * p));
+        if (m_index >= m_size) m_index = m_size-1;
         if (m_index < 0) m_index = 0;
     }
-
-    void push(T value) {
+    virtual void push(T value) {
         if (value != value) {
             std::cerr << "WARNING: MovingMedian: NaN encountered" << std::endl;
             value = T();
         }
-	drop(m_frame[0]);
-	v_move(m_frame, m_frame+1, P::m_size-1);
-	m_frame[P::m_size-1] = value;
-	put(value);
+        drop(m_frame[m_head]);
+        m_frame[m_head] = value;
+	put (m_frame[m_head]);
+        m_head ++;
+        m_head *= (m_head < m_size);
     }
-
-    T get() const {
-	return m_sorted[m_index];
-    }
-
-    void reset() {
-	v_zero(m_frame, P::m_size);
-	v_zero(m_sorted, P::m_size);
-    }
-
-private:
-    T *const m_frame;
-    T *const m_sorted;
-    T *const m_sortend;
-    int m_index;
-
-    void put(T value) {
-	// precondition: m_sorted contains m_size-1 values, packed at start
-	// postcondition: m_sorted contains m_size values, one of which is value
-	T *index = std::lower_bound(m_sorted, m_sortend, value);
-	v_move(index + 1, index, m_sortend - index);
-	*index = value;
-    }
-
-    void drop(T value) {
-	// precondition: m_sorted contains m_size values, one of which is value
-	// postcondition: m_sorted contains m_size-1 values, packed at start
-	T *index = std::lower_bound(m_sorted, m_sortend + 1, value);
-	assert(*index == value);
-	v_move(index, index + 1, m_sortend - index);
-	*m_sortend = T(0);
+    virtual T get() const {return m_sorted[m_index];}
+    virtual void reset() {
+        std::fill ( &m_frame[0],  &m_frame[m_size],  0);
+        std::fill ( &m_sorted[0], &m_sorted[m_size], 0);
+        m_head = 0;
     }
 };
-
 }
-
 #endif
-

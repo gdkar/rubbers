@@ -63,8 +63,8 @@ public:
     };
     explicit AudioCurveCalculator(Parameters parameters = Parameters(44100,4096));
     virtual ~AudioCurveCalculator();
-    constexpr int getSampleRate() const { return m_sampleRate; }
-    constexpr int getFftSize() const { return m_fftSize; }
+    int getSampleRate() const { return m_sampleRate; }
+    int getFftSize() const { return m_fftSize; }
     virtual void setSampleRate(int newRate);
     virtual void setFftSize(int newSize);
     Parameters getParameters() const {return Parameters(m_sampleRate, m_fftSize);}

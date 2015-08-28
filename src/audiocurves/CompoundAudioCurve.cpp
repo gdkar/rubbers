@@ -30,11 +30,11 @@ CompoundAudioCurve::CompoundAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters),
     m_percussive(parameters),
     m_hf(parameters),
-    m_hfFilter(new MovingMedian<float>(19, 85)),
-    m_hfDerivFilter(new MovingMedian<float>(19, 90)),
+    m_hfFilter(std::make_unique<MovingMedian<float> >(19, .85f)),
+    m_hfDerivFilter(std::make_unique<MovingMedian<float> >(19, .90f)),
     m_type(CompoundDetector),
-    m_lastHf(0.0),
-    m_lastResult(0.0),
+    m_lastHf(0.0f),
+    m_lastResult(0.0f),
     m_risingCount(0)
 {}
 CompoundAudioCurve::~CompoundAudioCurve(){}
@@ -46,21 +46,21 @@ CompoundAudioCurve::reset(){
     m_hf.reset();
     m_hfFilter->reset();
     m_hfDerivFilter->reset();
-    m_lastHf = 0.0;
-    m_lastResult = 0.0;
+    m_lastHf = 0.0f;
+    m_lastResult = 0.0f;
 }
 void
 CompoundAudioCurve::setFftSize(int newSize){
     m_percussive.setFftSize(newSize);
     m_hf.setFftSize(newSize);
     m_fftSize = newSize;
-    m_lastHf = 0.0;
-    m_lastResult = 0.0;
+    m_lastHf = 0.0f;
+    m_lastResult = 0.0f;
 }
 float
 CompoundAudioCurve::process(const float *R__ mag, int increment){
-    float percussive = 0.f;
-    float hf = 0.f;
+    auto percussive = 0.f;
+    auto hf = 0.f;
     switch (m_type) {
     case PercussiveDetector:
         percussive = m_percussive.process(mag, increment);
@@ -77,8 +77,8 @@ CompoundAudioCurve::process(const float *R__ mag, int increment){
 }
 double
 CompoundAudioCurve::process(const double *R__ mag, int increment){
-    double percussive = 0.0;
-    double hf = 0.0;
+    auto percussive = 0.0;
+    auto hf = 0.0;
     switch (m_type) {
     case PercussiveDetector:
         percussive = m_percussive.process(mag, increment);
@@ -96,28 +96,25 @@ CompoundAudioCurve::process(const double *R__ mag, int increment){
 float 
 CompoundAudioCurve::processFiltering(float percussive, float hf){
     if (m_type == PercussiveDetector) {return percussive;}
-    float rv = 0.f;
-    float hfDeriv = hf - m_lastHf;
+    auto rv = 0.f;
+    auto hfDeriv = hf - m_lastHf;
     m_hfFilter->push(hf);
     m_hfDerivFilter->push(hfDeriv);
-    float hfFiltered = m_hfFilter->get();
-    float hfDerivFiltered = m_hfDerivFilter->get();
+    auto hfFiltered = m_hfFilter->get();
+    auto hfDerivFiltered = m_hfDerivFilter->get();
     m_lastHf = hf;
-    float result = 0.f;
-    float hfExcess = hf - hfFiltered;
-    if (hfExcess > 0.0) {result = hfDeriv - hfDerivFiltered;}
+    auto result = 0.f;
+    auto hfExcess = hf - hfFiltered;
+    if (hfExcess > 0.0f) {result = hfDeriv - hfDerivFiltered;}
     if (result < m_lastResult) {
-        if (m_risingCount > 3 && m_lastResult > 0) rv = 0.5;
+        if (m_risingCount > 3 && m_lastResult > 0) rv = 0.5f;
         m_risingCount = 0;
     }
     else {m_risingCount ++;}
     if (m_type == CompoundDetector) {
-        if (percussive > 0.35 && percussive > rv) {rv = percussive;}
+        if (percussive > 0.35f && percussive > rv) {rv = percussive;}
     }
     m_lastResult = result;
     return rv;
 }
-
-
 }
-

@@ -149,7 +149,7 @@ protected:
         }
     }
 
-    constexpr bool inline resampleBeforeStretching() const{
+    bool inline resampleBeforeStretching() const{
         // We can't resample before stretching in offline mode, because
         // the stretch calculation is based on doing it the other way
         // around.  It would take more work (and testing) to enable this.
@@ -216,19 +216,13 @@ protected:
     typedef std::set<ProcessThread *> ThreadSet;
     ThreadSet m_threadSet;
     
-#if defined HAVE_IPP && !defined USE_SPEEX
-    // Exasperatingly, the IPP polyphase resampler does not appear to
-    // be thread-safe as advertised -- a good reason to prefer the
-    // Speex alternative
-    std::mutex m_resamplerMutex;
-#endif
 #endif
 
     size_t m_inputDuration;
     CompoundAudioCurve::Type m_detectorType;
     std::vector<float> m_phaseResetDf;
     std::vector<float> m_stretchDf;
-    std::vector<bool> m_silence;
+    std::vector<bool>  m_silence;
     int m_silentHistory;
 
     class ChannelData; 
@@ -236,14 +230,14 @@ protected:
 
     std::vector<int> m_outputIncrements;
 
-    mutable RingBuffer<int> m_lastProcessOutputIncrements;
-    mutable RingBuffer<float> m_lastProcessPhaseResetDf;
+    mutable RingBuffer<int>       m_lastProcessOutputIncrements;
+    mutable RingBuffer<float>     m_lastProcessPhaseResetDf;
     Scavenger<RingBuffer<float> > m_emergencyScavenger;
 
-    CompoundAudioCurve *m_phaseResetAudioCurve;
+    CompoundAudioCurve   *m_phaseResetAudioCurve;
     AudioCurveCalculator *m_stretchAudioCurve;
     AudioCurveCalculator *m_silentAudioCurve;
-    StretchCalculator *m_stretchCalculator;
+    StretchCalculator    *m_stretchCalculator;
 
     float m_freq0;
     float m_freq1;
@@ -251,10 +245,8 @@ protected:
 
     size_t m_baseFftSize;
     float m_rateMultiple;
-
     void writeOutput(RingBuffer<float> &to, float *from,
                      size_t qty, size_t &outCount, size_t theoreticalOut);
-
     static int m_defaultDebugLevel;
     static const size_t m_defaultIncrement;
     static const size_t m_defaultFftSize;

@@ -24,7 +24,7 @@
 #ifndef _RUBBERBAND_STRETCHERIMPL_H_
 #define _RUBBERBAND_STRETCHERIMPL_H_
 
-#include "rubberband/RubberBandStretcher.h"
+#include "rubbers/RubberBandStretcher.h"
 
 #include "dsp/Window.h"
 #include "dsp/SincWindow.h"

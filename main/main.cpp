@@ -21,7 +21,7 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#include "rubberband/RubberBandStretcher.h"
+#include "rubbers/RubberBandStretcher.h"
 
 #include <iostream>
 #include <sndfile.h>

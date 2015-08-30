@@ -62,9 +62,9 @@ public:
     }
     Window(Window &&w) = default;
     virtual ~Window() {deallocate(m_cache);}
-    inline void cut(T *const R__ block) const {v_multiply(block, m_cache, m_size);}
-    inline void cut(const T *const R__ src, T *const R__ dst) const {v_multiply(dst, src, m_cache, m_size);}
-    inline void add(T *const R__ dst, T scale) const {v_add_with_gain(dst, m_cache, scale, m_size);}
+    inline void cut(T *const  block) const {v_multiply(block, m_cache, m_size);}
+    inline void cut(const T *const  src, T *const  dst) const {v_multiply(dst, src, m_cache, m_size);}
+    inline void add(T *const  dst, T scale) const {v_add_with_gain(dst, m_cache, scale, m_size);}
     inline T getRMS() const {
         T total = 0;
         for (int i = 0; i < m_size; ++i) {total += m_cache[i] * m_cache[i];}
@@ -78,7 +78,7 @@ public:
 protected:
     WindowType m_type;
     int m_size;
-    T *R__ m_cache;
+    T * m_cache;
     T m_area;
     void encache();
     void cosinewin(T *, T, T, T, T);

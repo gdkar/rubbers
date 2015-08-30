@@ -40,12 +40,6 @@ StretchCalculator::StretchCalculator(size_t sampleRate,
                                      bool useHardPeaks) :
     m_sampleRate(sampleRate),
     m_increment(inputIncrement),
-    m_prevDf(0),
-    m_divergence(0),
-    m_recovery(0),
-    m_prevRatio(1.0),
-    m_transientAmnesty(0),
-    m_debugLevel(0),
     m_useHardPeaks(useHardPeaks)
 {
 //    std::cerr << "StretchCalculator::StretchCalculator: useHardPeaks = " << useHardPeaks << std::endl;
@@ -304,9 +298,7 @@ StretchCalculator::findPeaks(const std::vector<float> &rawDf){
             if (df[i] < 0.1f) continue;
             if (df[i] <= df[i-1] * 1.1f) continue;
             if (df[i] < 0.22f) continue;
-            if (!hardPeakCandidates.empty() && i < prevHardPeak + hardPeakAmnesty) {
-                continue;
-            }
+            if (!hardPeakCandidates.empty() && i < prevHardPeak + hardPeakAmnesty) {continue;}
             auto hard = (df[i] > 0.4f);
             if (hard && (m_debugLevel > 1)) {
                 std::cerr << "hard peak at " << i << ": " << df[i]  << " > absolute " << 0.4 << std::endl;
@@ -504,7 +496,6 @@ StretchCalculator::distributeRegion(const std::vector<float> &dfIn,size_t durati
     // We want to try to ensure the last 100ms or so (if possible) are
     // tending back towards the maximum df, so that the stretchiness
     // reduces at the end of the stretched region.
-    
     auto reducedRegion = static_cast<int>(lrint((0.1 * m_sampleRate) / m_increment));
     if (reducedRegion > int(df.size()/5)) reducedRegion = df.size()/5;
     for (auto i = 0; i < reducedRegion; ++i) {

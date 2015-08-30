@@ -779,7 +779,6 @@ RubberBandStretcher::Impl::getExactTimePoints() const{
     }
     return points;
 }
-
 void
 RubberBandStretcher::Impl::calculateStretch(){
     Profiler profiler("RubberBandStretcher::Impl::calculateStretch");
@@ -790,21 +789,7 @@ RubberBandStretcher::Impl::calculateStretch(){
             inputDuration = m_expectedInputDuration;
         }
     }
-    auto prdm = 0.f, sdm = 0.f;
-    if (!m_phaseResetDf.empty()) {
-        for (int i = 0; i < (int)m_phaseResetDf.size(); ++i) {prdm += m_phaseResetDf[i];}
-        prdm /= m_phaseResetDf.size();
-    }
-    if (!m_stretchDf.empty()) {
-        for (int i = 0; i < (int)m_stretchDf.size(); ++i) {sdm += m_stretchDf[i];}
-        sdm /= m_stretchDf.size();
-    }
-//    std::cerr << "phase reset df mean = " << prdm << ", stretch df mean = " << sdm << std::endl;
-    auto increments = m_stretchCalculator->calculate(
-         getEffectiveRatio(),
-         inputDuration,
-         m_phaseResetDf,
-         m_stretchDf);
+    auto increments = m_stretchCalculator->calculate(getEffectiveRatio(),inputDuration,m_phaseResetDf,m_stretchDf);
     auto history = 0;
     for (size_t i = 0; i < increments.size(); ++i) {
         if (i >= m_silence.size()) break;
@@ -812,9 +797,7 @@ RubberBandStretcher::Impl::calculateStretch(){
         else history = 0;
         if (history >= int(m_aWindowSize / m_increment) && increments[i] >= 0) {
             increments[i] = -increments[i];
-            if (m_debugLevel > 1) {
-                std::cerr << "phase reset on silence (silent history == "<< history << ")" << std::endl;
-            }
+            if (m_debugLevel > 1) {std::cerr << "phase reset on silence (silent history == "<< history << ")" << std::endl;}
         }
     }
     if (m_outputIncrements.empty()) m_outputIncrements = increments;
@@ -826,7 +809,6 @@ RubberBandStretcher::Impl::setDebugLevel(int level){
     m_debugLevel = level;
     if (m_stretchCalculator) m_stretchCalculator->setDebugLevel(level);
 }	
-
 size_t
 RubberBandStretcher::Impl::getSamplesRequired() const{
     Profiler profiler("RubberBandStretcher::Impl::getSamplesRequired");
@@ -874,9 +856,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
             if (!m_realtime) {
                 // See note in configure() above. Of course, we should
                 // never enter Studying unless we are non-RT anyway
-                if (m_debugLevel > 1) {
-                    cerr << "Not real time mode: prefilling" << endl;
-                }
+                if (m_debugLevel > 1) {cerr << "Not real time mode: prefilling" << endl;}
                 for (auto c = decltype(m_channels){0}; c < m_channels; ++c) {
                     m_channelData[c]->reset();
                     m_channelData[c]->inbuf->zero(m_aWindowSize/2);
@@ -896,11 +876,7 @@ RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bo
         // have actually been processed.
         allConsumed = true;
         for (size_t c = 0; c < m_channels; ++c) {
-            consumed[c] += consumeChannel(c,
-                                          input,
-                                          consumed[c],
-                                          samples - consumed[c],
-                                          flushing);
+            consumed[c] += consumeChannel(c,input,consumed[c],samples - consumed[c],flushing);
             if (consumed[c] < samples) {
                 allConsumed = false;
 //                cerr << "process: waiting on input consumption for channel " << c << endl;

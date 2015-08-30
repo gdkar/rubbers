@@ -46,10 +46,6 @@
 #include <csignal>
 #include <iostream>
 
-#ifdef HAVE_IPP
-#include <ipp.h> // for static init
-#endif
-
 #ifdef HAVE_VDSP
 #include <Accelerate/Accelerate.h>
 #include <fenv.h>
@@ -84,52 +80,35 @@ system_get_platform_tag()
 #endif /* !__APPLE__ */
 #endif /* !_WIN32 */
 }
-
 bool
-system_is_multiprocessor()
-{
+system_is_multiprocessor(){
     static bool tested = false, mp = false;
-
     if (tested) return mp;
     int count = 0;
-
 #ifdef _WIN32
-
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
     count = sysinfo.dwNumberOfProcessors;
-
 #else /* !_WIN32 */
 #ifdef __APPLE__
-    
     size_t sz = sizeof(count);
     if (sysctlbyname("hw.ncpu", &count, &sz, NULL, 0)) {
         count = 0;
         mp = false;
-    } else {
-        mp = (count > 1);
-    }
-
+    } else {mp = (count > 1);}
 #else /* !__APPLE__, !_WIN32 */
 #ifdef __sun
-
     processorid_t i, n;
     n = sysconf(_SC_CPUID_MAX);
     for (i = 0; i <= n; ++i) {
         int status = p_online(i, P_STATUS);
-        if (status == P_ONLINE) {
-            ++count;
-        }
+        if (status == P_ONLINE) {++count;}
         if (count > 1) break;
     }
-
 #else /* !__sun, !__APPLE__, !_WIN32 */
-
     //...
-
     FILE *cpuinfo = fopen("/proc/cpuinfo", "r");
     if (!cpuinfo) return false;
-
     char buf[256];
     while (!feof(cpuinfo)) {
         if (!fgets(buf, 256, cpuinfo)) break;
@@ -152,31 +131,24 @@ system_is_multiprocessor()
 
 #ifdef _WIN32
 
-void gettimeofday(struct timeval *tv, void *tz)
-{
+void gettimeofday(struct timeval *tv, void *tz){
     union { 
 	long long ns100;  
 	FILETIME ft; 
     } now; 
-    
     ::GetSystemTimeAsFileTime(&now.ft); 
     tv->tv_usec = (long)((now.ns100 / 10LL) % 1000000LL); 
     tv->tv_sec = (long)((now.ns100 - 116444736000000000LL) / 10000000LL); 
 }
-
-void clock_gettime(int, struct timespec *ts)
-{
+void clock_gettime(int, struct timespec *ts){
     static LARGE_INTEGER cps;
     static bool haveCps = false;
-    
     if (!haveCps) {
         QueryPerformanceFrequency(&cps);
         haveCps = true;
     }
-
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
-
     //!!! check this
     ts->tv_sec = counter.QuadPart / cps.QuadPart;
     double sub = counter.QuadPart % cps.QuadPart;
@@ -189,13 +161,9 @@ void usleep(unsigned long usec)
 {
     ::Sleep(usec == 0 ? 0 : usec < 1000 ? 1 : usec / 1000);
 }
-
 #endif
-
 #ifdef __APPLE__
-
-void clock_gettime(int, struct timespec *ts)
-{
+void clock_gettime(int, struct timespec *ts){
     uint64_t t = mach_absolute_time();
     static mach_timebase_info_data_t sTimebaseInfo;
     if (sTimebaseInfo.denom == 0) (void)mach_timebase_info(&sTimebaseInfo);
@@ -203,11 +171,8 @@ void clock_gettime(int, struct timespec *ts)
     ts->tv_sec = n / 1000000000;
     ts->tv_nsec = n % 1000000000;
 }
-
 #endif
-
-void system_specific_initialise()
-{
+void system_specific_initialise(){
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
 #if defined __ARMEL__
@@ -224,23 +189,17 @@ void system_specific_initialise()
 	);
 #endif
 }
-
 void system_specific_application_initialise(){
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-
     std::cerr << FFT::tune();
 }
-
-
 ProcessStatus
-system_get_process_status(int pid)
-{
+system_get_process_status(int pid){
 #ifdef _WIN32
     HANDLE handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
-    if (!handle) {
-        return ProcessNotRunning;
-    } else {
+    if (!handle) {return ProcessNotRunning;}
+    else {
         CloseHandle(handle);
         return ProcessRunning;
     }
@@ -248,18 +207,12 @@ system_get_process_status(int pid)
     if (kill(getpid(), 0) == 0) {
         if (kill(pid, 0) == 0) {
             return ProcessRunning;
-        } else {
-            return ProcessNotRunning;
-        }
-    } else {
-        return UnknownProcessStatus;
-    }
+        } else {return ProcessNotRunning;}
+    } else {return UnknownProcessStatus;}
 #endif
 }
-
 #ifdef _WIN32
-void system_memorybarrier()
-{
+void system_memorybarrier(){
 #ifdef __MSVC__
     MemoryBarrier();
 #else /* (mingw) */
@@ -281,7 +234,6 @@ void system_memorybarrier()
 }
 #endif
 #endif
-
 }
 
 

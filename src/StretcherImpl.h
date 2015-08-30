@@ -52,7 +52,7 @@ class RubberBandStretcher::Impl
 public:
     Impl(size_t sampleRate, size_t channels, Options options,
          double initialTimeRatio, double initialPitchScale);
-    ~Impl();
+    virtual ~Impl();
     
     void reset();
     void setTimeRatio(double ratio);

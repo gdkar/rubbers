@@ -31,8 +31,7 @@
 namespace RubberBand
 {
 
-class Thread
-{
+class Thread{
     std::thread m_thread;
     static void static_run( Thread *self){self->run();}
 protected:
@@ -57,7 +56,6 @@ public:
   thread.  To avoid this, the signalling thread should also lock the
   condition before calling signal() and unlock it afterwards.
 */
-
 class Condition : public std::condition_variable {
     std::mutex  m_mutex;
 public:

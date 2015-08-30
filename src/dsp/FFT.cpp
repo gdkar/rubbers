@@ -37,10 +37,6 @@
 #include <ffts.h>
 #endif
 
-#ifdef HAVE_IPP
-#include <ipps.h>
-#endif
-
 #ifdef HAVE_FFTW3
 #include <fftw3.h>
 #endif
@@ -63,21 +59,14 @@ extern "C" {
 }
 #endif
 
-#ifdef USE_KISSFFT
-#include "kissfft/kiss_fftr.h"
-#endif
 #ifndef HAVE_FFTS
-#ifndef HAVE_IPP
 #ifndef HAVE_FFTW3
-#ifndef USE_KISSFFT
 #ifndef USE_BUILTIN_FFT
 #ifndef HAVE_VDSP
 #ifndef HAVE_MEDIALIB
 #ifndef HAVE_OPENMAX
 #ifndef HAVE_SFFT
 #error No FFT implementation selected!
-#endif
-#endif
 #endif
 #endif
 #endif
@@ -114,309 +103,28 @@ public:
     virtual void initFloat() = 0;
     virtual void initDouble() = 0;
 
-    virtual void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) = 0;
-    virtual void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) = 0;
-    virtual void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) = 0;
-    virtual void forwardMagnitude(const double *R__ realIn, double *R__ magOut) = 0;
+    virtual void forward(const double * realIn, double * realOut, double * imagOut) = 0;
+    virtual void forwardInterleaved(const double * realIn, double * complexOut) = 0;
+    virtual void forwardPolar(const double * realIn, double * magOut, double * phaseOut) = 0;
+    virtual void forwardMagnitude(const double * realIn, double * magOut) = 0;
 
-    virtual void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) = 0;
-    virtual void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) = 0;
-    virtual void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) = 0;
-    virtual void forwardMagnitude(const float *R__ realIn, float *R__ magOut) = 0;
+    virtual void forward(const float * realIn, float * realOut, float * imagOut) = 0;
+    virtual void forwardInterleaved(const float * realIn, float * complexOut) = 0;
+    virtual void forwardPolar(const float * realIn, float * magOut, float * phaseOut) = 0;
+    virtual void forwardMagnitude(const float * realIn, float * magOut) = 0;
 
-    virtual void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) = 0;
-    virtual void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) = 0;
-    virtual void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) = 0;
-    virtual void inverseCepstral(const double *R__ magIn, double *R__ cepOut) = 0;
+    virtual void inverse(const double * realIn, const double * imagIn, double * realOut) = 0;
+    virtual void inverseInterleaved(const double * complexIn, double * realOut) = 0;
+    virtual void inversePolar(const double * magIn, const double * phaseIn, double * realOut) = 0;
+    virtual void inverseCepstral(const double * magIn, double * cepOut) = 0;
 
-    virtual void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) = 0;
-    virtual void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) = 0;
-    virtual void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) = 0;
-    virtual void inverseCepstral(const float *R__ magIn, float *R__ cepOut) = 0;
+    virtual void inverse(const float * realIn, const float * imagIn, float * realOut) = 0;
+    virtual void inverseInterleaved(const float * complexIn, float * realOut) = 0;
+    virtual void inversePolar(const float * magIn, const float * phaseIn, float * realOut) = 0;
+    virtual void inverseCepstral(const float * magIn, float * cepOut) = 0;
 };    
 
 namespace FFTs {
-
-#ifdef HAVE_IPP
-
-class D_IPP : public FFTImpl
-{
-public:
-    D_IPP(int size) :
-        m_size(size), m_fspec(0), m_dspec(0)
-    { 
-        for (int i = 0; ; ++i) {
-            if (m_size & (1 << i)) {
-                m_order = i;
-                break;
-            }
-        }
-    }
-
-    ~D_IPP() {
-        if (m_fspec) {
-            ippsFFTFree_R_32f(m_fspec);
-            ippsFree(m_fbuf);
-            ippsFree(m_fpacked);
-            ippsFree(m_fspare);
-        }
-        if (m_dspec) {
-            ippsFFTFree_R_64f(m_dspec);
-            ippsFree(m_dbuf);
-            ippsFree(m_dpacked);
-            ippsFree(m_dspare);
-        }
-    }
-
-    FFT::Precisions
-    getSupportedPrecisions() const {
-        return FFT::SinglePrecision | FFT::DoublePrecision;
-    }
-
-    //!!! rv check
-
-    void initFloat() {
-        if (m_fspec) return;
-        int specSize, specBufferSize, bufferSize;
-        ippsFFTGetSize_R_32f(m_order, IPP_FFT_NODIV_BY_ANY, ippAlgHintFast,
-                             &specSize, &specBufferSize, &bufferSize);
-        m_fbuf = ippsMalloc_8u(bufferSize);
-        m_fpacked = ippsMalloc_32f(m_size + 2);
-        m_fspare = ippsMalloc_32f(m_size / 2 + 1);
-        ippsFFTInitAlloc_R_32f(&m_fspec, m_order, IPP_FFT_NODIV_BY_ANY, 
-                               ippAlgHintFast);
-    }
-
-    void initDouble() {
-        if (m_dspec) return;
-        int specSize, specBufferSize, bufferSize;
-        ippsFFTGetSize_R_64f(m_order, IPP_FFT_NODIV_BY_ANY, ippAlgHintFast,
-                             &specSize, &specBufferSize, &bufferSize);
-        m_dbuf = ippsMalloc_8u(bufferSize);
-        m_dpacked = ippsMalloc_64f(m_size + 2);
-        m_dspare = ippsMalloc_64f(m_size / 2 + 1);
-        ippsFFTInitAlloc_R_64f(&m_dspec, m_order, IPP_FFT_NODIV_BY_ANY, 
-                               ippAlgHintFast);
-    }
-
-    void packFloat(const float *R__ re, const float *R__ im) {
-        Profiler profiler("D_IPP::packFloat");
-        int index = 0;
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[index++] = re[i];
-            index++;
-        }
-        index = 0;
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                m_fpacked[index++] = im[i];
-            }
-        } else {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                m_fpacked[index++] = 0.f;
-            }
-        }
-    }
-
-    void packDouble(const double *R__ re, const double *R__ im) {
-        Profiler profiler("D_IPP::packDouble");
-        int index = 0;
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            m_dpacked[index++] = re[i];
-            index++;
-        }
-        index = 0;
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                m_dpacked[index++] = im[i];
-            }
-        } else {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                m_dpacked[index++] = 0.0;
-            }
-        }
-    }
-
-    void unpackFloat(float *re, float *R__ im) { // re may be equal to m_fpacked
-        Profiler profiler("D_IPP::unpackFloat");
-        int index = 0;
-        const int hs = m_size/2;
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                im[i] = m_fpacked[index++];
-            }
-        }
-        index = 0;
-        for (int i = 0; i <= hs; ++i) {
-            re[i] = m_fpacked[index++];
-            index++;
-        }
-    }        
-
-    void unpackDouble(double *re, double *R__ im) { // re may be equal to m_dpacked
-        Profiler profiler("D_IPP::unpackDouble");
-        int index = 0;
-        const int hs = m_size/2;
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                index++;
-                im[i] = m_dpacked[index++];
-            }
-        }
-        index = 0;
-        for (int i = 0; i <= hs; ++i) {
-            re[i] = m_dpacked[index++];
-            index++;
-        }
-    }        
-
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
-        Profiler profiler("D_IPP::forward [d]");
-        if (!m_dspec) initDouble();
-        ippsFFTFwd_RToCCS_64f(realIn, m_dpacked, m_dspec, m_dbuf);
-        unpackDouble(realOut, imagOut);
-    }
-
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
-        Profiler profiler("D_IPP::forwardInterleaved [d]");
-        if (!m_dspec) initDouble();
-        ippsFFTFwd_RToCCS_64f(realIn, complexOut, m_dspec, m_dbuf);
-    }
-
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
-        Profiler profiler("D_IPP::forwardPolar [d]");
-        if (!m_dspec) initDouble();
-        ippsFFTFwd_RToCCS_64f(realIn, m_dpacked, m_dspec, m_dbuf);
-        unpackDouble(m_dpacked, m_dspare);
-        Profiler profiler2("D_IPP::forwardPolar [d] conv");
-        ippsCartToPolar_64f(m_dpacked, m_dspare, magOut, phaseOut, m_size/2+1);
-    }
-
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
-        Profiler profiler("D_IPP::forwardMagnitude [d]");
-        if (!m_dspec) initDouble();
-        ippsFFTFwd_RToCCS_64f(realIn, m_dpacked, m_dspec, m_dbuf);
-        unpackDouble(m_dpacked, m_dspare);
-        ippsMagnitude_64f(m_dpacked, m_dspare, magOut, m_size/2+1);
-    }
-
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
-        Profiler profiler("D_IPP::forward [f]");
-        if (!m_fspec) initFloat();
-        ippsFFTFwd_RToCCS_32f(realIn, m_fpacked, m_fspec, m_fbuf);
-        unpackFloat(realOut, imagOut);
-    }
-
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
-        Profiler profiler("D_IPP::forwardInterleaved [f]");
-        if (!m_fspec) initFloat();
-        ippsFFTFwd_RToCCS_32f(realIn, complexOut, m_fspec, m_fbuf);
-    }
-
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
-        Profiler profiler("D_IPP::forwardPolar [f]");
-        if (!m_fspec) initFloat();
-        ippsFFTFwd_RToCCS_32f(realIn, m_fpacked, m_fspec, m_fbuf);
-        unpackFloat(m_fpacked, m_fspare);
-        Profiler profiler2("D_IPP::forwardPolar [f] conv");
-        ippsCartToPolar_32f(m_fpacked, m_fspare, magOut, phaseOut, m_size/2+1);
-    }
-
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
-        Profiler profiler("D_IPP::forwardMagnitude [f]");
-        if (!m_fspec) initFloat();
-        ippsFFTFwd_RToCCS_32f(realIn, m_fpacked, m_fspec, m_fbuf);
-        unpackFloat(m_fpacked, m_fspare);
-        ippsMagnitude_32f(m_fpacked, m_fspare, magOut, m_size/2+1);
-    }
-
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
-        Profiler profiler("D_IPP::inverse [d]");
-        if (!m_dspec) initDouble();
-        packDouble(realIn, imagIn);
-        ippsFFTInv_CCSToR_64f(m_dpacked, realOut, m_dspec, m_dbuf);
-    }
-
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
-        Profiler profiler("D_IPP::inverse [d]");
-        if (!m_dspec) initDouble();
-        ippsFFTInv_CCSToR_64f(complexIn, realOut, m_dspec, m_dbuf);
-    }
-
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
-        Profiler profiler("D_IPP::inversePolar [d]");
-        if (!m_dspec) initDouble();
-        ippsPolarToCart_64f(magIn, phaseIn, realOut, m_dspare, m_size/2+1);
-        Profiler profiler2("D_IPP::inversePolar [d] postconv");
-        packDouble(realOut, m_dspare); // to m_dpacked
-        ippsFFTInv_CCSToR_64f(m_dpacked, realOut, m_dspec, m_dbuf);
-    }
-
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
-        Profiler profiler("D_IPP::inverseCepstral [d]");
-        if (!m_dspec) initDouble();
-        const int hs1 = m_size/2 + 1;
-        ippsCopy_64f(magIn, m_dspare, hs1);
-        ippsAddC_64f_I(0.000001, m_dspare, hs1);
-        ippsLn_64f_I(m_dspare, hs1);
-        packDouble(m_dspare, 0);
-        ippsFFTInv_CCSToR_64f(m_dpacked, cepOut, m_dspec, m_dbuf);
-    }
-    
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
-        Profiler profiler("D_IPP::inverse [f]");
-        if (!m_fspec) initFloat();
-        packFloat(realIn, imagIn);
-        ippsFFTInv_CCSToR_32f(m_fpacked, realOut, m_fspec, m_fbuf);
-    }
-
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
-        Profiler profiler("D_IPP::inverse [f]");
-        if (!m_fspec) initFloat();
-        ippsFFTInv_CCSToR_32f(complexIn, realOut, m_fspec, m_fbuf);
-    }
-
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
-        Profiler profiler("D_IPP::inversePolar [f]");
-        if (!m_fspec) initFloat();
-        ippsPolarToCart_32f(magIn, phaseIn, realOut, m_fspare, m_size/2+1);
-        Profiler profiler2("D_IPP::inversePolar [f] postconv");
-        packFloat(realOut, m_fspare); // to m_fpacked
-        ippsFFTInv_CCSToR_32f(m_fpacked, realOut, m_fspec, m_fbuf);
-    }
-
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
-        Profiler profiler("D_IPP::inverseCepstral [f]");
-        if (!m_fspec) initFloat();
-        const int hs1 = m_size/2 + 1;
-        ippsCopy_32f(magIn, m_fspare, hs1);
-        ippsAddC_32f_I(0.000001f, m_fspare, hs1);
-        ippsLn_32f_I(m_fspare, hs1);
-        packFloat(m_fspare, 0);
-        ippsFFTInv_CCSToR_32f(m_fpacked, cepOut, m_fspec, m_fbuf);
-    }
-
-private:
-    const int m_size;
-    int m_order;
-    IppsFFTSpec_R_32f *m_fspec;
-    IppsFFTSpec_R_64f *m_dspec;
-    Ipp8u *m_fbuf;
-    Ipp8u *m_dbuf;
-    float *m_fpacked;
-    float *m_fspare;
-    double *m_dpacked;
-    double *m_dspare;
-};
-
-#endif /* HAVE_IPP */
 
 #ifdef HAVE_VDSP
 
@@ -496,11 +204,11 @@ public:
         m_dspare2 = allocate<double>(m_size + 2);
     }
 
-    void packReal(const float *R__ const re) {
+    void packReal(const float * const re) {
         // Pack input for forward transform 
         vDSP_ctoz((DSPComplex *)re, 2, m_fpacked, 1, m_size/2);
     }
-    void packComplex(const float *R__ const re, const float *R__ const im) {
+    void packComplex(const float * const re, const float * const im) {
         // Pack input for inverse transform 
         if (re) v_copy(m_fpacked->realp, re, m_size/2 + 1);
         else v_zero(m_fpacked->realp, m_size/2 + 1);
@@ -509,18 +217,18 @@ public:
         fnyq();
     }
 
-    void unpackReal(float *R__ const re) {
+    void unpackReal(float * const re) {
         // Unpack output for inverse transform
         vDSP_ztoc(m_fpacked, 1, (DSPComplex *)re, 2, m_size/2);
     }
-    void unpackComplex(float *R__ const re, float *R__ const im) {
+    void unpackComplex(float * const re, float * const im) {
         // Unpack output for forward transform
         // vDSP forward FFTs are scaled 2x (for some reason)
         float two = 2.f;
         vDSP_vsdiv(m_fpacked->realp, 1, &two, re, 1, m_size/2 + 1);
         vDSP_vsdiv(m_fpacked->imagp, 1, &two, im, 1, m_size/2 + 1);
     }
-    void unpackComplex(float *R__ const cplx) {
+    void unpackComplex(float * const cplx) {
         // Unpack output for forward transform
         // vDSP forward FFTs are scaled 2x (for some reason)
         const int hs1 = m_size/2 + 1;
@@ -530,11 +238,11 @@ public:
         }
     }
 
-    void packReal(const double *R__ const re) {
+    void packReal(const double * const re) {
         // Pack input for forward transform
         vDSP_ctozD((DSPDoubleComplex *)re, 2, m_dpacked, 1, m_size/2);
     }
-    void packComplex(const double *R__ const re, const double *R__ const im) {
+    void packComplex(const double * const re, const double * const im) {
         // Pack input for inverse transform
         if (re) v_copy(m_dpacked->realp, re, m_size/2 + 1);
         else v_zero(m_dpacked->realp, m_size/2 + 1);
@@ -543,18 +251,18 @@ public:
         dnyq();
     }
 
-    void unpackReal(double *R__ const re) {
+    void unpackReal(double * const re) {
         // Unpack output for inverse transform
         vDSP_ztocD(m_dpacked, 1, (DSPDoubleComplex *)re, 2, m_size/2);
     }
-    void unpackComplex(double *R__ const re, double *R__ const im) {
+    void unpackComplex(double * const re, double * const im) {
         // Unpack output for forward transform
         // vDSP forward FFTs are scaled 2x (for some reason)
         double two = 2.0;
         vDSP_vsdivD(m_dpacked->realp, 1, &two, re, 1, m_size/2 + 1);
         vDSP_vsdivD(m_dpacked->imagp, 1, &two, im, 1, m_size/2 + 1);
     }
-    void unpackComplex(double *R__ const cplx) {
+    void unpackComplex(double * const cplx) {
         // Unpack output for forward transform
         // vDSP forward FFTs are scaled 2x (for some reason)
         const int hs1 = m_size/2 + 1;
@@ -594,7 +302,7 @@ public:
         m_dpacked->imagp[hs] = 0.;
     }
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         Profiler profiler("D_VDSP::forward [d]");
         if (!m_dspec) initDouble();
         packReal(realIn);
@@ -603,7 +311,7 @@ public:
         unpackComplex(realOut, imagOut);
     }
 
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         Profiler profiler("D_VDSP::forward [d]");
         if (!m_dspec) initDouble();
         packReal(realIn);
@@ -612,7 +320,7 @@ public:
         unpackComplex(complexOut);
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         Profiler profiler("D_VDSP::forwardPolar [d]");
         if (!m_dspec) initDouble();
         const int hs1 = m_size/2+1;
@@ -626,7 +334,7 @@ public:
                              m_dpacked->realp, m_dpacked->imagp, hs1);
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         Profiler profiler("D_VDSP::forwardMagnitude [d]");
         if (!m_dspec) initDouble();
         packReal(realIn);
@@ -640,7 +348,7 @@ public:
         vDSP_vsdivD(m_dspare2, 1, &two, magOut, 1, hs1);
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         Profiler profiler("D_VDSP::forward [f]");
         if (!m_fspec) initFloat();
         packReal(realIn);
@@ -649,7 +357,7 @@ public:
         unpackComplex(realOut, imagOut);
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         Profiler profiler("D_VDSP::forward [f]");
         if (!m_fspec) initFloat();
         packReal(realIn);
@@ -658,7 +366,7 @@ public:
         unpackComplex(complexOut);
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         Profiler profiler("D_VDSP::forwardPolar [f]");
         if (!m_fspec) initFloat();
         const int hs1 = m_size/2+1;
@@ -672,7 +380,7 @@ public:
                              m_fpacked->realp, m_fpacked->imagp, hs1);
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         Profiler profiler("D_VDSP::forwardMagnitude [f]");
         if (!m_fspec) initFloat();
         packReal(realIn);
@@ -686,7 +394,7 @@ public:
         vDSP_vsdiv(m_fspare2, 1, &two, magOut, 1, hs1);
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         Profiler profiler("D_VDSP::inverse [d]");
         if (!m_dspec) initDouble();
         packComplex(realIn, imagIn);
@@ -694,7 +402,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         Profiler profiler("D_VDSP::inverseInterleaved [d]");
         if (!m_dspec) initDouble();
         double *d[2] = { m_dpacked->realp, m_dpacked->imagp };
@@ -703,7 +411,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         Profiler profiler("D_VDSP::inversePolar [d]");
         if (!m_dspec) initDouble();
         const int hs1 = m_size/2+1;
@@ -717,7 +425,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         Profiler profiler("D_VDSP::inverseCepstral [d]");
         if (!m_dspec) initDouble();
         const int hs1 = m_size/2 + 1;
@@ -727,7 +435,7 @@ public:
         inverse(m_dspare2, 0, cepOut);
     }
     
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         Profiler profiler("D_VDSP::inverse [f]");
         if (!m_fspec) initFloat();
         packComplex(realIn, imagIn);
@@ -735,7 +443,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         Profiler profiler("D_VDSP::inverseInterleaved [f]");
         if (!m_fspec) initFloat();
         float *f[2] = { m_fpacked->realp, m_fpacked->imagp };
@@ -744,7 +452,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         Profiler profiler("D_VDSP::inversePolar [f]");
         if (!m_fspec) initFloat();
 
@@ -759,7 +467,7 @@ public:
         unpackReal(realOut);
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         Profiler profiler("D_VDSP::inverseCepstral [f]");
         if (!m_fspec) initFloat();
         const int hs1 = m_size/2 + 1;
@@ -843,7 +551,7 @@ public:
         }
     }
 
-    void packFloat(const float *R__ re, const float *R__ im) {
+    void packFloat(const float * re, const float * im) {
         int index = 0;
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -865,7 +573,7 @@ public:
         packFloatConjugates();
     }
 
-    void packDouble(const double *R__ re, const double *R__ im) {
+    void packDouble(const double * re, const double * im) {
         int index = 0;
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -887,7 +595,7 @@ public:
         packDoubleConjugates();
     }
 
-    void unpackFloat(float *re, float *R__ im) { // re may be equal to m_fpacked
+    void unpackFloat(float *re, float * im) { // re may be equal to m_fpacked
         int index = 0;
         const int hs = m_size/2;
         if (im) {
@@ -903,7 +611,7 @@ public:
         }
     }        
 
-    void unpackDouble(double *re, double *R__ im) { // re may be equal to m_dpacked
+    void unpackDouble(double *re, double * im) { // re may be equal to m_dpacked
         int index = 0;
         const int hs = m_size/2;
         if (im) {
@@ -919,14 +627,14 @@ public:
         }
     }
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         Profiler profiler("D_MEDIALIB::forward [d]");
         if (!m_dpacked) initDouble();
         mlib_SignalFFT_1_D64C_D64(m_dpacked, realIn, m_order);
         unpackDouble(realOut, imagOut);
     }
 
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         Profiler profiler("D_MEDIALIB::forwardInterleaved [d]");
         if (!m_dpacked) initDouble();
         // mlib FFT gives the whole redundant complex result
@@ -934,7 +642,7 @@ public:
         v_copy(complexOut, m_dpacked, m_size + 2);
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         Profiler profiler("D_MEDIALIB::forwardPolar [d]");
         if (!m_dpacked) initDouble();
         mlib_SignalFFT_1_D64C_D64(m_dpacked, realIn, m_order);
@@ -950,7 +658,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         Profiler profiler("D_MEDIALIB::forwardMagnitude [d]");
         if (!m_dpacked) initDouble();
         mlib_SignalFFT_1_D64C_D64(m_dpacked, realIn, m_order);
@@ -965,14 +673,14 @@ public:
         }
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         Profiler profiler("D_MEDIALIB::forward [f]");
         if (!m_fpacked) initFloat();
         mlib_SignalFFT_1_F32C_F32(m_fpacked, realIn, m_order);
         unpackFloat(realOut, imagOut);
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         Profiler profiler("D_MEDIALIB::forwardInterleaved [f]");
         if (!m_fpacked) initFloat();
         // mlib FFT gives the whole redundant complex result
@@ -980,7 +688,7 @@ public:
         v_copy(complexOut, m_fpacked, m_size + 2);
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         Profiler profiler("D_MEDIALIB::forwardPolar [f]");
         if (!m_fpacked) initFloat();
         mlib_SignalFFT_1_F32C_F32(m_fpacked, realIn, m_order);
@@ -996,7 +704,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         Profiler profiler("D_MEDIALIB::forwardMagnitude [f]");
         if (!m_fpacked) initFloat();
         mlib_SignalFFT_1_F32C_F32(m_fpacked, realIn, m_order);
@@ -1011,14 +719,14 @@ public:
         }
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         Profiler profiler("D_MEDIALIB::inverse [d]");
         if (!m_dpacked) initDouble();
         packDouble(realIn, imagIn);
         mlib_SignalIFFT_2_D64_D64C(realOut, m_dpacked, m_order);
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         Profiler profiler("D_MEDIALIB::inverseInterleaved [d]");
         if (!m_dpacked) initDouble();
         v_copy(m_dpacked, complexIn, m_size + 2);
@@ -1026,7 +734,7 @@ public:
         mlib_SignalIFFT_2_D64_D64C(realOut, m_dpacked, m_order);
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         Profiler profiler("D_MEDIALIB::inversePolar [d]");
         if (!m_dpacked) initDouble();
         const int hs = m_size/2;
@@ -1040,7 +748,7 @@ public:
         mlib_SignalIFFT_2_D64_D64C(realOut, m_dpacked, m_order);
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         Profiler profiler("D_MEDIALIB::inverseCepstral [d]");
         if (!m_dpacked) initDouble();
         const int hs = m_size/2;
@@ -1052,14 +760,14 @@ public:
         mlib_SignalIFFT_2_D64_D64C(cepOut, m_dpacked, m_order);
     }
     
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         Profiler profiler("D_MEDIALIB::inverse [f]");
         if (!m_fpacked) initFloat();
         packFloat(realIn, imagIn);
         mlib_SignalIFFT_2_F32_F32C(realOut, m_fpacked, m_order);
     }
     
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         Profiler profiler("D_MEDIALIB::inverseInterleaved [f]");
         if (!m_fpacked) initFloat();
         v_convert(m_fpacked, complexIn, m_size + 2);
@@ -1067,7 +775,7 @@ public:
         mlib_SignalIFFT_2_F32_F32C(realOut, m_fpacked, m_order);
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         Profiler profiler("D_MEDIALIB::inversePolar [f]");
         if (!m_fpacked) initFloat();
         const int hs = m_size/2;
@@ -1081,7 +789,7 @@ public:
         mlib_SignalIFFT_2_F32_F32C(realOut, m_fpacked, m_order);
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         Profiler profiler("D_MEDIALIB::inverseCepstral [f]");
         if (!m_fpacked) initFloat();
         const int hs = m_size/2;
@@ -1179,21 +887,21 @@ public:
         }
     }
 
-    void packFloat(const float *R__ re) {
+    void packFloat(const float * re) {
         // prepare fixed point input for forward transform
         for (int i = 0; i < m_size; ++i) {
             m_buf[i] = f2i(re[i]);
         }
     }
 
-    void packDouble(const double *R__ re) {
+    void packDouble(const double * re) {
         // prepare fixed point input for forward transform
         for (int i = 0; i < m_size; ++i) {
             m_buf[i] = d2i(re[i]);
         }
     }
 
-    void unpackFloat(float *R__ re, float *R__ im) {
+    void unpackFloat(float * re, float * im) {
         // convert fixed point output for forward transform
         int index = 0;
         const int hs = m_size/2;
@@ -1212,7 +920,7 @@ public:
         v_scale(re, m_size, hs + 1);
     }        
 
-    void unpackDouble(double *R__ re, double *R__ im) {
+    void unpackDouble(double * re, double * im) {
         // convert fixed point output for forward transform
         int index = 0;
         const int hs = m_size/2;
@@ -1231,7 +939,7 @@ public:
         v_scale(re, m_size, hs + 1);
     }
 
-    void unpackFloatInterleaved(float *R__ cplx) {
+    void unpackFloatInterleaved(float * cplx) {
         // convert fixed point output for forward transform
         for (int i = 0; i < m_size + 2; ++i) {
             cplx[i] = i2f(m_packed[i]);
@@ -1239,7 +947,7 @@ public:
         v_scale(cplx, m_size, m_size + 2);
     }
 
-    void unpackDoubleInterleaved(double *R__ cplx) {
+    void unpackDoubleInterleaved(double * cplx) {
         // convert fixed point output for forward transform
         for (int i = 0; i < m_size + 2; ++i) {
             cplx[i] = i2d(m_packed[i]);
@@ -1247,7 +955,7 @@ public:
         v_scale(cplx, m_size, m_size + 2);
     }
 
-    void packFloat(const float *R__ re, const float *R__ im) {
+    void packFloat(const float * re, const float * im) {
         // prepare fixed point input for inverse transform
         int index = 0;
         const int hs = m_size/2;
@@ -1269,7 +977,7 @@ public:
         }
     }
 
-    void packDouble(const double *R__ re, const double *R__ im) {
+    void packDouble(const double * re, const double * im) {
         // prepare fixed point input for inverse transform
         int index = 0;
         const int hs = m_size/2;
@@ -1291,7 +999,7 @@ public:
         }
     }
 
-    void convertFloat(const float *R__ f) {
+    void convertFloat(const float * f) {
         // convert interleaved input for inverse interleaved transform
         const int n = m_size + 2;
         for (int i = 0; i < n; ++i) {
@@ -1299,7 +1007,7 @@ public:
         }
     }        
 
-    void convertDouble(const double *R__ d) {
+    void convertDouble(const double * d) {
         // convert interleaved input for inverse interleaved transform
         const int n = m_size + 2;
         for (int i = 0; i < n; ++i) {
@@ -1307,21 +1015,21 @@ public:
         }
     }        
 
-    void unpackFloat(float *R__ re) {
+    void unpackFloat(float * re) {
         // convert fixed point output for inverse transform
         for (int i = 0; i < m_size; ++i) {
             re[i] = i2f(m_buf[i]) * m_size;
         }
     }
 
-    void unpackDouble(double *R__ re) {
+    void unpackDouble(double * re) {
         // convert fixed point output for inverse transform
         for (int i = 0; i < m_size; ++i) {
             re[i] = i2d(m_buf[i]) * m_size;
         }
     }
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         Profiler profiler("D_OPENMAX::forward [d]");
         if (!m_packed) initDouble();
         packDouble(realIn);
@@ -1329,7 +1037,7 @@ public:
         unpackDouble(realOut, imagOut);
     }
     
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         Profiler profiler("D_OPENMAX::forwardInterleaved [d]");
         if (!m_packed) initDouble();
         packDouble(realIn);
@@ -1337,7 +1045,7 @@ public:
         unpackDoubleInterleaved(complexOut);
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         Profiler profiler("D_OPENMAX::forwardPolar [d]");
         if (!m_packed) initDouble();
         packDouble(realIn);
@@ -1352,7 +1060,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         Profiler profiler("D_OPENMAX::forwardMagnitude [d]");
         if (!m_packed) initDouble();
         packDouble(realIn);
@@ -1367,7 +1075,7 @@ public:
         }
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         Profiler profiler("D_OPENMAX::forward [f]");
         if (!m_packed) initFloat();
         packFloat(realIn);
@@ -1375,7 +1083,7 @@ public:
         unpackFloat(realOut, imagOut);
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         Profiler profiler("D_OPENMAX::forwardInterleaved [f]");
         if (!m_packed) initFloat();
         packFloat(realIn);
@@ -1383,7 +1091,7 @@ public:
         unpackFloatInterleaved(complexOut);
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         Profiler profiler("D_OPENMAX::forwardPolar [f]");
         if (!m_packed) initFloat();
 
@@ -1399,7 +1107,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         Profiler profiler("D_OPENMAX::forwardMagnitude [f]");
         if (!m_packed) initFloat();
         packFloat(realIn);
@@ -1414,7 +1122,7 @@ public:
         }
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         Profiler profiler("D_OPENMAX::inverse [d]");
         if (!m_packed) initDouble();
         packDouble(realIn, imagIn);
@@ -1422,7 +1130,7 @@ public:
         unpackDouble(realOut);
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         Profiler profiler("D_OPENMAX::inverseInterleaved [d]");
         if (!m_packed) initDouble();
         convertDouble(complexIn);
@@ -1430,7 +1138,7 @@ public:
         unpackDouble(realOut);
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         Profiler profiler("D_OPENMAX::inversePolar [d]");
         if (!m_packed) initDouble();
         int index = 0;
@@ -1446,13 +1154,13 @@ public:
         unpackDouble(realOut);
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         Profiler profiler("D_OPENMAX::inverseCepstral [d]");
         if (!m_packed) initDouble();
         //!!! implement
     }
     
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         Profiler profiler("D_OPENMAX::inverse [f]");
         if (!m_packed) initFloat();
         packFloat(realIn, imagIn);
@@ -1460,7 +1168,7 @@ public:
         unpackFloat(realOut);
     }
 
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         Profiler profiler("D_OPENMAX::inverse [f]");
         if (!m_packed) initFloat();
         convertFloat(complexIn);
@@ -1468,7 +1176,7 @@ public:
         unpackFloat(realOut);
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         Profiler profiler("D_OPENMAX::inversePolar [f]");
         if (!m_packed) initFloat();
         const int hs = m_size/2;
@@ -1478,7 +1186,7 @@ public:
         unpackFloat(realOut);
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         Profiler profiler("D_OPENMAX::inverseCepstral [f]");
         if (!m_packed) initFloat();
         //!!! implement
@@ -1493,9 +1201,7 @@ private:
     OMXFFTSpec_R_S32 *m_spec;
 
 };
-
 #endif /* HAVE_OPENMAX */
-
 #ifdef HAVE_FFTS
 class D_FFTS : public FFTImpl
 {
@@ -1520,7 +1226,7 @@ public:
     void initFloat() {}
     void initDouble() {}
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         v_convert(m_time_buf,realIn,m_size );
         ffts_execute(m_r2c,m_time_buf,m_freq_buf);
         if(imagOut){
@@ -1534,26 +1240,26 @@ public:
             }
         }
     }
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         v_convert(m_time_buf,realIn,m_size);
         ffts_execute(m_r2c,m_time_buf,m_freq_buf);
         v_convert(complexOut,m_freq_buf,m_size+2);
     }
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         v_convert(m_time_buf,realIn,m_size);
         ffts_execute(m_r2c,m_time_buf,m_freq_buf);
         v_cartesian_interleaved_to_polar( m_time_buf + m_size/2+1, m_freq_buf, m_freq_buf, m_size/2+1);
         v_convert(magOut,m_time_buf,m_size/2+1);
         v_convert(phaseOut,m_time_buf+m_size/2+1,m_size/2+1);
     }
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         v_convert(m_time_buf,realIn,m_size);
         ffts_execute(m_r2c,m_time_buf,m_freq_buf);
         for ( int i = 0; i <= m_size/2; i++){
             magOut[i] = sqrtf(m_freq_buf[2*i+0]*m_freq_buf[2*i+0] + m_freq_buf[2*i+1]*m_freq_buf[2*i+1]);
         }
     }
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         ffts_execute(m_r2c,realIn,m_freq_buf);
         if(imagOut){
             for(int i = 0; i <= m_size/2; i++){
@@ -1563,21 +1269,21 @@ public:
             for(int i = 0; i <= m_size/2; i++){realOut[i] = m_freq_buf[2*i+0];}
         }
     }
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         ffts_execute(m_r2c, realIn, complexOut);
     }
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         ffts_execute(m_r2c,realIn,m_freq_buf);
         v_cartesian_interleaved_to_polar(magOut, phaseOut, m_freq_buf, m_size/2+1);
     }
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         ffts_execute(m_r2c,realIn,m_freq_buf);
         for (int i = 0; i <= m_size/2; ++i) {
             magOut[i] = sqrtf(m_freq_buf[2*i+0] * m_freq_buf[2*i+0] +
                               m_freq_buf[2*i+1] * m_freq_buf[2*i+1]);
         }
     }
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         for(int i = 0; i <= m_size/2;i++){
             m_freq_buf[2*i+0] = realIn[i];
             m_freq_buf[2*i+1] = imagIn[i];
@@ -1585,12 +1291,12 @@ public:
         ffts_execute(m_c2r,m_freq_buf, m_time_buf);
         v_convert(realOut,m_time_buf,m_size);
     }
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         v_convert(m_freq_buf,complexIn,m_size + 2 );
         ffts_execute(m_c2r,m_freq_buf,m_time_buf);
         v_convert(realOut,m_time_buf,m_size);
     }
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         for( int i = 0; i <= m_size/2; i++){
              m_freq_buf[2*i+1] = phaseIn[i];
             m_freq_buf[2*i+0] = magIn[i];
@@ -1600,7 +1306,7 @@ public:
         v_convert(realOut,m_time_buf,m_size);
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         for (int i = 0; i <= m_size/2; ++i) {
             m_freq_buf[2*i+0] = logf(magIn[i] + 0.000001f);
             m_freq_buf[2*i+1] = 0.0f;
@@ -1609,28 +1315,27 @@ public:
         v_convert(cepOut,m_time_buf,m_size);
     }
 
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         for(int i = 0; i <= m_size/2;i++){
             m_freq_buf[2*i+0] = realIn[i];
             m_freq_buf[2*i+1] = imagIn[i];
         }
         ffts_execute(m_c2r,m_freq_buf, realOut);
     }
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         ffts_execute(m_c2r,complexIn,realOut);
     }
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         v_polar_to_cartesian_interleaved(m_freq_buf,magIn,phaseIn,m_size/2+1);
         ffts_execute(m_c2r,m_freq_buf,realOut);
     }
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         for (int i = 0; i <= m_size/2; ++i) {
             m_freq_buf[2*i+0] = logf(magIn[i] + 0.000001f);
             m_freq_buf[2*i+1] = 0.f;
         }
         ffts_execute(m_c2r,m_freq_buf,cepOut);
     }
-
 private:
     int m_size;
     ffts_plan_t *m_c2r;
@@ -1640,11 +1345,7 @@ private:
 };
 
 #endif /* HAVE_FFTS */
-
-
-
 #ifdef HAVE_FFTW3
-
 /*
  Define FFTW_DOUBLE_ONLY to make all uses of FFTW functions be
  double-precision (so "float" FFTs are calculated by casting to
@@ -1707,15 +1408,11 @@ private:
 #else
 #define fft_double_type double
 #endif /* FFTW_SINGLE_ONLY */
-
-class D_FFTW : public FFTImpl
-{
+class D_FFTW : public FFTImpl{
 public:
     D_FFTW(int size) :
         m_fplanf(0), m_dplanf(0), m_size(size)
-    {
-    }
-
+    {}
     ~D_FFTW() {
         if (m_fplanf) {
 #ifndef NO_THREADING
@@ -1868,9 +1565,9 @@ public:
         fclose(f);
     }
 
-    void packFloat(const float *R__ re, const float *R__ im) {
+    void packFloat(const float * re, const float * im) {
         const int hs = m_size/2;
-        fftwf_complex *const R__ fpacked = m_fpacked; 
+        fftwf_complex *const  fpacked = m_fpacked; 
         for (int i = 0; i <= hs; ++i) {
             fpacked[i][0] = re[i];
         }
@@ -1885,9 +1582,9 @@ public:
         }                
     }
 
-    void packDouble(const double *R__ re, const double *R__ im) {
+    void packDouble(const double * re, const double * im) {
         const int hs = m_size/2;
-        fftw_complex *const R__ dpacked = m_dpacked; 
+        fftw_complex *const  dpacked = m_dpacked; 
         for (int i = 0; i <= hs; ++i) {
             dpacked[i][0] = re[i];
         }
@@ -1902,7 +1599,7 @@ public:
         }
     }
 
-    void unpackFloat(float *R__ re, float *R__ im) {
+    void unpackFloat(float * re, float * im) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             re[i] = m_fpacked[i][0];
@@ -1914,7 +1611,7 @@ public:
         }
     }        
 
-    void unpackDouble(double *R__ re, double *R__ im) {
+    void unpackDouble(double * re, double * im) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             re[i] = m_dpacked[i][0];
@@ -1926,10 +1623,10 @@ public:
         }
     }        
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         if (!m_dplanf) initDouble();
         const int sz = m_size;
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
 #ifndef FFTW_SINGLE_ONLY
         if (realIn != dbuf) 
 #endif
@@ -1940,10 +1637,10 @@ public:
         unpackDouble(realOut, imagOut);
     }
 
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         if (!m_dplanf) initDouble();
         const int sz = m_size;
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
 #ifndef FFTW_SINGLE_ONLY
         if (realIn != dbuf) 
 #endif
@@ -1954,9 +1651,9 @@ public:
         v_convert(complexOut, (fft_double_type *)m_dpacked, sz + 2);
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         if (!m_dplanf) initDouble();
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
         const int sz = m_size;
 #ifndef FFTW_SINGLE_ONLY
         if (realIn != dbuf)
@@ -1969,9 +1666,9 @@ public:
                                          (double *)m_dpacked, m_size/2+1);
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         if (!m_dplanf) initDouble();
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
         const int sz = m_size;
 #ifndef FFTW_SINGLE_ONLY
         if (realIn != m_dbuf)
@@ -1987,9 +1684,9 @@ public:
         }
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         if (!m_fplanf) initFloat();
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
         const int sz = m_size;
 #ifndef FFTW_DOUBLE_ONLY
         if (realIn != fbuf)
@@ -2001,9 +1698,9 @@ public:
         unpackFloat(realOut, imagOut);
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         if (!m_fplanf) initFloat();
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
         const int sz = m_size;
 #ifndef FFTW_DOUBLE_ONLY
         if (realIn != fbuf)
@@ -2015,9 +1712,9 @@ public:
         v_convert(complexOut, (fft_float_type *)m_fpacked, sz + 2);
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         if (!m_fplanf) initFloat();
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
         const int sz = m_size;
 #ifndef FFTW_DOUBLE_ONLY
         if (realIn != fbuf) 
@@ -2030,9 +1727,9 @@ public:
                                          (float *)m_fpacked, m_size/2+1);
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         if (!m_fplanf) initFloat();
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
         const int sz = m_size;
 #ifndef FFTW_DOUBLE_ONLY
         if (realIn != fbuf)
@@ -2048,12 +1745,12 @@ public:
         }
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, imagIn);
         fftw_execute(m_dplani);
         const int sz = m_size;
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
 #ifndef FFTW_SINGLE_ONLY
         if (realOut != dbuf) 
 #endif
@@ -2062,12 +1759,12 @@ public:
             }
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         if (!m_dplanf) initDouble();
         v_convert((double *)m_dpacked, complexIn, m_size + 2);
         fftw_execute(m_dplani);
         const int sz = m_size;
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
 #ifndef FFTW_SINGLE_ONLY
         if (realOut != dbuf) 
 #endif
@@ -2076,10 +1773,10 @@ public:
             }
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         if (!m_dplanf) initDouble();
         const int hs = m_size/2;
-        fftw_complex *const R__ dpacked = m_dpacked;
+        fftw_complex *const  dpacked = m_dpacked;
         for (int i = 0; i <= hs; ++i) {
             dpacked[i][0] = magIn[i] * cos(phaseIn[i]);
         }
@@ -2088,7 +1785,7 @@ public:
         }
         fftw_execute(m_dplani);
         const int sz = m_size;
-        fft_double_type *const R__ dbuf = m_dbuf;
+        fft_double_type *const  dbuf = m_dbuf;
 #ifndef FFTW_SINGLE_ONLY
         if (realOut != dbuf)
 #endif
@@ -2097,10 +1794,10 @@ public:
             }
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         if (!m_dplanf) initDouble();
-        fft_double_type *const R__ dbuf = m_dbuf;
-        fftw_complex *const R__ dpacked = m_dpacked;
+        fft_double_type *const  dbuf = m_dbuf;
+        fftw_complex *const  dpacked = m_dpacked;
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             dpacked[i][0] = log(magIn[i] + 0.000001);
@@ -2118,12 +1815,12 @@ public:
             }
     }
 
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, imagIn);
         fftwf_execute(m_fplani);
         const int sz = m_size;
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
 #ifndef FFTW_DOUBLE_ONLY
         if (realOut != fbuf)
 #endif
@@ -2132,12 +1829,12 @@ public:
             }
     }
 
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         if (!m_fplanf) initFloat();
         v_copy((float *)m_fpacked, complexIn, m_size + 2);
         fftwf_execute(m_fplani);
         const int sz = m_size;
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
 #ifndef FFTW_DOUBLE_ONLY
         if (realOut != fbuf)
 #endif
@@ -2146,10 +1843,10 @@ public:
             }
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         if (!m_fplanf) initFloat();
         const int hs = m_size/2;
-        fftwf_complex *const R__ fpacked = m_fpacked;
+        fftwf_complex *const  fpacked = m_fpacked;
         for (int i = 0; i <= hs; ++i) {
             fpacked[i][0] = magIn[i] * cosf(phaseIn[i]);
         }
@@ -2158,7 +1855,7 @@ public:
         }
         fftwf_execute(m_fplani);
         const int sz = m_size;
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
 #ifndef FFTW_DOUBLE_ONLY
         if (realOut != fbuf)
 #endif
@@ -2167,10 +1864,10 @@ public:
             }
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         if (!m_fplanf) initFloat();
         const int hs = m_size/2;
-        fftwf_complex *const R__ fpacked = m_fpacked;
+        fftwf_complex *const  fpacked = m_fpacked;
         for (int i = 0; i <= hs; ++i) {
             fpacked[i][0] = logf(magIn[i] + 0.000001f);
         }
@@ -2179,7 +1876,7 @@ public:
         }
         fftwf_execute(m_fplani);
         const int sz = m_size;
-        fft_float_type *const R__ fbuf = m_fbuf;
+        fft_float_type *const  fbuf = m_fbuf;
 #ifndef FFTW_DOUBLE_ONLY
         if (cepOut != fbuf)
 #endif
@@ -2187,7 +1884,6 @@ public:
                 cepOut[i] = fbuf[i];
             }
     }
-
 private:
     fftwf_plan m_fplanf;
     fftwf_plan m_fplani;
@@ -2275,14 +1971,11 @@ D_FFTW::m_commonMutex;
 #define fft_double_type double
 #endif /* SFFT_SINGLE_ONLY */
 
-class D_SFFT : public FFTImpl
-{
+class D_SFFT : public FFTImpl{
 public:
     D_SFFT(int size) :
         m_fplanf(0), m_fplani(0), m_dplanf(0), m_dplani(0), m_size(size)
-    {
-    }
-
+    {}
     ~D_SFFT() {
         if (m_fplanf) {
             sfft_free(m_fplanf);
@@ -2310,7 +2003,6 @@ public:
 #endif
 #endif
     }
-
     void initFloat() {
         if (m_fplanf) return;
         m_fbuf = allocate<fft_float_type>(2 * m_size);
@@ -2330,7 +2022,6 @@ public:
 #endif
         }
     }
-
     void initDouble() {
         if (m_dplanf) return;
         m_dbuf = allocate<fft_double_type>(2 * m_size);
@@ -2351,7 +2042,7 @@ public:
         }
     }
 
-    void packFloat(const float *R__ re, const float *R__ im, fft_float_type *target, int n) {
+    void packFloat(const float * re, const float * im, fft_float_type *target, int n) {
         for (int i = 0; i < n; ++i) target[i*2] = re[i];
         if (im) {
             for (int i = 0; i < n; ++i) target[i*2+1] = im[i]; 
@@ -2360,7 +2051,7 @@ public:
         }                
     }
 
-    void packDouble(const double *R__ re, const double *R__ im, fft_double_type *target, int n) {
+    void packDouble(const double * re, const double * im, fft_double_type *target, int n) {
         for (int i = 0; i < n; ++i) target[i*2] = re[i];
         if (im) {
             for (int i = 0; i < n; ++i) target[i*2+1] = im[i];
@@ -2369,14 +2060,14 @@ public:
         }                
     }
 
-    void unpackFloat(const fft_float_type *source, float *R__ re, float *R__ im, int n) {
+    void unpackFloat(const fft_float_type *source, float * re, float * im, int n) {
         for (int i = 0; i < n; ++i) re[i] = source[i*2];
         if (im) {
             for (int i = 0; i < n; ++i) im[i] = source[i*2+1];
         }
     }        
 
-    void unpackDouble(const fft_double_type *source, double *R__ re, double *R__ im, int n) {
+    void unpackDouble(const fft_double_type *source, double * re, double * im, int n) {
         for (int i = 0; i < n; ++i) re[i] = source[i*2];
         if (im) {
             for (int i = 0; i < n; ++i) im[i] = source[i*2+1];
@@ -2384,7 +2075,7 @@ public:
     }        
 
     template<typename T>
-    void mirror(T *R__ cplx, int n) {
+    void mirror(T * cplx, int n) {
         for (int i = 1; i <= n/2; ++i) {
             int j = n-i;
             cplx[j*2] = cplx[i*2];
@@ -2392,21 +2083,21 @@ public:
         }
     }
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, 0, m_dbuf, m_size);
         sfft_execute(m_dplanf, m_dbuf, m_dresult);
         unpackDouble(m_dresult, realOut, imagOut, m_size/2+1);
     }
 
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, 0, m_dbuf, m_size);
         sfft_execute(m_dplanf, m_dbuf, m_dresult);
         v_convert(complexOut, m_dresult, m_size+2); // i.e. m_size/2+1 complex
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, 0, m_dbuf, m_size);
         sfft_execute(m_dplanf, m_dbuf, m_dresult);
@@ -2414,7 +2105,7 @@ public:
                                          m_dresult, m_size/2+1);
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, 0, m_dbuf, m_size);
         sfft_execute(m_dplanf, m_dbuf, m_dresult);
@@ -2425,21 +2116,21 @@ public:
         }
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, 0, m_fbuf, m_size);
         sfft_execute(m_fplanf, m_fbuf, m_fresult);
         unpackFloat(m_fresult, realOut, imagOut, m_size/2+1);
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, 0, m_fbuf, m_size);
         sfft_execute(m_fplanf, m_fbuf, m_fresult);
         v_convert(complexOut, m_fresult, m_size+2); // i.e. m_size/2+1 complex
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, 0, m_fbuf, m_size);
         sfft_execute(m_fplanf, m_fbuf, m_fresult);
@@ -2447,7 +2138,7 @@ public:
                                          m_fresult, m_size/2+1);
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, 0, m_fbuf, m_size);
         sfft_execute(m_fplanf, m_fbuf, m_fresult);
@@ -2458,7 +2149,7 @@ public:
         }
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         if (!m_dplanf) initDouble();
         packDouble(realIn, imagIn, m_dbuf, m_size/2+1);
         mirror(m_dbuf, m_size);
@@ -2468,7 +2159,7 @@ public:
         }
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         if (!m_dplanf) initDouble();
         v_convert((double *)m_dbuf, complexIn, m_size + 2);
         mirror(m_dbuf, m_size);
@@ -2478,7 +2169,7 @@ public:
         }
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         if (!m_dplanf) initDouble();
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2492,7 +2183,7 @@ public:
         }
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         if (!m_dplanf) initDouble();
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2506,7 +2197,7 @@ public:
         }
     }
 
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         if (!m_fplanf) initFloat();
         packFloat(realIn, imagIn, m_fbuf, m_size/2+1);
         mirror(m_fbuf, m_size);
@@ -2516,7 +2207,7 @@ public:
         }
     }
 
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         if (!m_fplanf) initFloat();
         v_convert((float *)m_fbuf, complexIn, m_size + 2);
         mirror(m_fbuf, m_size);
@@ -2526,7 +2217,7 @@ public:
         }
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         if (!m_fplanf) initFloat();
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2540,7 +2231,7 @@ public:
         }
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         if (!m_fplanf) initFloat();
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2552,13 +2243,11 @@ public:
             cepOut[i] = m_fresult[i*2];
         }
     }
-
 private:
     sfft_plan_t *m_fplanf;
     sfft_plan_t *m_fplani;
     fft_float_type *m_fbuf;
     fft_float_type *m_fresult;
-
     sfft_plan_t *m_dplanf;
     sfft_plan_t *m_dplani;
     fft_double_type *m_dbuf;
@@ -2566,294 +2255,7 @@ private:
 
     const int m_size;
 };
-
 #endif /* HAVE_SFFT */
-
-#ifdef USE_KISSFFT
-
-class D_KISSFFT : public FFTImpl
-{
-public:
-    D_KISSFFT(int size) :
-        m_size(size),
-        m_fplanf(0),  
-        m_fplani(0)
-    {
-#ifdef FIXED_POINT
-#error KISSFFT is not configured for float values
-#endif
-        if (sizeof(kiss_fft_scalar) != sizeof(float)) {
-            std::cerr << "ERROR: KISSFFT is not configured for float values"
-                      << std::endl;
-        }
-
-        m_fbuf = new kiss_fft_scalar[m_size + 2];
-        m_fpacked = new kiss_fft_cpx[m_size + 2];
-        m_fplanf = kiss_fftr_alloc(m_size, 0, NULL, NULL);
-        m_fplani = kiss_fftr_alloc(m_size, 1, NULL, NULL);
-    }
-
-    ~D_KISSFFT() {
-        kiss_fftr_free(m_fplanf);
-        kiss_fftr_free(m_fplani);
-        kiss_fft_cleanup();
-
-        delete[] m_fbuf;
-        delete[] m_fpacked;
-    }
-
-    FFT::Precisions
-    getSupportedPrecisions() const {
-        return FFT::SinglePrecision;
-    }
-
-    void initFloat() { }
-    void initDouble() { }
-
-    void packFloat(const float *R__ re, const float *R__ im) {
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = re[i];
-        }
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                m_fpacked[i].i = im[i];
-            }
-        } else {
-            for (int i = 0; i <= hs; ++i) {
-                m_fpacked[i].i = 0.f;
-            }
-        }
-    }
-
-    void unpackFloat(float *R__ re, float *R__ im) {
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            re[i] = m_fpacked[i].r;
-        }
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                im[i] = m_fpacked[i].i;
-            }
-        }
-    }        
-
-    void packDouble(const double *R__ re, const double *R__ im) {
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = float(re[i]);
-        }
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                m_fpacked[i].i = float(im[i]);
-            }
-        } else {
-            for (int i = 0; i <= hs; ++i) {
-                m_fpacked[i].i = 0.f;
-            }
-        }
-    }
-
-    void unpackDouble(double *R__ re, double *R__ im) {
-        const int hs = m_size/2;
-        for (int i = 0; i <= hs; ++i) {
-            re[i] = double(m_fpacked[i].r);
-        }
-        if (im) {
-            for (int i = 0; i <= hs; ++i) {
-                im[i] = double(m_fpacked[i].i);
-            }
-        }
-    }        
-
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
-
-        v_convert(m_fbuf, realIn, m_size);
-        kiss_fftr(m_fplanf, m_fbuf, m_fpacked);
-        unpackDouble(realOut, imagOut);
-    }
-
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
-
-        v_convert(m_fbuf, realIn, m_size);
-        kiss_fftr(m_fplanf, m_fbuf, m_fpacked);
-        v_convert(complexOut, (float *)m_fpacked, m_size + 2);
-    }
-
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
-
-        for (int i = 0; i < m_size; ++i) {
-            m_fbuf[i] = float(realIn[i]);
-        }
-
-        kiss_fftr(m_fplanf, m_fbuf, m_fpacked);
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            magOut[i] = sqrt(double(m_fpacked[i].r) * double(m_fpacked[i].r) +
-                             double(m_fpacked[i].i) * double(m_fpacked[i].i));
-        }
-
-        for (int i = 0; i <= hs; ++i) {
-            phaseOut[i] = atan2(double(m_fpacked[i].i), double(m_fpacked[i].r));
-        }
-    }
-
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
-
-        for (int i = 0; i < m_size; ++i) {
-            m_fbuf[i] = float(realIn[i]);
-        }
-
-        kiss_fftr(m_fplanf, m_fbuf, m_fpacked);
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            magOut[i] = sqrt(double(m_fpacked[i].r) * double(m_fpacked[i].r) +
-                             double(m_fpacked[i].i) * double(m_fpacked[i].i));
-        }
-    }
-
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
-
-        kiss_fftr(m_fplanf, realIn, m_fpacked);
-        unpackFloat(realOut, imagOut);
-    }
-
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
-
-        kiss_fftr(m_fplanf, realIn, (kiss_fft_cpx *)complexOut);
-    }
-
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
-
-        kiss_fftr(m_fplanf, realIn, m_fpacked);
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            magOut[i] = sqrtf(m_fpacked[i].r * m_fpacked[i].r +
-                              m_fpacked[i].i * m_fpacked[i].i);
-        }
-
-        for (int i = 0; i <= hs; ++i) {
-            phaseOut[i] = atan2f(m_fpacked[i].i, m_fpacked[i].r);
-        }
-    }
-
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
-
-        kiss_fftr(m_fplanf, realIn, m_fpacked);
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            magOut[i] = sqrtf(m_fpacked[i].r * m_fpacked[i].r +
-                              m_fpacked[i].i * m_fpacked[i].i);
-        }
-    }
-
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
-
-        packDouble(realIn, imagIn);
-
-        kiss_fftri(m_fplani, m_fpacked, m_fbuf);
-
-        for (int i = 0; i < m_size; ++i) {
-            realOut[i] = m_fbuf[i];
-        }
-    }
-
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
-
-        v_convert((float *)m_fpacked, complexIn, m_size + 2);
-
-        kiss_fftri(m_fplani, m_fpacked, m_fbuf);
-
-        for (int i = 0; i < m_size; ++i) {
-            realOut[i] = m_fbuf[i];
-        }
-    }
-
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = float(magIn[i] * cos(phaseIn[i]));
-            m_fpacked[i].i = float(magIn[i] * sin(phaseIn[i]));
-        }
-
-        kiss_fftri(m_fplani, m_fpacked, m_fbuf);
-
-        for (int i = 0; i < m_size; ++i) {
-            realOut[i] = m_fbuf[i];
-        }
-    }
-
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = float(log(magIn[i] + 0.000001));
-            m_fpacked[i].i = 0.0f;
-        }
-
-        kiss_fftri(m_fplani, m_fpacked, m_fbuf);
-
-        for (int i = 0; i < m_size; ++i) {
-            cepOut[i] = m_fbuf[i];
-        }
-    }
-    
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
-
-        packFloat(realIn, imagIn);
-        kiss_fftri(m_fplani, m_fpacked, realOut);
-    }
-
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
-
-        v_copy((float *)m_fpacked, complexIn, m_size + 2);
-        kiss_fftri(m_fplani, m_fpacked, realOut);
-    }
-
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = magIn[i] * cosf(phaseIn[i]);
-            m_fpacked[i].i = magIn[i] * sinf(phaseIn[i]);
-        }
-
-        kiss_fftri(m_fplani, m_fpacked, realOut);
-    }
-
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
-
-        const int hs = m_size/2;
-
-        for (int i = 0; i <= hs; ++i) {
-            m_fpacked[i].r = logf(magIn[i] + 0.000001f);
-            m_fpacked[i].i = 0.0f;
-        }
-
-        kiss_fftri(m_fplani, m_fpacked, cepOut);
-    }
-
-private:
-    const int m_size;
-    kiss_fftr_cfg m_fplanf;
-    kiss_fftr_cfg m_fplani;
-    kiss_fft_scalar *m_fbuf;
-    kiss_fft_cpx *m_fpacked;
-};
-
-#endif /* USE_KISSFFT */
 
 #ifdef USE_BUILTIN_FFT
 
@@ -2908,7 +2310,7 @@ public:
     void initFloat() { }
     void initDouble() { }
 
-    void forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut) {
+    void forward(const double * realIn, double * realOut, double * imagOut) {
         basefft(false, realIn, 0, m_c, m_d);
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) realOut[i] = m_c[i];
@@ -2917,14 +2319,14 @@ public:
         }
     }
 
-    void forwardInterleaved(const double *R__ realIn, double *R__ complexOut) {
+    void forwardInterleaved(const double * realIn, double * complexOut) {
         basefft(false, realIn, 0, m_c, m_d);
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) complexOut[i*2] = m_c[i];
         for (int i = 0; i <= hs; ++i) complexOut[i*2+1] = m_d[i];
     }
 
-    void forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut) {
+    void forwardPolar(const double * realIn, double * magOut, double * phaseOut) {
         basefft(false, realIn, 0, m_c, m_d);
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2933,7 +2335,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) {
+    void forwardMagnitude(const double * realIn, double * magOut) {
         basefft(false, realIn, 0, m_c, m_d);
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
@@ -2941,7 +2343,7 @@ public:
         }
     }
 
-    void forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut) {
+    void forward(const float * realIn, float * realOut, float * imagOut) {
         for (int i = 0; i < m_size; ++i) m_a[i] = realIn[i];
         basefft(false, m_a, 0, m_c, m_d);
         const int hs = m_size/2;
@@ -2951,7 +2353,7 @@ public:
         }
     }
 
-    void forwardInterleaved(const float *R__ realIn, float *R__ complexOut) {
+    void forwardInterleaved(const float * realIn, float * complexOut) {
         for (int i = 0; i < m_size; ++i) m_a[i] = realIn[i];
         basefft(false, m_a, 0, m_c, m_d);
         const int hs = m_size/2;
@@ -2959,7 +2361,7 @@ public:
         for (int i = 0; i <= hs; ++i) complexOut[i*2+1] = m_d[i];
     }
 
-    void forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut) {
+    void forwardPolar(const float * realIn, float * magOut, float * phaseOut) {
         for (int i = 0; i < m_size; ++i) m_a[i] = realIn[i];
         basefft(false, m_a, 0, m_c, m_d);
         const int hs = m_size/2;
@@ -2969,7 +2371,7 @@ public:
         }
     }
 
-    void forwardMagnitude(const float *R__ realIn, float *R__ magOut) {
+    void forwardMagnitude(const float * realIn, float * magOut) {
         for (int i = 0; i < m_size; ++i) m_a[i] = realIn[i];
         basefft(false, m_a, 0, m_c, m_d);
         const int hs = m_size/2;
@@ -2978,7 +2380,7 @@ public:
         }
     }
 
-    void inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut) {
+    void inverse(const double * realIn, const double * imagIn, double * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             double real = realIn[i];
@@ -2993,7 +2395,7 @@ public:
         basefft(true, m_a, m_b, realOut, m_d);
     }
 
-    void inverseInterleaved(const double *R__ complexIn, double *R__ realOut) {
+    void inverseInterleaved(const double * complexIn, double * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             double real = complexIn[i*2];
@@ -3008,7 +2410,7 @@ public:
         basefft(true, m_a, m_b, realOut, m_d);
     }
 
-    void inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut) {
+    void inversePolar(const double * magIn, const double * phaseIn, double * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             double real = magIn[i] * cos(phaseIn[i]);
@@ -3023,7 +2425,7 @@ public:
         basefft(true, m_a, m_b, realOut, m_d);
     }
 
-    void inverseCepstral(const double *R__ magIn, double *R__ cepOut) {
+    void inverseCepstral(const double * magIn, double * cepOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             double real = log(magIn[i] + 0.000001);
@@ -3037,7 +2439,7 @@ public:
         basefft(true, m_a, m_b, cepOut, m_d);
     }
 
-    void inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut) {
+    void inverse(const float * realIn, const float * imagIn, float * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             float real = realIn[i];
@@ -3053,7 +2455,7 @@ public:
         for (int i = 0; i < m_size; ++i) realOut[i] = m_c[i];
     }
 
-    void inverseInterleaved(const float *R__ complexIn, float *R__ realOut) {
+    void inverseInterleaved(const float * complexIn, float * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             float real = complexIn[i*2];
@@ -3069,7 +2471,7 @@ public:
         for (int i = 0; i < m_size; ++i) realOut[i] = m_c[i];
     }
 
-    void inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut) {
+    void inversePolar(const float * magIn, const float * phaseIn, float * realOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             float real = magIn[i] * cosf(phaseIn[i]);
@@ -3085,7 +2487,7 @@ public:
         for (int i = 0; i < m_size; ++i) realOut[i] = m_c[i];
     }
 
-    void inverseCepstral(const float *R__ magIn, float *R__ cepOut) {
+    void inverseCepstral(const float * magIn, float * cepOut) {
         const int hs = m_size/2;
         for (int i = 0; i <= hs; ++i) {
             float real = logf(magIn[i] + 0.000001);
@@ -3107,12 +2509,10 @@ private:
     double *m_b;
     double *m_c;
     double *m_d;
-    void basefft(bool inverse, const double *R__ ri, const double *R__ ii, double *R__ ro, double *R__ io);
+    void basefft(bool inverse, const double * ri, const double * ii, double * ro, double * io);
 };
-
 void
-D_Cross::basefft(bool inverse, const double *R__ ri, const double *R__ ii, double *R__ ro, double *R__ io)
-{
+D_Cross::basefft(bool inverse, const double * ri, const double * ii, double * ro, double * io){
     if (!ri || !ro || !io) return;
 
     int i, j, k, m;
@@ -3140,11 +2540,8 @@ D_Cross::basefft(bool inverse, const double *R__ ri, const double *R__ ii, doubl
 	    io[m_table[i]] = 0.0;
 	}
     }
-
     blockEnd = 1;
-
     for (blockSize = 2; blockSize <= n; blockSize <<= 1) {
-
 	double delta = angle / (double)blockSize;
 	double sm2 = -sin(-2 * delta);
 	double sm1 = -sin(-delta);
@@ -3152,9 +2549,7 @@ D_Cross::basefft(bool inverse, const double *R__ ri, const double *R__ ii, doubl
 	double cm1 = cos(-delta);
 	double w = 2 * cm1;
 	double ar[3], ai[3];
-
 	for (i = 0; i < n; i += blockSize) {
-
 	    ar[2] = cm2;
 	    ar[1] = cm1;
 
@@ -3186,22 +2581,8 @@ D_Cross::basefft(bool inverse, const double *R__ ri, const double *R__ ii, doubl
 	blockEnd = blockSize;
     }
 
-/* fftw doesn't rescale, so nor will we
-
-    if (inverse) {
-
-	double denom = (double)n;
-
-	for (i = 0; i < n; i++) {
-	    ro[i] /= denom;
-	    io[i] /= denom;
-	}
-    }
-*/
 }
-
 #endif /* USE_BUILTIN_FFT */
-
 } /* end namespace FFTs */
 
 std::string
@@ -3211,9 +2592,6 @@ std::set<std::string>
 FFT::getImplementations()
 {
     std::set<std::string> impls;
-#ifdef HAVE_IPP
-    impls.insert("ipp");
-#endif
 #ifdef HAVE_FFTW3
     impls.insert("fftw");
 #endif
@@ -3221,9 +2599,6 @@ FFT::getImplementations()
     impls.insert("ffts");
 #endif
 
-#ifdef USE_KISSFFT
-    impls.insert("kissfft");
-#endif
 #ifdef HAVE_VDSP
     impls.insert("vdsp");
 #endif
@@ -3241,42 +2616,28 @@ FFT::getImplementations()
 #endif
     return impls;
 }
-
 void
-FFT::pickDefaultImplementation()
-{
+FFT::pickDefaultImplementation(){
     if (m_implementation != "") return;
-
     std::set<std::string> impls = getImplementations();
-
     std::string best = "cross";
     if (impls.find("ffts") != impls.end()) best = "ffts";
-    if (impls.find("kissfft") != impls.end()) best = "kissfft";
     if (impls.find("medialib") != impls.end()) best = "medialib";
     if (impls.find("openmax") != impls.end()) best = "openmax";
     if (impls.find("sfft") != impls.end()) best = "sfft";
     if (impls.find("fftw") != impls.end()) best = "fftw";
     if (impls.find("vdsp") != impls.end()) best = "vdsp";
-    if (impls.find("ipp") != impls.end()) best = "ipp";
     
     m_implementation = best;
 }
 
 std::string
-FFT::getDefaultImplementation()
-{
-    return m_implementation;
-}
-
+FFT::getDefaultImplementation() {return m_implementation;}
 void
-FFT::setDefaultImplementation(std::string i)
-{
-    m_implementation = i;
-}
+FFT::setDefaultImplementation(std::string i){ m_implementation = i;}
 
 FFT::FFT(int size, int debugLevel) :
-    d(0)
-{
+    d(0){
     if ((size < 2) ||
         (size & (size-1))) {
         std::cerr << "FFT::FFT(" << size << "): power-of-two sizes only supported, minimum size 2" << std::endl;
@@ -3286,30 +2647,19 @@ FFT::FFT(int size, int debugLevel) :
         abort();
 #endif
     }
-
     if (m_implementation == "") pickDefaultImplementation();
     std::string impl = m_implementation;
-
     if (debugLevel > 0) {
         std::cerr << "FFT::FFT(" << size << "): using implementation: "
                   << impl << std::endl;
     }
-
-    if (impl == "ipp") {
-#ifdef HAVE_IPP
-        d = new FFTs::D_IPP(size);
-#endif
-    } else if (impl == "ffts") {
+    if (impl == "ffts") {
 #ifdef HAVE_FFTS
         d = new FFTs::D_FFTS(size);
 #endif
     } else if (impl == "fftw") {
 #ifdef HAVE_FFTW3
         d = new FFTs::D_FFTW(size);
-#endif
-    } else if (impl == "kissfft") {        
-#ifdef USE_KISSFFT
-        d = new FFTs::D_KISSFFT(size);
 #endif
     } else if (impl == "vdsp") {
 #ifdef HAVE_VDSP
@@ -3365,7 +2715,7 @@ FFT::~FFT()
 #endif
 
 void
-FFT::forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut)
+FFT::forward(const double * realIn, double * realOut, double * imagOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(realOut);
@@ -3374,7 +2724,7 @@ FFT::forward(const double *R__ realIn, double *R__ realOut, double *R__ imagOut)
 }
 
 void
-FFT::forwardInterleaved(const double *R__ realIn, double *R__ complexOut)
+FFT::forwardInterleaved(const double * realIn, double * complexOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(complexOut);
@@ -3382,7 +2732,7 @@ FFT::forwardInterleaved(const double *R__ realIn, double *R__ complexOut)
 }
 
 void
-FFT::forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phaseOut)
+FFT::forwardPolar(const double * realIn, double * magOut, double * phaseOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(magOut);
@@ -3391,7 +2741,7 @@ FFT::forwardPolar(const double *R__ realIn, double *R__ magOut, double *R__ phas
 }
 
 void
-FFT::forwardMagnitude(const double *R__ realIn, double *R__ magOut)
+FFT::forwardMagnitude(const double * realIn, double * magOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(magOut);
@@ -3399,7 +2749,7 @@ FFT::forwardMagnitude(const double *R__ realIn, double *R__ magOut)
 }
 
 void
-FFT::forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut)
+FFT::forward(const float * realIn, float * realOut, float * imagOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(realOut);
@@ -3408,7 +2758,7 @@ FFT::forward(const float *R__ realIn, float *R__ realOut, float *R__ imagOut)
 }
 
 void
-FFT::forwardInterleaved(const float *R__ realIn, float *R__ complexOut)
+FFT::forwardInterleaved(const float * realIn, float * complexOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(complexOut);
@@ -3416,7 +2766,7 @@ FFT::forwardInterleaved(const float *R__ realIn, float *R__ complexOut)
 }
 
 void
-FFT::forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOut)
+FFT::forwardPolar(const float * realIn, float * magOut, float * phaseOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(magOut);
@@ -3425,7 +2775,7 @@ FFT::forwardPolar(const float *R__ realIn, float *R__ magOut, float *R__ phaseOu
 }
 
 void
-FFT::forwardMagnitude(const float *R__ realIn, float *R__ magOut)
+FFT::forwardMagnitude(const float * realIn, float * magOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(magOut);
@@ -3433,7 +2783,7 @@ FFT::forwardMagnitude(const float *R__ realIn, float *R__ magOut)
 }
 
 void
-FFT::inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ realOut)
+FFT::inverse(const double * realIn, const double * imagIn, double * realOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(imagIn);
@@ -3442,7 +2792,7 @@ FFT::inverse(const double *R__ realIn, const double *R__ imagIn, double *R__ rea
 }
 
 void
-FFT::inverseInterleaved(const double *R__ complexIn, double *R__ realOut)
+FFT::inverseInterleaved(const double * complexIn, double * realOut)
 {
     CHECK_NOT_NULL(complexIn);
     CHECK_NOT_NULL(realOut);
@@ -3450,7 +2800,7 @@ FFT::inverseInterleaved(const double *R__ complexIn, double *R__ realOut)
 }
 
 void
-FFT::inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R__ realOut)
+FFT::inversePolar(const double * magIn, const double * phaseIn, double * realOut)
 {
     CHECK_NOT_NULL(magIn);
     CHECK_NOT_NULL(phaseIn);
@@ -3459,7 +2809,7 @@ FFT::inversePolar(const double *R__ magIn, const double *R__ phaseIn, double *R_
 }
 
 void
-FFT::inverseCepstral(const double *R__ magIn, double *R__ cepOut)
+FFT::inverseCepstral(const double * magIn, double * cepOut)
 {
     CHECK_NOT_NULL(magIn);
     CHECK_NOT_NULL(cepOut);
@@ -3467,7 +2817,7 @@ FFT::inverseCepstral(const double *R__ magIn, double *R__ cepOut)
 }
 
 void
-FFT::inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOut)
+FFT::inverse(const float * realIn, const float * imagIn, float * realOut)
 {
     CHECK_NOT_NULL(realIn);
     CHECK_NOT_NULL(imagIn);
@@ -3476,7 +2826,7 @@ FFT::inverse(const float *R__ realIn, const float *R__ imagIn, float *R__ realOu
 }
 
 void
-FFT::inverseInterleaved(const float *R__ complexIn, float *R__ realOut)
+FFT::inverseInterleaved(const float * complexIn, float * realOut)
 {
     CHECK_NOT_NULL(complexIn);
     CHECK_NOT_NULL(realOut);
@@ -3484,7 +2834,7 @@ FFT::inverseInterleaved(const float *R__ complexIn, float *R__ realOut)
 }
 
 void
-FFT::inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ realOut)
+FFT::inversePolar(const float * magIn, const float * phaseIn, float * realOut)
 {
     CHECK_NOT_NULL(magIn);
     CHECK_NOT_NULL(phaseIn);
@@ -3493,7 +2843,7 @@ FFT::inversePolar(const float *R__ magIn, const float *R__ phaseIn, float *R__ r
 }
 
 void
-FFT::inverseCepstral(const float *R__ magIn, float *R__ cepOut)
+FFT::inverseCepstral(const float * magIn, float * cepOut)
 {
     CHECK_NOT_NULL(magIn);
     CHECK_NOT_NULL(cepOut);
@@ -3545,13 +2895,6 @@ FFT::tune()
 
         FFTImpl *d;
         int top_id=0; 
-#ifdef HAVE_IPP
-        std::cerr << "Constructing new IPP FFT object for size " << size << "..." << std::endl;
-        d = new FFTs::D_IPP(size);
-        d->initFloat();
-        d->initDouble();
-        candidates[d] = top_id;top_id++;
-#endif
  #ifdef HAVE_FFTS
         os << "Constructing new FFTS FFT object for size " << size << "..." << std::endl;
         d = new FFTs::D_FFTS(size);
@@ -3566,14 +2909,6 @@ FFT::tune()
         d->initDouble();
         candidates[d] = top_id;top_id++;
 #endif
-
-#ifdef USE_KISSFFT
-        os << "Constructing new KISSFFT object for size " << size << "..." << std::endl;
-        d = new FFTs::D_KISSFFT(size);
-        d->initFloat();
-        d->initDouble();
-        candidates[d] = top_id;top_id++;
-#endif        
 
 #ifdef USE_BUILTIN_FFT
         os << "Constructing new Cross FFT object for size " << size << "..." << std::endl;
@@ -3784,24 +3119,18 @@ FFT::tune()
         delete candidates.begin()->first;
         candidates.erase(candidates.begin());
     }
-
     int bestscore = 0;
     int best = -1;
-
     for (std::map<int, int>::iterator wi = wins.begin(); wi != wins.end(); ++wi) {
         if (best == -1 || wi->second > bestscore) {
             best = wi->first;
             bestscore = wi->second;
         }
     }
-
     os << "overall winner is " << best << " with " << bestscore << " wins" << std::endl;
-
     return os.str();
 }
-
 #else
-
 /*static*/ std::string FFT::tune(){return std::string{};}
 #endif
 }

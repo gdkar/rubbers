@@ -95,10 +95,8 @@ inline v_polar_to_cartesian_pommier(float *const _real,
         ++i;
     }
 }    
-
 void
-inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const _srcdst,
-                                                 const int count){
+inline v_polar_interleaved_to_cartesian_inplace_pommier(float *const _srcdst,const int count){
     int i;
     int idx = 0, tidx = 0;
     auto srcdst= (typeof(_srcdst))__builtin_assume_aligned(_srcdst,16); 
@@ -151,8 +149,7 @@ inline v_polar_to_cartesian_interleaved_pommier(float *const dst,
 }
 #ifdef USE_APPROXIMATE_ATAN2
 template<typename T>
-inline T approximate_atan2(T  imag, T  real)
-{
+inline T approximate_atan2(T  imag, T  real){
     T atan;
     if (real == 0) {
         if (imag > 0.0) atan = (M_PI/2);
@@ -176,37 +173,30 @@ inline T approximate_atan2(T  imag, T  real)
 #endif
 #ifdef USE_APPROXIMATE_ATAN2
 template<typename T>
-inline void c_magphase(T *mag, T *phase, T real, T imag)
-{
+inline void c_magphase(T *mag, T *phase, T real, T imag){
     *phase = approximate_atan2(imag,real);
     *mag = std::sqrt(real * real + imag * imag);
 }
 #else
 template<typename T>
-inline void c_magphase(T *mag, T *phase, T real, T imag)
-{
+inline void c_magphase(T *mag, T *phase, T real, T imag){
     *mag = std::sqrt(real * real + imag * imag);
     *phase = atan2(imag, real);
 }
 #endif
-
-
 template<typename S, typename T> // S source, T target
 void v_polar_to_cartesian(T *const real,
                           T *const imag,
                           const S *const mag,
                           const S *const phase,
-                          const int count)
-{
+                          const int count){
     for (int i = 0; i < count; ++i) {c_phasor<T>(real + i, imag + i, phase[i]);}
     v_multiply(real, mag, count);
     v_multiply(imag, mag, count);
 }
-
 template<typename T>
 void v_polar_interleaved_to_cartesian_inplace(T *const srcdst,
-                                              const int count)
-{
+                                              const int count){
     T real, imag;
     for (int i = 0; i < count*2; i += 2) {
         c_phasor(&real, &imag, srcdst[i+1]);
@@ -216,13 +206,11 @@ void v_polar_interleaved_to_cartesian_inplace(T *const srcdst,
         srcdst[i+1] = imag;
     }
 }
-
 template<typename S, typename T> // S source, T target
 void v_polar_to_cartesian_interleaved(T *const dst,
                                       const S *const mag,
                                       const S *const phase,
-                                      const int count)
-{
+                                      const int count){
     T real, imag;
     for (int i = 0; i < count; ++i) {
         c_phasor<T>(&real, &imag, phase[i]);
@@ -232,14 +220,12 @@ void v_polar_to_cartesian_interleaved(T *const dst,
         dst[i*2+1] = imag;
     }
 }    
-
 template<>
 inline void v_polar_to_cartesian(float *const real,
                                  float *const imag,
                                  const float *const mag,
                                  const float *const phase,
-                                 const int count)
-{
+                                 const int count){
     v_polar_to_cartesian_pommier(real, imag, mag, phase, count);
 }
 template<>
@@ -295,23 +281,17 @@ inline void v_cartesian_to_polar(float *const _mag,
                                  float *const _phase,
                                  const float *const _real,
                                  const float *const _imag,
-                                 const int count)
-{
+                                 const int count){
     int i;
     auto mag = (typeof(_mag))__builtin_assume_aligned(_mag,16);
     auto phase = (typeof(_phase))__builtin_assume_aligned(_phase,16);
     auto real  = (typeof(_real))__builtin_assume_aligned(_real,16);
     auto imag  = (typeof(_imag))__builtin_assume_aligned(_imag,16);
     for(i=0;i+4<count;i+=4){
-        _approx_magphase_ps ( (v4sf*)(mag + i), (v4sf*)(phase+i),
-                *(v4sf*)(real+i),*(v4sf*)(imag+i));
+        _approx_magphase_ps ( (v4sf*)(mag + i), (v4sf*)(phase+i), *(v4sf*)(real+i),*(v4sf*)(imag+i));
     }
-    while(i<count){
-        c_magphase(mag+i, phase+i, real[i],imag[i]);
-    }
+    while(i<count){c_magphase(mag+i, phase+i, real[i],imag[i]);}
 }
-
 }
-
 #endif
 

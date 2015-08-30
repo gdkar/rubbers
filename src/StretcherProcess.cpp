@@ -243,8 +243,7 @@ bool
 RubberBandStretcher::Impl::processChunkForChannel(size_t c,
                                                   size_t phaseIncrement,
                                                   size_t shiftIncrement,
-                                                  bool phaseReset)
-{
+                                                  bool phaseReset){
     Profiler profiler("RubberBandStretcher::Impl::processChunkForChannel");
     // Process a single chunk on a single channel.  This assumes
     // enough input data is available; caller must have tested this
@@ -443,7 +442,6 @@ RubberBandStretcher::Impl::getIncrements(size_t channel,size_t &phaseIncrementRt
     if (cd.chunkCount == 0) phaseReset = true; // don't mess with the first chunk
     return gotData;
 }
-
 void
 RubberBandStretcher::Impl::analyseChunk(size_t channel){
     Profiler profiler("RubberBandStretcher::Impl::analyseChunk");
@@ -455,7 +453,6 @@ RubberBandStretcher::Impl::analyseChunk(size_t channel){
     cutShiftAndFold(dblbuf, m_fftSize, fltbuf, m_awindow);
     cd.fft->forwardPolar(dblbuf, cd.mag, cd.phase);
 }
-
 void
 RubberBandStretcher::Impl::modifyChunk(size_t channel,size_t outputIncrement,bool phaseReset){
     Profiler profiler("RubberBandStretcher::Impl::modifyChunk");

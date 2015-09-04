@@ -28,6 +28,12 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
+#include <inttypes.h>
+#include <sys/types.h>
+
 #define RUBBERBAND_VERSION "1.8.1"
 #define RUBBERBAND_API_MAJOR_VERSION 2
 #define RUBBERBAND_API_MINOR_VERSION 5
@@ -107,7 +113,7 @@ extern void rubberband_set_pitch_scale(RubberBandState, double scale);
 extern double rubberband_get_time_ratio(const RubberBandState);
 extern double rubberband_get_pitch_scale(const RubberBandState);
 
-extern unsigned int rubberband_get_latency(const RubberBandState);
+extern size_t  rubberband_get_latency(const RubberBandState);
 
 extern void rubberband_set_transients_option(RubberBandState, RubberBandOptions options);
 extern void rubberband_set_detector_option(RubberBandState, RubberBandOptions options);
@@ -115,18 +121,18 @@ extern void rubberband_set_phase_option(RubberBandState, RubberBandOptions optio
 extern void rubberband_set_formant_option(RubberBandState, RubberBandOptions options);
 extern void rubberband_set_pitch_option(RubberBandState, RubberBandOptions options);
 
-extern void rubberband_set_expected_input_duration(RubberBandState, unsigned int samples);
+extern void rubberband_set_expected_input_duration(RubberBandState, size_t samples);
 
-extern unsigned int rubberband_get_samples_required(const RubberBandState);
+extern size_t rubberband_get_samples_required(const RubberBandState);
 
-extern void rubberband_set_max_process_size(RubberBandState, unsigned int samples);
-extern void rubberband_set_key_frame_map(RubberBandState, unsigned int keyframecount, unsigned int *from, unsigned int *to);
+extern void rubberband_set_max_process_size(RubberBandState, size_t samples);
+extern void rubberband_set_key_frame_map(RubberBandState, size_t keyframecount, size_t *from, size_t *to);
 
-extern void rubberband_study(RubberBandState, const float *const *input, unsigned int samples, int final);
-extern void rubberband_process(RubberBandState, const float *const *input, unsigned int samples, int final);
+extern void rubberband_study(RubberBandState, const float *const *input, size_t samples, bool flush);
+extern void rubberband_process(RubberBandState, const float *const *input, size_t samples,bool flush);
 
-extern int rubberband_available(const RubberBandState);
-extern unsigned int rubberband_retrieve(const RubberBandState, float *const *output, unsigned int samples);
+extern ssize_t  rubberband_available(const RubberBandState);
+extern size_t   rubberband_retrieve(const RubberBandState, float *const *output, size_t samples);
 
 extern unsigned int rubberband_get_channel_count(const RubberBandState);
 

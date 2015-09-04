@@ -24,7 +24,7 @@
 #ifndef _RUBBERBAND_STRETCHERIMPL_H_
 #define _RUBBERBAND_STRETCHERIMPL_H_
 
-#include "rubbers/RubberBandStretcher.h"
+#include "rubbers/RubbersStretcher.h"
 
 #include "dsp/Window.h"
 #include "dsp/SincWindow.h"
@@ -78,7 +78,7 @@ public:
     void study(const float *const *input, size_t samples, bool final);
     void process(const float *const *input, size_t samples, bool final);
 
-    int available() const;
+    ssize_t available() const;
     size_t retrieve(float *const *output, size_t samples) const;
 
     float getFrequencyCutoff(int n) const;
@@ -125,9 +125,7 @@ protected:
     void reconfigure();
 
     double getEffectiveRatio() const;
-    
     size_t roundUp(size_t value); // to next power of two
-
     template <typename T, typename S>
     void cutShiftAndFold(T *target, int targetSize,
                          S *src, // destructive to src
@@ -148,7 +146,6 @@ protected:
             }
         }
     }
-
     bool inline resampleBeforeStretching() const{
         // We can't resample before stretching in offline mode, because
         // the stretch calculation is based on doing it the other way
@@ -156,10 +153,8 @@ protected:
         return m_realtime && ((m_options&OptionPitchHighQuality)?(m_pitchScale<1.0)
                     : (m_options&OptionPitchHighConsistency)?false:(m_pitchScale>1.0));
     }
-    
     double m_timeRatio;
     double m_pitchScale;
-
     // n.b. either m_fftSize is an integer multiple of m_windowSize,
     // or vice versa
     size_t m_fftSize;

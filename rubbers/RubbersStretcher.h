@@ -21,8 +21,8 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#ifndef _RUBBERBANDSTRETCHER_H_
-#define _RUBBERBANDSTRETCHER_H_
+#ifndef _RUBBERS_RUBBERSSTRETCHER_H_
+#define _RUBBERS_RUBBERSSTRETCHER_H_
     
 #define RUBBERBAND_VERSION "1.8.1"
 #define RUBBERBAND_API_MAJOR_VERSION 2
@@ -328,14 +328,11 @@ public:
 
         // n.b. Options is int, so we must stop before 0x80000000
     };
-
     typedef int Options;
-
     enum PresetOption {
         DefaultOptions             = 0x00000000,
         PercussiveOptions          = 0x00102000
     };
-
     /**
      * Construct a time and pitch stretcher object to run at the given
      * sample rate, with the given number of channels.  Processing
@@ -349,15 +346,13 @@ public:
                         Options options = DefaultOptions,
                         double initialTimeRatio = 1.0,
                         double initialPitchScale = 1.0);
-    ~RubberBandStretcher();
-
+    virtual ~RubberBandStretcher();
     /**
      * Reset the stretcher's internal buffers.  The stretcher should
      * subsequently behave as if it had just been constructed
      * (although retaining the current time and pitch ratio).
      */
     void reset();
-
     /**
      * Set the time ratio for the stretcher.  This is the ratio of
      * stretched to unstretched duration -- not tempo.  For example, a
@@ -380,7 +375,6 @@ public:
      * run at once (there is no internal mutex for this purpose).
      */
     void setTimeRatio(double ratio);
-
     /**
      * Set the pitch scaling ratio for the stretcher.  This is the
      * ratio of target frequency to source frequency.  For example, a
@@ -407,19 +401,16 @@ public:
      * run at once (there is no internal mutex for this purpose).
      */
     void setPitchScale(double scale);
-
     /**
      * Return the last time ratio value that was set (either on
      * construction or with setTimeRatio()).
      */
     double getTimeRatio() const;
-
     /**
      * Return the last pitch scaling ratio value that was set (either
      * on construction or with setPitchScale()).
      */
     double getPitchScale() const;
-
     /**
      * Return the processing latency of the stretcher.  This is the
      * number of audio samples that one would have to discard at the
@@ -430,7 +421,6 @@ public:
      * ratio and other options.
      */
     size_t getLatency() const;
-
     /**
      * Change an OptionTransients configuration setting.  This may be
      * called at any time in RealTime mode.  It may not be called in
@@ -438,7 +428,6 @@ public:
      * construction).
      */
     void setTransientsOption(Options options);
-
     /**
      * Change an OptionDetector configuration setting.  This may be
      * called at any time in RealTime mode.  It may not be called in
@@ -446,7 +435,6 @@ public:
      * construction).
      */
     void setDetectorOption(Options options);
-
     /**
      * Change an OptionPhase configuration setting.  This may be
      * called at any time in any mode.
@@ -456,7 +444,6 @@ public:
      * way when this function is called.
      */
     void setPhaseOption(Options options);
-
     /**
      * Change an OptionFormant configuration setting.  This may be
      * called at any time in any mode.
@@ -466,7 +453,6 @@ public:
      * way when this function is called.
      */
     void setFormantOption(Options options);
-
     /**
      * Change an OptionPitch configuration setting.  This may be
      * called at any time in RealTime mode.  It may not be called in
@@ -474,7 +460,6 @@ public:
      * construction).
      */
     void setPitchOption(Options options);
-
     /**
      * Tell the stretcher exactly how many input samples it will
      * receive.  This is only useful in Offline mode, when it allows
@@ -483,7 +468,6 @@ public:
      * possible and this value is ignored.
      */
     void setExpectedInputDuration(size_t samples);
-
     /**
      * Tell the stretcher the maximum number of sample frames that you
      * will ever be passing in to a single process() call.  If you
@@ -577,7 +561,6 @@ public:
      * Set "last" to true if this is the last block of input data.
      */
     void process(const float *const *input, size_t samples, bool last);
-
     /**
      * Ask the stretcher how many audio sample frames of output data
      * are available for reading (via retrieve()).
@@ -591,8 +574,7 @@ public:
      * This function returns -1 if all data has been fully processed
      * and all output read, and the stretch process is now finished.
      */
-    int available() const;
-
+    ssize_t available() const;
     /**
      * Obtain some processed output data from the stretcher.  Up to
      * "samples" samples will be stored in the output arrays (one per
@@ -615,14 +597,12 @@ public:
      * This function is not for general use.
      */
     void setFrequencyCutoff(int n, float f);
-    
     /**
      * Retrieve the value of the internal input block increment value.
      *
      * This function is provided for diagnostic purposes only.
      */
     size_t getInputIncrement() const;
-
     /**
      * In offline mode, retrieve the sequence of internal block
      * increments for output, for the entire audio data, provided the

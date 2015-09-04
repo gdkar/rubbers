@@ -23,7 +23,7 @@
 
 #include "RubberBandPitchShifter.h"
 
-#include "RubberBandStretcher.h"
+#include "RubbersStretcher.h"
 
 #include <iostream>
 #include <cmath>

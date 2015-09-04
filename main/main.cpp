@@ -20,9 +20,16 @@
     under terms other than those of the GNU General Public License,
     you must obtain a valid commercial licence before doing so.
 */
+#define __STDC_CONSTANT_MACROS
 
-#include "rubbers/RubberBandStretcher.h"
-
+extern "C" {
+#include <libavutil/avutil.h>
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
+};
+#include "rubbers/RubbersStretcher.h"
+#include "rubbers/RubbersFile.h"
 #include <iostream>
 #include <sndfile.h>
 #include <cmath>
@@ -195,7 +202,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (help || !haveRatio || optind + 2 != argc) {
+    if (help || !haveRatio || optind + 1 != argc) {
         cerr << endl;
 	cerr << "Rubber Band" << endl;
         cerr << "An audio time-stretching and pitch-shifting library and utility program." << endl;
@@ -338,47 +345,27 @@ int main(int argc, char **argv)
     }
 
     char *fileName = strdup(argv[optind++]);
-    char *fileNameOut = strdup(argv[optind++]);
 
-    SNDFILE *sndfile;
-    SNDFILE *sndfileOut;
-    SF_INFO sfinfo;
-    SF_INFO sfinfoOut;
-    memset(&sfinfo, 0, sizeof(SF_INFO));
-
-    sndfile = sf_open(fileName, SFM_READ, &sfinfo);
-    if (!sndfile) {
-	cerr << "ERROR: Failed to open input file \"" << fileName << "\": "
-	     << sf_strerror(sndfile) << endl;
-	return 1;
-    }
-
+    auto rubbersFile = new RubbersFile ( fileName );
+    auto length = rubbersFile->length();
+    std::cerr << "seeking to end of " << fileName << " yields " <<  length << std::endl;
+    std::cerr << "nominal middle = " << length/2 <<  std::endl;
+    std::cerr << "current position is " << rubbersFile->tell() << std::endl;
+    auto middle = rubbersFile->seek(length/2,SEEK_SET );
+    std::cerr << "seeking to nominal middle of " << fileName << " yields " << middle << std::endl;
     if (duration != 0.0) {
-        if (sfinfo.frames == 0 || sfinfo.samplerate == 0) {
+        if (length == 0 || rubbersFile->rate() == 0) {
             cerr << "ERROR: File lacks frame count or sample rate in header, cannot use --duration" << endl;
             return 1;
         }
-        double induration = double(sfinfo.frames) / double(sfinfo.samplerate);
+        double induration = double(length) / double(rubbersFile->rate());
         if (induration != 0.0) ratio = duration / induration;
     }
-
-    sfinfoOut.channels = sfinfo.channels;
-    sfinfoOut.format = sfinfo.format;
-    sfinfoOut.frames = int(sfinfo.frames * ratio + 0.1);
-    sfinfoOut.samplerate = sfinfo.samplerate;
-    sfinfoOut.sections = sfinfo.sections;
-    sfinfoOut.seekable = sfinfo.seekable;
-
-    sndfileOut = sf_open(fileNameOut, SFM_WRITE, &sfinfoOut) ;
-    if (!sndfileOut) {
-	cerr << "ERROR: Failed to open output file \"" << fileNameOut << "\" for writing: "
-	     << sf_strerror(sndfileOut) << endl;
-	return 1;
-    }
     
-    int ibs = 1024;
-    size_t channels = sfinfo.channels;
 
+    auto ibs = 1024;
+    auto channels = rubbersFile->channels();
+    auto rate = rubbersFile->rate();
     RubberBandStretcher::Options options = 0;
     if (realtime)    options |= RubberBandStretcher::OptionProcessRealTime;
     if (precise)     options |= RubberBandStretcher::OptionStretchPrecise;
@@ -425,117 +412,52 @@ int main(int argc, char **argv)
         options |= RubberBandStretcher::OptionDetectorSoft;
         break;
     }
-
-    if (pitchshift != 0.0) {
-        frequencyshift *= pow(2.0, pitchshift / 12);
-    }
-
+    if (pitchshift != 0.0) {frequencyshift *= std::pow(2.0, pitchshift / 12);}
     cerr << "Using time ratio " << ratio;
     cerr << " and frequency ratio " << frequencyshift << endl;
-
-#ifdef _WIN32
-    RubberBand::
-#endif
     timeval tv;
     (void)gettimeofday(&tv, 0);
-
     RubberBandStretcher::setDefaultDebugLevel(debug);
-
-    RubberBandStretcher ts(sfinfo.samplerate, channels, options,
-                           ratio, frequencyshift);
-
-    ts.setExpectedInputDuration(sfinfo.frames);
-
-    float *fbuf = new float[channels * ibs];
+    RubberBandStretcher ts(rate, channels, options,ratio, frequencyshift);
+    ts.setExpectedInputDuration(length);
     float **ibuf = new float *[channels];
     for (size_t i = 0; i < channels; ++i) ibuf[i] = new float[ibs];
-
     int frame = 0;
     int percent = 0;
-
-    sf_seek(sndfile, 0, SEEK_SET);
-
+    rubbersFile->seek(0,SEEK_SET);
     if (!realtime) {
-
-        if (!quiet) {
-            cerr << "Pass 1: Studying..." << endl;
-        }
-
-        while (frame < sfinfo.frames) {
-
+        if (!quiet) {cerr << "Pass 1: Studying..." << endl;}
+        while (frame < length) {
             int count = -1;
-
-            if ((count = sf_readf_float(sndfile, fbuf, ibs)) <= 0) break;
-        
-            for (size_t c = 0; c < channels; ++c) {
-                for (int i = 0; i < count; ++i) {
-                    float value = fbuf[i * channels + c];
-                    ibuf[c][i] = value;
-                }
-            }
-
-            bool final = (frame + ibs >= sfinfo.frames);
-
+            count = rubbersFile->read(ibuf,ibs );
+            bool final = (frame + ibs >= length);
             ts.study(ibuf, count, final);
-
-            int p = int((double(frame) * 100.0) / sfinfo.frames);
+            int p = int((double(frame) * 100.0) / length);
             if (p > percent || frame == 0) {
                 percent = p;
-                if (!quiet) {
-                    cerr << "\r" << percent << "% ";
-                }
+                if (!quiet) {cerr << "\r" << percent << "% ";}
             }
-
-            frame += ibs;
+            frame += count;
         }
-
-        if (!quiet) {
-            cerr << "\rCalculating profile..." << endl;
-        }
-
-        sf_seek(sndfile, 0, SEEK_SET);
+        if (!quiet) {cerr << "\rCalculating profile..." << endl;}
+        rubbersFile->seek(0,SEEK_SET);
     }
-
     frame = 0;
     percent = 0;
-
-    if (!mapping.empty()) {
-        ts.setKeyFrameMap(mapping);
-    }
-    
+    if (!mapping.empty()) {ts.setKeyFrameMap(mapping);}
     size_t countIn = 0, countOut = 0;
-
-    while (frame < sfinfo.frames) {
-
-        int count = -1;
-
-	if ((count = sf_readf_float(sndfile, fbuf, ibs)) < 0) break;
-        
-        countIn += count;
-
-        for (size_t c = 0; c < channels; ++c) {
-            for (int i = 0; i < count; ++i) {
-                float value = fbuf[i * channels + c];
-                ibuf[c][i] = value;
-            }
-        }
-
-        bool final = (frame + ibs >= sfinfo.frames);
-
+    while (frame < length) {
+        int count = rubbersFile->read(ibuf,ibs);
+        bool final = (frame + ibs >= length);
         if (debug > 2) {
-            cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << sfinfo.frames << ", final = " << final << endl;
+            cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << final << endl;
         }
-
         ts.process(ibuf, count, final);
-
         int avail = ts.available();
         if (debug > 1) cerr << "available = " << avail << endl;
-
         if (avail > 0) {
             float **obf = new float *[channels];
-            for (size_t i = 0; i < channels; ++i) {
-                obf[i] = new float[avail];
-            }
+            for (auto i = 0; i < channels; ++i) {obf[i] = new float[avail];}
             ts.retrieve(obf, avail);
             countOut += avail;
             float *fobf = new float[channels * avail];
@@ -547,52 +469,28 @@ int main(int argc, char **argv)
                     fobf[i * channels + c] = value;
                 }
             }
-//            cout << "fobf mean: ";
-//    double d = 0;
-//    for (int i = 0; i < avail; ++i) {
-//        d += fobf[i];
-//    }
-//    d /= avail;
-//    cout << d << endl;
-            sf_writef_float(sndfileOut, fobf, avail);
+            fwrite ( fobf, sizeof(float), avail * channels, stdout);
+//            sf_writef_float(sndfileOut, fobf, avail);
             delete[] fobf;
-            for (size_t i = 0; i < channels; ++i) {
-                delete[] obf[i];
-            }
+            for (size_t i = 0; i < channels; ++i) {delete[] obf[i];}
             delete[] obf;
         }
-
-        if (frame == 0 && !realtime && !quiet) {
-            cerr << "Pass 2: Processing..." << endl;
-        }
-
-	int p = int((double(frame) * 100.0) / sfinfo.frames);
+        if (frame == 0 && !realtime && !quiet) {cerr << "Pass 2: Processing..." << endl;}
+	int p = int((double(frame) * 100.0) / length);
 	if (p > percent || frame == 0) {
 	    percent = p;
-            if (!quiet) {
-                cerr << "\r" << percent << "% ";
-            }
+            if (!quiet) {cerr << "\r" << percent << "% ";}
 	}
-
         frame += ibs;
     }
-
-    if (!quiet) {
-        cerr << "\r    " << endl;
-    }
+    if (!quiet) {cerr << "\r    " << endl;}
     int avail;
 
     while ((avail = ts.available()) >= 0) {
-
-        if (debug > 1) {
-            cerr << "(completing) available = " << avail << endl;
-        }
-
+        if (debug > 1) {cerr << "(completing) available = " << avail << endl;}
         if (avail > 0) {
-            float **obf = new float *[channels];
-            for (size_t i = 0; i < channels; ++i) {
-                obf[i] = new float[avail];
-            }
+            auto obf = new float *[channels];
+            for (auto i = 0; i < channels; ++i) {obf[i] = new float[avail];}
             ts.retrieve(obf, avail);
             countOut += avail;
             float *fobf = new float[channels * avail];
@@ -604,45 +502,25 @@ int main(int argc, char **argv)
                     fobf[i * channels + c] = value;
                 }
             }
-
-            sf_writef_float(sndfileOut, fobf, avail);
+//            sf_writef_float(sndfileOut, fobf, avail);
             delete[] fobf;
-            for (size_t i = 0; i < channels; ++i) {
-                delete[] obf[i];
-            }
+            for (size_t i = 0; i < channels; ++i) {delete[] obf[i];}
             delete[] obf;
-        } else {
-            usleep(10000);
-        }
+        } else {usleep(10000);}
     }
-
-    sf_close(sndfile);
-    sf_close(sndfileOut);
-
     if (!quiet) {
-
         cerr << "in: " << countIn << ", out: " << countOut << ", ratio: " << float(countOut)/float(countIn) << ", ideal output: " << lrint(countIn * ratio) << ", error: " << abs(lrint(countIn * ratio) - int(countOut)) << endl;
-
-#ifdef _WIN32
-        RubberBand::
-#endif
         timeval etv;
         (void)gettimeofday(&etv, 0);
-        
         etv.tv_sec -= tv.tv_sec;
         if (etv.tv_usec < tv.tv_usec) {
             etv.tv_usec += 1000000;
             etv.tv_sec -= 1;
         }
         etv.tv_usec -= tv.tv_usec;
-        
         double sec = double(etv.tv_sec) + (double(etv.tv_usec) / 1000000.0);
         cerr << "elapsed time: " << sec << " sec, in frames/sec: " << countIn/sec << ", out frames/sec: " << countOut/sec << endl;
     }
-
     RubberBand::Profiler::dump();
-
     return 0;
 }
-
-

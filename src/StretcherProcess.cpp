@@ -739,7 +739,7 @@ RubberBandStretcher::Impl::writeOutput(RingBuffer<float> &to, float *from, size_
     outCount += qty;
 }
 
-int
+ssize_t
 RubberBandStretcher::Impl::available() const{
     Profiler profiler("RubberBandStretcher::Impl::available");
 /*        for (size_t c = 0; c < m_channels; ++c) {
@@ -767,7 +767,7 @@ RubberBandStretcher::Impl::available() const{
     if (min == 0 && consumed) return -1;
     if (m_pitchScale == 1.0) return min;
     if (haveResamplers) return min; // resampling has already happened
-    return int(floor(min / m_pitchScale));
+    return ssize_t(floor(min / m_pitchScale));
 }
 size_t
 RubberBandStretcher::Impl::retrieve(float *const *output, size_t samples) const{

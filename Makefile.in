@@ -4,7 +4,7 @@ OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math -fwrapv\
 PREFIX		:= @prefix@
 CXX		:= @CXX@
 CC		:= @CC@
-CXXFLAGS	:= -g -ggdb -O3 -DHAVE_LIBSAMPLERATE  -UFFTW_DOUBLES_ONLY -DFFTW_SINGLE_ONLY -DHAVE_FFTS -DNO_THREAD_CHECKS -DMALLOC_IS_ALIGNED -DUSE_POMMIER_MATHFUN -DUSE_PTHREADS -DNO_TIMING -DUSE_APPROXIMATE_ATAN2 -DFFT_MEASURE -UNDEBUG -I. -Isrc -Irubbers @CXXFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@   @Vamp_CFLAGS@ @FFTS_CFLAGS@ @FFTW_CFLAGS@ @FFTWF_CFLAGS@ $(OPTFLAGS)
+CXXFLAGS	:= -g -ggdb -O3 -DHAVE_LIBSAMPLERATE  -UFFTW_DOUBLES_ONLY -DFFTW_SINGLE_ONLY -DHAVE_FFTS -DNO_THREAD_CHECKS -DMALLOC_IS_ALIGNED -DUSE_POMMIER_MATHFUN -DUSE_PTHREADS -DNO_TIMING -DUSE_APPROXIMATE_ATAN2 -DFFT_MEASURE -UNDEBUG -I. -Isrc -Irubbers @CXXFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@   @Vamp_CFLAGS@ @FFTS_CFLAGS@ @FFTW_CFLAGS@ @FFTWF_CFLAGS@ @FFMPEG_CFLAGS@ $(OPTFLAGS)
 CFLAGS		:= @CFLAGS@ $(OPTFLAGS)
 LDFLAGS		:= @LDFLAGS@ -lpthread $(LDFLAGS)
 BUILD_DIR := .build
@@ -13,8 +13,8 @@ JAVA_HOME ?= /usr/
 JAVAC		:= $(JAVA_HOME)/bin/javac
 JAR		:= $(JAVA_HOME)/bin/jar
 
-LIBRARY_LIBS		:= @SRC_LIBS@   @FFTS_LIBS@ @FFTW_LIBS@ @FFTWF_LIBS@
-PROGRAM_LIBS		:= @SNDFILE_LIBS@ $(LIBRARY_LIBS)
+LIBRARY_LIBS		:= @SRC_LIBS@   @FFTS_LIBS@ @FFTW_LIBS@ @FFTWF_LIBS@ @FFMPEG_LIBS@
+PROGRAM_LIBS		:= @SNDFILE_LIBS@ $(LIBRARY_LIBS) -L/usr/local/lib -lao
 VAMP_PLUGIN_LIBS	:= @Vamp_LIBS@ $(LIBRARY_LIBS)
 LADSPA_PLUGIN_LIBS	:= $(LIBRARY_LIBS)
 
@@ -59,8 +59,9 @@ vamp:		$(VAMP_TARGET)
 ladspa:		$(LADSPA_TARGET)
 
 PUBLIC_INCLUDES := \
-	rubbers/rubberband-c.h \
-	rubbers/RubberBandStretcher.h
+	rubbers/rubbers-c.h \
+	rubbers/RubbersStretcher.h \
+	rubbers/RubbersFile.h
 
 LIBRARY_INCLUDES := \
 	src/StretcherChannelData.h \
@@ -88,8 +89,10 @@ LIBRARY_INCLUDES := \
 	src/system/sysutils.h
 
 LIBRARY_SOURCES := \
-	src/rubberband-c.cpp \
-	src/RubberBandStretcher.cpp \
+	src/rubbers-c.cpp \
+	src/RubbersStretcher.cpp \
+	src/RubbersFile.cpp \
+	src/RubbersFileImpl.cpp \
 	src/StretcherProcess.cpp \
 	src/StretchCalculator.cpp \
 	src/base/Profiler.cpp \
@@ -213,19 +216,19 @@ depend:
 
 # DO NOT DELETE
 
-src/rubberband-c.o: rubbers/rubberband-c.h
-src/rubberband-c.o: rubbers/RubberBandStretcher.h
-src/RubberBandStretcher.o: src/StretcherImpl.h
-src/RubberBandStretcher.o: rubbers/RubberBandStretcher.h src/dsp/Window.h
-src/RubberBandStretcher.o: src/dsp/SincWindow.h src/dsp/FFT.h
-src/RubberBandStretcher.o: src/audiocurves/CompoundAudioCurve.h
-src/RubberBandStretcher.o: src/dsp/AudioCurveCalculator.h
-src/RubberBandStretcher.o: src/audiocurves/PercussiveAudioCurve.h
-src/RubberBandStretcher.o: src/audiocurves/HighFrequencyAudioCurve.h
-src/RubberBandStretcher.o: src/dsp/SampleFilter.h src/base/RingBuffer.h
-src/RubberBandStretcher.o: src/base/Scavenger.h src/system/Thread.h
-src/RubberBandStretcher.o: src/system/sysutils.h
-src/StretcherProcess.o: src/StretcherImpl.h rubbers/RubberBandStretcher.h
+src/rubbers-c.o: rubbers/rubbers-c.h
+src/rubbers-c.o: rubbers/RubbersStretcher.h
+src/RubbersStretcher.o: src/StretcherImpl.h
+src/RubbersStretcher.o: rubbers/RubbersStretcher.h src/dsp/Window.h
+src/RubberStretcher.o: src/dsp/SincWindow.h src/dsp/FFT.h
+src/RubbersStretcher.o: src/audiocurves/CompoundAudioCurve.h
+src/RubbersStretcher.o: src/dsp/AudioCurveCalculator.h
+src/RubbersStretcher.o: src/audiocurves/PercussiveAudioCurve.h
+src/RubbersStretcher.o: src/audiocurves/HighFrequencyAudioCurve.h
+src/RubbersStretcher.o: src/dsp/SampleFilter.h src/base/RingBuffer.h
+src/RubbersStretcher.o: src/base/Scavenger.h src/system/Thread.h
+src/RubbersStretcher.o: src/system/sysutils.h
+src/StretcherProcess.o: src/StretcherImpl.h rubbers/RubbersStretcher.h
 src/StretcherProcess.o: src/dsp/Window.h src/dsp/SincWindow.h src/dsp/FFT.h
 src/StretcherProcess.o: src/audiocurves/CompoundAudioCurve.h
 src/StretcherProcess.o: src/dsp/AudioCurveCalculator.h
@@ -270,7 +273,7 @@ src/dsp/FFT.o: src/system/sysutils.h
 src/system/sysutils.o: src/system/sysutils.h
 src/system/Thread.o: src/system/Thread.h
 src/StretcherChannelData.o: src/StretcherChannelData.h src/StretcherImpl.h
-src/StretcherChannelData.o: rubbers/RubberBandStretcher.h src/dsp/Window.h
+src/StretcherChannelData.o: rubbers/RubbersStretcher.h src/dsp/Window.h
 src/StretcherChannelData.o: src/dsp/SincWindow.h src/dsp/FFT.h
 src/StretcherChannelData.o: src/audiocurves/CompoundAudioCurve.h
 src/StretcherChannelData.o: src/dsp/AudioCurveCalculator.h
@@ -281,7 +284,7 @@ src/StretcherChannelData.o: src/base/Scavenger.h src/system/Thread.h
 src/StretcherChannelData.o: src/system/sysutils.h src/dsp/Resampler.h
 src/StretcherChannelData.o: src/system/Allocators.h src/system/VectorOps.h
 src/StretcherChannelData.o: src/system/sysutils.h
-src/StretcherImpl.o: src/StretcherImpl.h rubbers/RubberBandStretcher.h
+src/StretcherImpl.o: src/StretcherImpl.h rubbers/RubbersStretcher.h
 src/StretcherImpl.o: src/dsp/Window.h src/dsp/SincWindow.h src/dsp/FFT.h
 src/StretcherImpl.o: src/audiocurves/CompoundAudioCurve.h
 src/StretcherImpl.o: src/dsp/AudioCurveCalculator.h
@@ -296,5 +299,5 @@ src/StretcherImpl.o: src/system/VectorOps.h src/system/sysutils.h
 src/StretcherImpl.o: src/audiocurves/SilentAudioCurve.h src/audiocurves/ConstantAudioCurve.h
 src/StretcherImpl.o: src/dsp/Resampler.h src/StretchCalculator.h
 src/StretcherImpl.o: src/StretcherChannelData.h src/base/Profiler.h
-main/main.o: rubbers/RubberBandStretcher.h src/system/sysutils.h
+main/main.o: rubbers/RubbersStretcher.h src/system/sysutils.h
 main/main.o: src/base/Profiler.h

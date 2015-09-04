@@ -26,7 +26,7 @@
 
 #include <vamp-sdk/Plugin.h>
 
-#include "rubbers/RubberBandStretcher.h"
+#include "rubbers/RubbersStretcher.h"
 
 class RubberBandVampPlugin : public Vamp::Plugin
 {

@@ -66,7 +66,7 @@ void
 RubberBandStretcher::study(const float *const *input, size_t samples,bool done){m_d->study(input, samples, done);}
 void
 RubberBandStretcher::process(const float *const *input, size_t samples,bool done){m_d->process(input, samples, done);}
-int
+ssize_t
 RubberBandStretcher::available() const{return m_d->available();}
 size_t
 RubberBandStretcher::retrieve(float *const *output, size_t samples) const{return m_d->retrieve(output, samples);}

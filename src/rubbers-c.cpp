@@ -21,8 +21,8 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#include "rubbers/rubberband-c.h"
-#include "rubbers/RubberBandStretcher.h"
+#include "rubbers/rubbers-c.h"
+#include "rubbers/RubbersStretcher.h"
 
 struct RubberBandState_
 {
@@ -73,7 +73,7 @@ double rubberband_get_pitch_scale(const RubberBandState state)
     return state->m_s->getPitchScale();
 }
 
-unsigned int rubberband_get_latency(const RubberBandState state) 
+size_t rubberband_get_latency(const RubberBandState state) 
 {
     return state->m_s->getLatency();
 }
@@ -103,46 +103,46 @@ void rubberband_set_pitch_option(RubberBandState state, RubberBandOptions option
     state->m_s->setPitchOption(options);
 }
 
-void rubberband_set_expected_input_duration(RubberBandState state, unsigned int samples)
+void rubberband_set_expected_input_duration(RubberBandState state, size_t samples)
 {
     state->m_s->setExpectedInputDuration(samples);
 }
 
-unsigned int rubberband_get_samples_required(const RubberBandState state)
+size_t rubberband_get_samples_required(const RubberBandState state)
 {
     return state->m_s->getSamplesRequired();
 }
 
-void rubberband_set_max_process_size(RubberBandState state, unsigned int samples)
+void rubberband_set_max_process_size(RubberBandState state, size_t samples)
 {
     state->m_s->setMaxProcessSize(samples);
 }
 
-void rubberband_set_key_frame_map(RubberBandState state, unsigned int keyframecount, unsigned int *from, unsigned int *to)
+void rubberband_set_key_frame_map(RubberBandState state, size_t keyframecount, size_t *from, size_t  *to)
 {
     std::map<size_t, size_t> kfm;
-    for (unsigned int i = 0; i < keyframecount; ++i) {
+    for (size_t i = 0; i < keyframecount; ++i) {
         kfm[from[i]] = to[i];
     }
     state->m_s->setKeyFrameMap(kfm);
 }
 
-void rubberband_study(RubberBandState state, const float *const *input, unsigned int samples, int final)
+void rubberband_study(RubberBandState state, const float *const *input, size_t samples, bool flush)
 {
-    state->m_s->study(input, samples, final != 0);
+    state->m_s->study(input, samples, flush != 0);
 }
 
-void rubberband_process(RubberBandState state, const float *const *input, unsigned int samples, int final)
+void rubberband_process(RubberBandState state, const float *const *input, size_t samples, bool flush)
 {
-    state->m_s->process(input, samples, final != 0);
+    state->m_s->process(input, samples, flush!= 0);
 }
 
-int rubberband_available(const RubberBandState state)
+ssize_t rubberband_available(const RubberBandState state)
 {
     return state->m_s->available();
 }
 
-unsigned int rubberband_retrieve(const RubberBandState state, float *const *output, unsigned int samples)
+size_t rubberband_retrieve(const RubberBandState state, float *const *output, size_t samples)
 {
     return state->m_s->retrieve(output, samples);
 }

@@ -29,7 +29,7 @@
 #include "HighFrequencyAudioCurve.h"
 #include "dsp/SampleFilter.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 class CompoundAudioCurve : public AudioCurveCalculator{
 public:

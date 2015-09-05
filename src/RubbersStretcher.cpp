@@ -23,73 +23,73 @@
 
 #include "StretcherImpl.h"
 using namespace std;
-namespace RubberBand {
-RubberBandStretcher::RubberBandStretcher(size_t sampleRate,
+namespace Rubbers {
+RubbersStretcher::RubbersStretcher(size_t sampleRate,
                                          size_t channels,
                                          Options options,
                                          double initialTimeRatio,
                                          double initialPitchScale) :
     m_d(new Impl(sampleRate, channels, options,initialTimeRatio, initialPitchScale))
 {}
-RubberBandStretcher::~RubberBandStretcher(){delete m_d;}
+RubbersStretcher::~RubbersStretcher(){delete m_d;}
 void
-RubberBandStretcher::reset(){m_d->reset();}
+RubbersStretcher::reset(){m_d->reset();}
 void
-RubberBandStretcher::setTimeRatio(double ratio){m_d->setTimeRatio(ratio);}
+RubbersStretcher::setTimeRatio(double ratio){m_d->setTimeRatio(ratio);}
 void
-RubberBandStretcher::setPitchScale(double scale){m_d->setPitchScale(scale);}
+RubbersStretcher::setPitchScale(double scale){m_d->setPitchScale(scale);}
 double
-RubberBandStretcher::getTimeRatio() const{return m_d->getTimeRatio();}
+RubbersStretcher::getTimeRatio() const{return m_d->getTimeRatio();}
 double
-RubberBandStretcher::getPitchScale() const{return m_d->getPitchScale();}
+RubbersStretcher::getPitchScale() const{return m_d->getPitchScale();}
 size_t
-RubberBandStretcher::getLatency() const{return m_d->getLatency();}
+RubbersStretcher::getLatency() const{return m_d->getLatency();}
 void
-RubberBandStretcher::setTransientsOption(Options options) {m_d->setTransientsOption(options);}
+RubbersStretcher::setTransientsOption(Options options) {m_d->setTransientsOption(options);}
 void
-RubberBandStretcher::setDetectorOption(Options options) {m_d->setDetectorOption(options);}
+RubbersStretcher::setDetectorOption(Options options) {m_d->setDetectorOption(options);}
 void
-RubberBandStretcher::setPhaseOption(Options options) {m_d->setPhaseOption(options);}
+RubbersStretcher::setPhaseOption(Options options) {m_d->setPhaseOption(options);}
 void
-RubberBandStretcher::setFormantOption(Options options){m_d->setFormantOption(options);}
+RubbersStretcher::setFormantOption(Options options){m_d->setFormantOption(options);}
 void
-RubberBandStretcher::setPitchOption(Options options){m_d->setPitchOption(options);}
+RubbersStretcher::setPitchOption(Options options){m_d->setPitchOption(options);}
 void
-RubberBandStretcher::setExpectedInputDuration(size_t samples) {m_d->setExpectedInputDuration(samples);}
+RubbersStretcher::setExpectedInputDuration(size_t samples) {m_d->setExpectedInputDuration(samples);}
 void
-RubberBandStretcher::setMaxProcessSize(size_t samples){m_d->setMaxProcessSize(samples);}
+RubbersStretcher::setMaxProcessSize(size_t samples){m_d->setMaxProcessSize(samples);}
 void
-RubberBandStretcher::setKeyFrameMap(const map<size_t, size_t> &mapping){m_d->setKeyFrameMap(mapping);}
+RubbersStretcher::setKeyFrameMap(const map<size_t, size_t> &mapping){m_d->setKeyFrameMap(mapping);}
 size_t
-RubberBandStretcher::getSamplesRequired() const{return m_d->getSamplesRequired();}
+RubbersStretcher::getSamplesRequired() const{return m_d->getSamplesRequired();}
 void
-RubberBandStretcher::study(const float *const *input, size_t samples,bool done){m_d->study(input, samples, done);}
+RubbersStretcher::study(const float *const *input, size_t samples,bool done){m_d->study(input, samples, done);}
 void
-RubberBandStretcher::process(const float *const *input, size_t samples,bool done){m_d->process(input, samples, done);}
+RubbersStretcher::process(const float *const *input, size_t samples,bool done){m_d->process(input, samples, done);}
 ssize_t
-RubberBandStretcher::available() const{return m_d->available();}
+RubbersStretcher::available() const{return m_d->available();}
 size_t
-RubberBandStretcher::retrieve(float *const *output, size_t samples) const{return m_d->retrieve(output, samples);}
+RubbersStretcher::retrieve(float *const *output, size_t samples) const{return m_d->retrieve(output, samples);}
 float
-RubberBandStretcher::getFrequencyCutoff(int n) const{return m_d->getFrequencyCutoff(n);}
+RubbersStretcher::getFrequencyCutoff(int n) const{return m_d->getFrequencyCutoff(n);}
 void
-RubberBandStretcher::setFrequencyCutoff(int n, float f) {m_d->setFrequencyCutoff(n, f);}
+RubbersStretcher::setFrequencyCutoff(int n, float f) {m_d->setFrequencyCutoff(n, f);}
 size_t
-RubberBandStretcher::getInputIncrement() const{return m_d->getInputIncrement();}
+RubbersStretcher::getInputIncrement() const{return m_d->getInputIncrement();}
 vector<int>
-RubberBandStretcher::getOutputIncrements() const{return m_d->getOutputIncrements();}
+RubbersStretcher::getOutputIncrements() const{return m_d->getOutputIncrements();}
 vector<float>
-RubberBandStretcher::getPhaseResetCurve() const{return m_d->getPhaseResetCurve();}
+RubbersStretcher::getPhaseResetCurve() const{return m_d->getPhaseResetCurve();}
 vector<int>
-RubberBandStretcher::getExactTimePoints() const{return m_d->getExactTimePoints();}
+RubbersStretcher::getExactTimePoints() const{return m_d->getExactTimePoints();}
 size_t
-RubberBandStretcher::getChannelCount() const{return m_d->getChannelCount();}
+RubbersStretcher::getChannelCount() const{return m_d->getChannelCount();}
 void
-RubberBandStretcher::calculateStretch(){m_d->calculateStretch();}
+RubbersStretcher::calculateStretch(){m_d->calculateStretch();}
 void
-RubberBandStretcher::setDebugLevel(int level){m_d->setDebugLevel(level);}
+RubbersStretcher::setDebugLevel(int level){m_d->setDebugLevel(level);}
 void
-RubberBandStretcher::setDefaultDebugLevel(int level){Impl::setDefaultDebugLevel(level);}
+RubbersStretcher::setDefaultDebugLevel(int level){Impl::setDefaultDebugLevel(level);}
 
 }
 

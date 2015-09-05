@@ -22,7 +22,7 @@
 */
 #include "AudioCurveCalculator.h"
 #include <iostream>
-namespace RubberBand{
+namespace Rubbers{
 static const int MaxPerceivedFreq = 16000;
 AudioCurveCalculator::AudioCurveCalculator(Parameters parameters) :
     m_sampleRate(parameters.sampleRate),

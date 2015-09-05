@@ -30,12 +30,12 @@
 
 //#define EXPERIMENT 1
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class Resampler;
 
-class RubberBandStretcher::Impl::ChannelData
+class RubbersStretcher::Impl::ChannelData
 {
 public:        
     /**
@@ -66,68 +66,59 @@ public:
      */
     ChannelData(std::initializer_list<size_t> sizes, size_t initalWindowSize, size_t initialFFTSize, size_t outbufSize);
     ChannelData(const std::set<size_t> &sizes,size_t initialWindowSize,size_t initialFftSize,size_t outbufSize);
-    ~ChannelData();
+    virtual ~ChannelData();
     /**
      * Reset buffers
      */
-    void reset();
+    virtual void reset();
     /**
      * Set the FFT, analysis window, and buffer sizes.  If this
      * ChannelData was constructed with a set of sizes and the given
      * window and FFT sizes here were among them, no reallocation will
      * be required.
      */
-    void setSizes(size_t windowSize, size_t fftSizes);
+    virtual void setSizes(size_t windowSize, size_t fftSizes);
     /**
      * Set the outbufSize for the channel data.  Reallocation will
      * occur.
      */
-    void setOutbufSize(size_t outbufSize);
+    virtual void setOutbufSize(size_t outbufSize);
     /**
      * Set the resampler buffer size.  Default if not called is no
      * buffer allocated at all.
      */
-    void setResampleBufSize(size_t resamplebufSize);
+    virtual void setResampleBufSize(size_t resamplebufSize);
     RingBuffer<float> *inbuf;
     RingBuffer<float> *outbuf;
     float *mag;
     float *phase;
-
     float *prevPhase;
     float *prevError;
     float *unwrappedPhase;
-
     float *accumulator;
     size_t accumulatorFill;
     float *windowAccumulator;
     float *ms; // only used when mid-side processing
     float *interpolator; // only used when time-domain smoothing is on
     int interpolatorScale;
-
     float *fltbuf;
     float *dblbuf; // owned by FFT object, only used for time domain FFT i/o
     float *envelope; // for cepstral formant shift
     bool unchanged;
-
     size_t prevIncrement; // only used in RT mode
-
     size_t chunkCount;
     size_t inCount;
     long inputSize; // set only after known (when data ended); -1 previously
     size_t outCount;
-
     bool draining;
     bool outputComplete;
-
     FFT *fft;
-    std::map<size_t, FFT *> ffts;
-
+    std::map<size_t, std::unique_ptr<FFT> > ffts;
     Resampler *resampler;
     float *resamplebuf;
     size_t resamplebufSize;
-
-private:
-    void construct(const std::set<size_t> &sizes,size_t initialWindowSize, size_t initialFftSize,size_t outbufSize);
+protected:
+    virtual void construct(const std::set<size_t> &sizes,size_t initialWindowSize, size_t initialFftSize,size_t outbufSize);
 };        
 
 }

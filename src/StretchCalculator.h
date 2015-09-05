@@ -29,7 +29,7 @@
 #include <vector>
 #include <map>
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class StretchCalculator

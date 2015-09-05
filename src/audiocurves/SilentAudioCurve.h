@@ -26,7 +26,7 @@
 
 #include "dsp/AudioCurveCalculator.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class SilentAudioCurve : public AudioCurveCalculator

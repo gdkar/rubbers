@@ -26,7 +26,7 @@
 #include "system/Allocators.h"
 #include "system/VectorOps.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 
 

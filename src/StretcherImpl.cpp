@@ -44,7 +44,7 @@
 #include <set>
 #include <map>
 
-using namespace RubberBand;
+using namespace Rubbers;
 
 using std::cerr;
 using std::endl;
@@ -54,16 +54,16 @@ using std::set;
 using std::max;
 using std::min;
 
-namespace RubberBand {
+namespace Rubbers {
 
 const size_t
-RubberBandStretcher::Impl::m_defaultIncrement = 256;
+RubbersStretcher::Impl::m_defaultIncrement = 256;
 const size_t
-RubberBandStretcher::Impl::m_defaultFftSize = 2048;
+RubbersStretcher::Impl::m_defaultFftSize = 2048;
 int
-RubberBandStretcher::Impl::m_defaultDebugLevel = 0;
+RubbersStretcher::Impl::m_defaultDebugLevel = 0;
 static bool _initialised = false;
-RubberBandStretcher::Impl::Impl(size_t sampleRate,
+RubbersStretcher::Impl::Impl(size_t sampleRate,
                                 size_t channels,
                                 Options options,
                                 double initialTimeRatio,
@@ -107,7 +107,7 @@ RubberBandStretcher::Impl::Impl(size_t sampleRate,
         _initialised = true;
     }
     if (m_debugLevel > 0) {
-        cerr << "RubberBandStretcher::Impl::Impl: rate = " << m_sampleRate << ", options = " << options << endl;
+        cerr << "RubbersStretcher::Impl::Impl: rate = " << m_sampleRate << ", options = " << options << endl;
     }
     // Window size will vary according to the audio sample rate, but
     // we don't let it drop below the 48k default
@@ -116,7 +116,7 @@ RubberBandStretcher::Impl::Impl(size_t sampleRate,
     m_baseFftSize = roundUp(int(m_defaultFftSize * m_rateMultiple));
     if ((options & OptionWindowShort) || (options & OptionWindowLong)) {
         if ((options & OptionWindowShort) && (options & OptionWindowLong)) {
-            cerr << "RubberBandStretcher::Impl::Impl: Cannot specify OptionWindowLong and OptionWindowShort together; falling back to OptionWindowStandard" << endl;
+            cerr << "RubbersStretcher::Impl::Impl: Cannot specify OptionWindowLong and OptionWindowShort together; falling back to OptionWindowStandard" << endl;
         } else if (options & OptionWindowShort) {
             m_baseFftSize = m_baseFftSize / 2;
             if (m_debugLevel > 0) {cerr << "setting baseFftSize to " << m_baseFftSize << endl;}
@@ -136,7 +136,7 @@ RubberBandStretcher::Impl::Impl(size_t sampleRate,
     }
     configure();
 }
-RubberBandStretcher::Impl::~Impl(){
+RubbersStretcher::Impl::~Impl(){
     for (size_t c = 0; c < m_channels; ++c) {delete m_channelData[c];}
     delete m_phaseResetAudioCurve;
     delete m_stretchAudioCurve;
@@ -153,7 +153,7 @@ RubberBandStretcher::Impl::~Impl(){
     }
 }
 void
-RubberBandStretcher::Impl::reset(){
+RubbersStretcher::Impl::reset(){
     m_emergencyScavenger.scavenge();
     if (m_stretchCalculator) {m_stretchCalculator->setKeyFrameMap(std::map<size_t, size_t>());}
     for (size_t c = 0; c < m_channels; ++c) {m_channelData[c]->reset();}
@@ -166,10 +166,10 @@ RubberBandStretcher::Impl::reset(){
     reconfigure();
 }
 void
-RubberBandStretcher::Impl::setTimeRatio(double ratio){
+RubbersStretcher::Impl::setTimeRatio(double ratio){
     if (!m_realtime) {
         if (m_mode == Studying || m_mode == Processing) {
-            cerr << "RubberBandStretcher::Impl::setTimeRatio: Cannot set ratio while studying or processing in non-RT mode" << endl;
+            cerr << "RubbersStretcher::Impl::setTimeRatio: Cannot set ratio while studying or processing in non-RT mode" << endl;
             return;
         }
     }
@@ -178,10 +178,10 @@ RubberBandStretcher::Impl::setTimeRatio(double ratio){
     reconfigure();
 }
 void
-RubberBandStretcher::Impl::setPitchScale(double fs){
+RubbersStretcher::Impl::setPitchScale(double fs){
     if (!m_realtime) {
         if (m_mode == Studying || m_mode == Processing) {
-            cerr << "RubberBandStretcher::Impl::setPitchScale: Cannot set ratio while studying or processing in non-RT mode" << endl;
+            cerr << "RubbersStretcher::Impl::setPitchScale: Cannot set ratio while studying or processing in non-RT mode" << endl;
             return;
         }
     }
@@ -200,37 +200,37 @@ RubberBandStretcher::Impl::setPitchScale(double fs){
     }
 }
 double
-RubberBandStretcher::Impl::getTimeRatio() const{return m_timeRatio;}
+RubbersStretcher::Impl::getTimeRatio() const{return m_timeRatio;}
 double
-RubberBandStretcher::Impl::getPitchScale() const{return m_pitchScale;}
+RubbersStretcher::Impl::getPitchScale() const{return m_pitchScale;}
 void
-RubberBandStretcher::Impl::setExpectedInputDuration(size_t samples){
+RubbersStretcher::Impl::setExpectedInputDuration(size_t samples){
     if (samples == m_expectedInputDuration) return;
     m_expectedInputDuration = samples;
     reconfigure();
 }
 void
-RubberBandStretcher::Impl::setMaxProcessSize(size_t samples){
+RubbersStretcher::Impl::setMaxProcessSize(size_t samples){
     if (samples <= m_maxProcessSize) return;
     m_maxProcessSize = samples;
     reconfigure();
 }
 void
-RubberBandStretcher::Impl::setKeyFrameMap(const std::map<size_t, size_t> &
+RubbersStretcher::Impl::setKeyFrameMap(const std::map<size_t, size_t> &
                                           mapping){
     if (m_realtime) {
-        cerr << "RubberBandStretcher::Impl::setKeyFrameMap: Cannot specify key frame map in RT mode" << endl;
+        cerr << "RubbersStretcher::Impl::setKeyFrameMap: Cannot specify key frame map in RT mode" << endl;
         return;
     }
     if (m_mode == Processing) {
-        cerr << "RubberBandStretcher::Impl::setKeyFrameMap: Cannot specify key frame map after process() has begun" << endl;
+        cerr << "RubbersStretcher::Impl::setKeyFrameMap: Cannot specify key frame map after process() has begun" << endl;
         return;
     }
     if (m_stretchCalculator) {m_stretchCalculator->setKeyFrameMap(mapping);}
 }
 
 float
-RubberBandStretcher::Impl::getFrequencyCutoff(int n) const{
+RubbersStretcher::Impl::getFrequencyCutoff(int n) const{
     switch (n) {
     case 0: return m_freq0;
     case 1: return m_freq1;
@@ -240,7 +240,7 @@ RubberBandStretcher::Impl::getFrequencyCutoff(int n) const{
 }
 
 void
-RubberBandStretcher::Impl::setFrequencyCutoff(int n, float f){
+RubbersStretcher::Impl::setFrequencyCutoff(int n, float f){
     switch (n) {
     case 0: m_freq0 = f; break;
     case 1: m_freq1 = f; break;
@@ -249,7 +249,7 @@ RubberBandStretcher::Impl::setFrequencyCutoff(int n, float f){
 }
 
 double
-RubberBandStretcher::Impl::getEffectiveRatio() const
+RubbersStretcher::Impl::getEffectiveRatio() const
 {
     // Returns the ratio that the internal time stretcher needs to
     // achieve, not the resulting duration ratio of the output (which
@@ -266,7 +266,7 @@ RubberBandStretcher::Impl::getEffectiveRatio() const
 }
 
 size_t
-RubberBandStretcher::Impl::roundUp(size_t value){
+RubbersStretcher::Impl::roundUp(size_t value){
     if (!(value & (value - 1))) return value;
     int bits = 0;
     while (value) { ++bits; value >>= 1; }
@@ -275,7 +275,7 @@ RubberBandStretcher::Impl::roundUp(size_t value){
 }
 
 void
-RubberBandStretcher::Impl::calculateSizes(){
+RubbersStretcher::Impl::calculateSizes(){
     auto inputIncrement = m_defaultIncrement;
     auto windowSize = m_baseFftSize;
     auto outputIncrement = size_t{0};
@@ -283,12 +283,12 @@ RubberBandStretcher::Impl::calculateSizes(){
         // This special case is likelier than one might hope, because
         // of naive initialisations in programs that set it from a
         // variable
-        std::cerr << "RubberBandStretcher: WARNING: Pitch scale must be greater than zero!\nResetting it from " << m_pitchScale << " to the default of 1.0: no pitch change will occur" << std::endl;
+        std::cerr << "RubbersStretcher: WARNING: Pitch scale must be greater than zero!\nResetting it from " << m_pitchScale << " to the default of 1.0: no pitch change will occur" << std::endl;
         m_pitchScale = 1.0;
     }
     if (m_timeRatio <= 0.0) {
         // Likewise
-        std::cerr << "RubberBandStretcher: WARNING: Time ratio must be greater than zero!\nResetting it from " << m_timeRatio << " to the default of 1.0: no time stretch will occur" << std::endl;
+        std::cerr << "RubbersStretcher: WARNING: Time ratio must be greater than zero!\nResetting it from " << m_timeRatio << " to the default of 1.0: no time stretch will occur" << std::endl;
         m_timeRatio = 1.0;
     }
     auto r = getEffectiveRatio();
@@ -397,7 +397,7 @@ RubberBandStretcher::Impl::calculateSizes(){
 }
 
 void
-RubberBandStretcher::Impl::configure(){
+RubbersStretcher::Impl::configure(){
 //    std::cerr << "configure[" << this << "]: realtime = " << m_realtime << ", pitch scale = "
 //              << m_pitchScale << ", channels = " << m_channels << std::endl;
 
@@ -521,7 +521,7 @@ RubberBandStretcher::Impl::configure(){
     }
 }
 void
-RubberBandStretcher::Impl::reconfigure(){
+RubbersStretcher::Impl::reconfigure(){
     if (!m_realtime) {
         if (m_mode == Studying) {
             // stop and calculate the stretch curve so far, then reset
@@ -582,16 +582,16 @@ RubberBandStretcher::Impl::reconfigure(){
     if (m_fftSize != prevFftSize) {m_phaseResetAudioCurve->setFftSize(m_fftSize);}
 }
 size_t
-RubberBandStretcher::Impl::getLatency() const{
+RubbersStretcher::Impl::getLatency() const{
     if (!m_realtime) return 0;
     return int((m_aWindowSize/2) / m_pitchScale + 1);
 }
 
 void
-RubberBandStretcher::Impl::setTransientsOption(Options options)
+RubbersStretcher::Impl::setTransientsOption(Options options)
 {
     if (!m_realtime) {
-        cerr << "RubberBandStretcher::Impl::setTransientsOption: Not permissible in non-realtime mode" << endl;
+        cerr << "RubbersStretcher::Impl::setTransientsOption: Not permissible in non-realtime mode" << endl;
         return;
     }
     auto mask = (OptionTransientsMixed | OptionTransientsSmooth | OptionTransientsCrisp);
@@ -602,9 +602,9 @@ RubberBandStretcher::Impl::setTransientsOption(Options options)
 }
 
 void
-RubberBandStretcher::Impl::setDetectorOption(Options options){
+RubbersStretcher::Impl::setDetectorOption(Options options){
     if (!m_realtime) {
-        cerr << "RubberBandStretcher::Impl::setDetectorOption: Not permissible in non-realtime mode" << endl;
+        cerr << "RubbersStretcher::Impl::setDetectorOption: Not permissible in non-realtime mode" << endl;
         return;
     }
     auto mask = (OptionDetectorPercussive | OptionDetectorCompound | OptionDetectorSoft);
@@ -619,7 +619,7 @@ RubberBandStretcher::Impl::setDetectorOption(Options options){
     if (m_phaseResetAudioCurve) {m_phaseResetAudioCurve->setType(m_detectorType);}
 }
 void
-RubberBandStretcher::Impl::setPhaseOption(Options options){
+RubbersStretcher::Impl::setPhaseOption(Options options){
     auto mask = (OptionPhaseLaminar | OptionPhaseIndependent);
     m_options &= ~mask;
     options &= mask;
@@ -627,7 +627,7 @@ RubberBandStretcher::Impl::setPhaseOption(Options options){
 }
 
 void
-RubberBandStretcher::Impl::setFormantOption(Options options)
+RubbersStretcher::Impl::setFormantOption(Options options)
 {
     auto mask = (OptionFormantShifted | OptionFormantPreserved);
     m_options &= ~mask;
@@ -636,10 +636,10 @@ RubberBandStretcher::Impl::setFormantOption(Options options)
 }
 
 void
-RubberBandStretcher::Impl::setPitchOption(Options options)
+RubbersStretcher::Impl::setPitchOption(Options options)
 {
     if (!m_realtime) {
-        cerr << "RubberBandStretcher::Impl::setPitchOption: Pitch option is not used in non-RT mode" << endl;
+        cerr << "RubbersStretcher::Impl::setPitchOption: Pitch option is not used in non-RT mode" << endl;
         return;
     }
     auto  prior = m_options;
@@ -653,16 +653,16 @@ RubberBandStretcher::Impl::setPitchOption(Options options)
 }
 
 void
-RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool flushing ){
-    Profiler profiler("RubberBandStretcher::Impl::study");
+RubbersStretcher::Impl::study(const float *const *input, size_t samples, bool flushing ){
+    Profiler profiler("RubbersStretcher::Impl::study");
     if (m_realtime) {
         if (m_debugLevel > 1) {
-            cerr << "RubberBandStretcher::Impl::study: Not meaningful in realtime mode" << endl;
+            cerr << "RubbersStretcher::Impl::study: Not meaningful in realtime mode" << endl;
         }
         return;
     }
     if (m_mode == Processing || m_mode == Finished) {
-        cerr << "RubberBandStretcher::Impl::study: Cannot study after processing" << endl;
+        cerr << "RubbersStretcher::Impl::study: Cannot study after processing" << endl;
         return;
     }
     m_mode = Studying;
@@ -751,7 +751,7 @@ RubberBandStretcher::Impl::study(const float *const *input, size_t samples, bool
     }
 }
 vector<int>
-RubberBandStretcher::Impl::getOutputIncrements() const{
+RubbersStretcher::Impl::getOutputIncrements() const{
     if (!m_realtime) {return m_outputIncrements;}
     else {
         auto increments = std::vector<int>{};
@@ -762,7 +762,7 @@ RubberBandStretcher::Impl::getOutputIncrements() const{
     }
 }
 vector<float>
-RubberBandStretcher::Impl::getPhaseResetCurve() const{
+RubbersStretcher::Impl::getPhaseResetCurve() const{
     if (!m_realtime) {return m_phaseResetDf;}
     else {
         auto df = std::vector<float>{};
@@ -771,7 +771,7 @@ RubberBandStretcher::Impl::getPhaseResetCurve() const{
     }
 }
 vector<int>
-RubberBandStretcher::Impl::getExactTimePoints() const{
+RubbersStretcher::Impl::getExactTimePoints() const{
     auto points = std::vector<int>{};
     if (!m_realtime) {
         auto peaks = m_stretchCalculator->getLastCalculatedPeaks();
@@ -780,12 +780,12 @@ RubberBandStretcher::Impl::getExactTimePoints() const{
     return points;
 }
 void
-RubberBandStretcher::Impl::calculateStretch(){
-    Profiler profiler("RubberBandStretcher::Impl::calculateStretch");
+RubbersStretcher::Impl::calculateStretch(){
+    Profiler profiler("RubbersStretcher::Impl::calculateStretch");
     auto inputDuration = m_inputDuration;
     if (!m_realtime && m_expectedInputDuration > 0) {
         if (m_expectedInputDuration != inputDuration) {
-            std::cerr << "RubberBandStretcher: WARNING: Actual study() duration differs from duration set by setExpectedInputDuration (" << m_inputDuration << " vs " << m_expectedInputDuration << ", diff = " << (m_expectedInputDuration - m_inputDuration) << "), using the latter for calculation" << std::endl;
+            std::cerr << "RubbersStretcher: WARNING: Actual study() duration differs from duration set by setExpectedInputDuration (" << m_inputDuration << " vs " << m_expectedInputDuration << ", diff = " << (m_expectedInputDuration - m_inputDuration) << "), using the latter for calculation" << std::endl;
             inputDuration = m_expectedInputDuration;
         }
     }
@@ -805,13 +805,13 @@ RubberBandStretcher::Impl::calculateStretch(){
     return;
 }
 void
-RubberBandStretcher::Impl::setDebugLevel(int level){
+RubbersStretcher::Impl::setDebugLevel(int level){
     m_debugLevel = level;
     if (m_stretchCalculator) m_stretchCalculator->setDebugLevel(level);
 }	
 size_t
-RubberBandStretcher::Impl::getSamplesRequired() const{
-    Profiler profiler("RubberBandStretcher::Impl::getSamplesRequired");
+RubbersStretcher::Impl::getSamplesRequired() const{
+    Profiler profiler("RubbersStretcher::Impl::getSamplesRequired");
     auto reqd = size_t{0};
     for (auto c = decltype(m_channels){0}; c < m_channels; ++c) {
         auto reqdHere = size_t{0};
@@ -844,10 +844,10 @@ RubberBandStretcher::Impl::getSamplesRequired() const{
     return reqd;
 }    
 void
-RubberBandStretcher::Impl::process(const float *const *input, size_t samples, bool flushing){
-    Profiler profiler("RubberBandStretcher::Impl::process");
+RubbersStretcher::Impl::process(const float *const *input, size_t samples, bool flushing){
+    Profiler profiler("RubbersStretcher::Impl::process");
     if (m_mode == Finished) {
-        cerr << "RubberBandStretcher::Impl::process: Cannot process again after final chunk" << endl;
+        cerr << "RubbersStretcher::Impl::process: Cannot process again after final chunk" << endl;
         return;
     }
     if (m_mode == JustCreated || m_mode == Studying) {

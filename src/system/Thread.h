@@ -28,7 +28,7 @@
 #include <condition_variable>
 
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class Thread{

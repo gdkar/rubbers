@@ -28,7 +28,7 @@
 
 #include <cmath>
 #include <iostream>
-namespace RubberBand
+namespace Rubbers
 {
 
 

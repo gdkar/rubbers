@@ -23,42 +23,37 @@
 
 #include "sysutils.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#include <fcntl.h>
-#include <io.h>
-#else /* !_WIN32 */
-#include <unistd.h>
+extern "C"{
+#include <libavutil/avutil.h>
+#include <libavformat/avformat.h>
+#include <portaudio.h>
+};
+
 #ifdef __APPLE__
 #include <sys/sysctl.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #endif
-#endif /* !_WIN32 */
 
 #ifdef __sun
 #include <sys/processor.h>
 #endif
 
+#include <unistd.h>
+#include <atomic>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <csignal>
 #include <iostream>
 
-#ifdef HAVE_VDSP
-#include <Accelerate/Accelerate.h>
-#include <fenv.h>
-#endif
-
-#ifdef _WIN32
 #include <fstream>
-#endif
+#ifdef __x86_64__
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#endif
 #include "dsp/FFT.h"
-namespace RubberBand {
-
+namespace Rubbers {
 const char *
 system_get_platform_tag()
 {
@@ -69,11 +64,8 @@ system_get_platform_tag()
     return "osx";
 #else /* !__APPLE__ */
 #ifdef __LINUX__
-    if (sizeof(long) == 8) {
-        return "linux64";
-    } else {
-        return "linux";
-    }
+    if (sizeof(long) == 8) { return "linux64";}
+    else { return "linux";}
 #else /* !__LINUX__ */
     return "posix";
 #endif /* !__LINUX__ */
@@ -107,74 +99,32 @@ system_is_multiprocessor(){
     }
 #else /* !__sun, !__APPLE__, !_WIN32 */
     //...
-    FILE *cpuinfo = fopen("/proc/cpuinfo", "r");
+    auto cpuinfo = fopen("/proc/cpuinfo", "r");
     if (!cpuinfo) return false;
     char buf[256];
     while (!feof(cpuinfo)) {
         if (!fgets(buf, 256, cpuinfo)) break;
-        if (!strncmp(buf, "processor", 9)) {
-            ++count;
-        }
+        if (!strncmp(buf, "processor", 9)) { ++count; }
         if (count > 1) break;
     }
-
     fclose(cpuinfo);
-
 #endif /* !__sun, !__APPLE__, !_WIN32 */
 #endif /* !__APPLE__, !_WIN32 */
 #endif /* !_WIN32 */
-
     mp = (count > 1);
     tested = true;
     return mp;
 }
-
-#ifdef _WIN32
-
-void gettimeofday(struct timeval *tv, void *tz){
-    union { 
-	long long ns100;  
-	FILETIME ft; 
-    } now; 
-    ::GetSystemTimeAsFileTime(&now.ft); 
-    tv->tv_usec = (long)((now.ns100 / 10LL) % 1000000LL); 
-    tv->tv_sec = (long)((now.ns100 - 116444736000000000LL) / 10000000LL); 
-}
-void clock_gettime(int, struct timespec *ts){
-    static LARGE_INTEGER cps;
-    static bool haveCps = false;
-    if (!haveCps) {
-        QueryPerformanceFrequency(&cps);
-        haveCps = true;
-    }
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    //!!! check this
-    ts->tv_sec = counter.QuadPart / cps.QuadPart;
-    double sub = counter.QuadPart % cps.QuadPart;
-    sub = sub / cps.QuadPart;
-    sub = sub * 1000000000.;
-    ts->tv_nsec = long(sub) ;
-}
-
-void usleep(unsigned long usec)
-{
-    ::Sleep(usec == 0 ? 0 : usec < 1000 ? 1 : usec / 1000);
-}
-#endif
-#ifdef __APPLE__
-void clock_gettime(int, struct timespec *ts){
-    uint64_t t = mach_absolute_time();
-    static mach_timebase_info_data_t sTimebaseInfo;
-    if (sTimebaseInfo.denom == 0) (void)mach_timebase_info(&sTimebaseInfo);
-    uint64_t n = t * sTimebaseInfo.numer / sTimebaseInfo.denom;
-    ts->tv_sec = n / 1000000000;
-    ts->tv_nsec = n % 1000000000;
-}
-#endif
 void system_specific_initialise(){
+#if defined ( __x86_64__ )
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+#endif
+
+    av_register_all ( );
+    avformat_network_init ( );
+    Pa_Initialize ( );
+
 #if defined __ARMEL__
     static const unsigned int x = 0x04086060;
     static const unsigned int y = 0x03000000;
@@ -190,8 +140,10 @@ void system_specific_initialise(){
 #endif
 }
 void system_specific_application_initialise(){
+#if defined ( __x86_64__ )
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+#endif
     std::cerr << FFT::tune();
 }
 ProcessStatus
@@ -205,36 +157,10 @@ system_get_process_status(int pid){
     }
 #else
     if (kill(getpid(), 0) == 0) {
-        if (kill(pid, 0) == 0) {
-            return ProcessRunning;
-        } else {return ProcessNotRunning;}
+        if (kill(pid, 0) == 0) { return ProcessRunning;}
+        else {return ProcessNotRunning;}
     } else {return UnknownProcessStatus;}
 #endif
 }
-#ifdef _WIN32
-void system_memorybarrier(){
-#ifdef __MSVC__
-    MemoryBarrier();
-#else /* (mingw) */
-    LONG Barrier = 0;
-    __asm__ __volatile__("xchgl %%eax,%0 "
-                         : "=r" (Barrier));
-#endif
-}
-#else /* !_WIN32 */
-#if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
-// Not required
-#else
-#include <pthread.h>
-void system_memorybarrier()
-{
-    pthread_mutex_t dummy = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&dummy);
-    pthread_mutex_unlock(&dummy);
-}
-#endif
-#endif
-}
-
-
-
+void system_memorybarrier(){ std::atomic_thread_fence ( std::memory_order_seq_cst); }
+};

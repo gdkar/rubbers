@@ -23,7 +23,7 @@
 #pragma once
 #include <memory>
 #include "system/sysutils.h"
-namespace RubberBand {
+namespace Rubbers {
 class ResamplerImpl;
 class Resampler{
 public:

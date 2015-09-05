@@ -24,101 +24,101 @@
 #include "rubbers/rubbers-c.h"
 #include "rubbers/RubbersStretcher.h"
 
-struct RubberBandState_
+struct RubbersState_
 {
-    RubberBand::RubberBandStretcher *m_s;
+    Rubbers::RubbersStretcher *m_s;
 };
 
-RubberBandState rubberband_new(unsigned int sampleRate,
+RubbersState rubbers_new(unsigned int sampleRate,
                                unsigned int channels,
-                               RubberBandOptions options,
+                               RubbersOptions options,
                                double initialTimeRatio,
                                double initialPitchScale)
 {
-    RubberBandState_ *state = new RubberBandState_();
-    state->m_s = new RubberBand::RubberBandStretcher
+    RubbersState_ *state = new RubbersState_();
+    state->m_s = new Rubbers::RubbersStretcher
         (sampleRate, channels, options,
          initialTimeRatio, initialPitchScale);
     return state;
 }
 
-void rubberband_delete(RubberBandState state)
+void rubbers_delete(RubbersState state)
 {
     delete state->m_s;
     delete state;
 }
 
-void rubberband_reset(RubberBandState state)
+void rubbers_reset(RubbersState state)
 {
     state->m_s->reset();
 }
 
-void rubberband_set_time_ratio(RubberBandState state, double ratio)
+void rubbers_set_time_ratio(RubbersState state, double ratio)
 {
     state->m_s->setTimeRatio(ratio);
 }
 
-void rubberband_set_pitch_scale(RubberBandState state, double scale)
+void rubbers_set_pitch_scale(RubbersState state, double scale)
 {
     state->m_s->setPitchScale(scale);
 }
 
-double rubberband_get_time_ratio(const RubberBandState state) 
+double rubbers_get_time_ratio(const RubbersState state) 
 {
     return state->m_s->getTimeRatio();
 }
 
-double rubberband_get_pitch_scale(const RubberBandState state)
+double rubbers_get_pitch_scale(const RubbersState state)
 {
     return state->m_s->getPitchScale();
 }
 
-size_t rubberband_get_latency(const RubberBandState state) 
+size_t rubbers_get_latency(const RubbersState state) 
 {
     return state->m_s->getLatency();
 }
 
-void rubberband_set_transients_option(RubberBandState state, RubberBandOptions options)
+void rubbers_set_transients_option(RubbersState state, RubbersOptions options)
 {
     state->m_s->setTransientsOption(options);
 }
 
-void rubberband_set_detector_option(RubberBandState state, RubberBandOptions options)
+void rubbers_set_detector_option(RubbersState state, RubbersOptions options)
 {
     state->m_s->setDetectorOption(options);
 }
 
-void rubberband_set_phase_option(RubberBandState state, RubberBandOptions options)
+void rubbers_set_phase_option(RubbersState state, RubbersOptions options)
 {
     state->m_s->setPhaseOption(options);
 }
 
-void rubberband_set_formant_option(RubberBandState state, RubberBandOptions options)
+void rubbers_set_formant_option(RubbersState state, RubbersOptions options)
 {
     state->m_s->setFormantOption(options);
 }
 
-void rubberband_set_pitch_option(RubberBandState state, RubberBandOptions options)
+void rubbers_set_pitch_option(RubbersState state, RubbersOptions options)
 {
     state->m_s->setPitchOption(options);
 }
 
-void rubberband_set_expected_input_duration(RubberBandState state, size_t samples)
+void rubbers_set_expected_input_duration(RubbersState state, size_t samples)
 {
     state->m_s->setExpectedInputDuration(samples);
 }
 
-size_t rubberband_get_samples_required(const RubberBandState state)
+size_t rubbers_get_samples_required(const RubbersState state)
 {
     return state->m_s->getSamplesRequired();
 }
 
-void rubberband_set_max_process_size(RubberBandState state, size_t samples)
+void rubbers_set_max_process_size(RubbersState state, size_t samples)
 {
     state->m_s->setMaxProcessSize(samples);
 }
 
-void rubberband_set_key_frame_map(RubberBandState state, size_t keyframecount, size_t *from, size_t  *to)
+void rubbers_set_key_frame_map(RubbersState state, size_t keyframecount, size_t *from, size_t  *to)
 {
     std::map<size_t, size_t> kfm;
     for (size_t i = 0; i < keyframecount; ++i) {
@@ -127,43 +127,43 @@ void rubberband_set_key_frame_map(RubberBandState state, size_t keyframecount, s
     state->m_s->setKeyFrameMap(kfm);
 }
 
-void rubberband_study(RubberBandState state, const float *const *input, size_t samples, bool flush)
+void rubbers_study(RubbersState state, const float *const *input, size_t samples, bool flush)
 {
     state->m_s->study(input, samples, flush != 0);
 }
 
-void rubberband_process(RubberBandState state, const float *const *input, size_t samples, bool flush)
+void rubbers_process(RubbersState state, const float *const *input, size_t samples, bool flush)
 {
     state->m_s->process(input, samples, flush!= 0);
 }
 
-ssize_t rubberband_available(const RubberBandState state)
+ssize_t rubbers_available(const RubbersState state)
 {
     return state->m_s->available();
 }
 
-size_t rubberband_retrieve(const RubberBandState state, float *const *output, size_t samples)
+size_t rubbers_retrieve(const RubbersState state, float *const *output, size_t samples)
 {
     return state->m_s->retrieve(output, samples);
 }
 
-unsigned int rubberband_get_channel_count(const RubberBandState state)
+unsigned int rubbers_get_channel_count(const RubbersState state)
 {
     return state->m_s->getChannelCount();
 }
 
-void rubberband_calculate_stretch(RubberBandState state)
+void rubbers_calculate_stretch(RubbersState state)
 {
     state->m_s->calculateStretch();
 }
 
-void rubberband_set_debug_level(RubberBandState state, int level)
+void rubbers_set_debug_level(RubbersState state, int level)
 {
     state->m_s->setDebugLevel(level);
 }
 
-void rubberband_set_default_debug_level(int level)
+void rubbers_set_default_debug_level(int level)
 {
-    RubberBand::RubberBandStretcher::setDefaultDebugLevel(level);
+    Rubbers::RubbersStretcher::setDefaultDebugLevel(level);
 }
 

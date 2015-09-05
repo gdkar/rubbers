@@ -26,7 +26,7 @@
 
 #include "dsp/AudioCurveCalculator.h"
 
-namespace RubberBand{
+namespace Rubbers{
 class ConstantAudioCurve : public AudioCurveCalculator{
 public:
     ConstantAudioCurve(Parameters parameters);

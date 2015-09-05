@@ -28,11 +28,11 @@
 
 #include "rubbers/RubbersStretcher.h"
 
-class RubberBandVampPlugin : public Vamp::Plugin
+class RubbersVampPlugin : public Vamp::Plugin
 {
 public:
-    RubberBandVampPlugin(float inputSampleRate);
-    virtual ~RubberBandVampPlugin();
+    RubbersVampPlugin(float inputSampleRate);
+    virtual ~RubbersVampPlugin();
 
     bool initialise(size_t channels, size_t stepSize, size_t blockSize);
     void reset();

@@ -35,7 +35,7 @@
 #endif
 #endif
 
-namespace RubberBand {
+namespace Rubbers {
 
 
 #if defined USE_POMMIER_MATHFUN

@@ -39,7 +39,7 @@
 
 //#define DEBUG_SCAVENGER 1
 
-namespace RubberBand {
+namespace Rubbers {
 
 /**
  * A very simple class that facilitates running things like plugins

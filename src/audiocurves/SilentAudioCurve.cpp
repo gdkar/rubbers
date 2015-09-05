@@ -25,7 +25,7 @@
 
 #include <cmath>
 
-namespace RubberBand
+namespace Rubbers
 {
 
 

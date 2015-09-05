@@ -40,7 +40,7 @@
 
 #ifndef NO_TIMING
 #ifdef PROFILE_CLOCKS
-#include <time.h>
+#include <ctime>
 #else
 #include "system/sysutils.h"
 #ifndef _WIN32
@@ -54,7 +54,7 @@
 #include <string>
 #endif
 
-namespace RubberBand {
+namespace Rubbers {
 
 #ifndef NO_TIMING
 

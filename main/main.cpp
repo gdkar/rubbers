@@ -23,15 +23,11 @@
 #define __STDC_CONSTANT_MACROS
 
 extern "C" {
-#include <libavutil/avutil.h>
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libswresample/swresample.h>
+#include <portaudio.h>
 };
 #include "rubbers/RubbersStretcher.h"
 #include "rubbers/RubbersFile.h"
 #include <iostream>
-#include <sndfile.h>
 #include <cmath>
 #include <time.h>
 #include <cstdlib>
@@ -53,14 +49,14 @@ extern "C" {
 #include "base/Profiler.h"
 
 using namespace std;
-using namespace RubberBand;
+using namespace Rubbers;
 
 #ifdef _WIN32
-using RubberBand::gettimeofday;
+using Rubbers::gettimeofday;
 #endif
 
 #ifdef __MSVC__
-using RubberBand::usleep;
+using Rubbers::usleep;
 #endif
 
 double tempo_convert(const char *str)
@@ -108,11 +104,8 @@ int main(int argc, char **argv)
     bool help = false;
     bool version = false;
     bool quiet = false;
-
     bool haveRatio = false;
-
     std::string mapfile;
-
     enum {
         NoTransients,
         BandLimitedTransients,
@@ -124,10 +117,8 @@ int main(int argc, char **argv)
         PercussiveDetector,
         SoftDetector
     } detector = CompoundDetector;
-
     while (1) {
         int optionIndex = 0;
-
         static struct option longOpts[] = {
             { "help",          0, 0, 'h' },
             { "version",       0, 0, 'V' },
@@ -160,11 +151,8 @@ int main(int argc, char **argv)
             { 0, 0, 0, 0 }
         };
 
-        c = getopt_long(argc, argv,
-                        "t:p:d:RLPFc:f:T:D:qhVM:",
-                        longOpts, &optionIndex);
+        c = getopt_long(argc, argv, "t:p:d:RLPFc:f:T:D:qhVM:", longOpts, &optionIndex);
         if (c == -1) break;
-
         switch (c) {
         case 'h': help = true; break;
         case 'V': version = true; break;
@@ -196,12 +184,7 @@ int main(int argc, char **argv)
         default:  help = true; break;
         }
     }
-
-    if (version) {
-        cerr << RUBBERBAND_VERSION << endl;
-        return 0;
-    }
-
+    if (version) { cerr << RUBBERBAND_VERSION << endl; return 0; }
     if (help || !haveRatio || optind + 1 != argc) {
         cerr << endl;
 	cerr << "Rubber Band" << endl;
@@ -278,7 +261,6 @@ int main(int argc, char **argv)
         cerr << "WARNING: Both crispness option and transients, lamination or window options" << endl;
         cerr << "         provided -- crispness will override these other options" << endl;
     }
-
     switch (crispness) {
     case -1: crispness = 5; break;
     case 0: detector = CompoundDetector; transients = NoTransients; lamination = false; longwin = true; shortwin = false; break;
@@ -289,7 +271,6 @@ int main(int argc, char **argv)
     case 5: detector = CompoundDetector; transients = Transients; lamination = true; longwin = false; shortwin = false; break;
     case 6: detector = CompoundDetector; transients = Transients; lamination = false; longwin = false; shortwin = true; break;
     };
-
     if (!quiet) {
         cerr << "Using crispness level: " << crispness << " (";
         switch (crispness) {
@@ -303,16 +284,10 @@ int main(int argc, char **argv)
         }
         cerr << ")" << endl;
     }
-
     std::map<size_t, size_t> mapping;
-    
     if (mapfile != "") {
         std::ifstream ifile(mapfile.c_str());
-        if (!ifile.is_open()) {
-            cerr << "ERROR: Failed to open time map file \"" << mapfile << "\""
-                 << endl;
-            return 1;
-        }
+        if (!ifile.is_open()) { cerr << "ERROR: Failed to open time map file \"" << mapfile << "\"" << endl; return 1; }
         std::string line;
         int lineno = 0;
         while (!ifile.eof()) {
@@ -324,35 +299,22 @@ int main(int argc, char **argv)
             }
             std::string::size_type i = line.find_first_of(" ");
             if (i == std::string::npos) {
-                cerr << "ERROR: Time map file \"" << mapfile
-                     << "\" is malformed at line " << lineno << endl;
+                cerr << "ERROR: Time map file \"" << mapfile << "\" is malformed at line " << lineno << endl;
                 return 1;
             }
             size_t source = atoi(line.substr(0, i).c_str());
             while (i < line.length() && line[i] == ' ') ++i;
             size_t target = atoi(line.substr(i).c_str());
             mapping[source] = target;
-            if (debug > 0) {
-                cerr << "adding mapping from " << source << " to " << target << endl;
-            }
+            if (debug > 0) { cerr << "adding mapping from " << source << " to " << target << endl; }
             ++lineno;
         }
         ifile.close();
-
-        if (!quiet) {
-            cerr << "Read " << mapping.size() << " line(s) from map file" << endl;
-        }
+        if (!quiet) { cerr << "Read " << mapping.size() << " line(s) from map file" << endl; }
     }
-
     char *fileName = strdup(argv[optind++]);
-
     auto rubbersFile = new RubbersFile ( fileName );
     auto length = rubbersFile->length();
-    std::cerr << "seeking to end of " << fileName << " yields " <<  length << std::endl;
-    std::cerr << "nominal middle = " << length/2 <<  std::endl;
-    std::cerr << "current position is " << rubbersFile->tell() << std::endl;
-    auto middle = rubbersFile->seek(length/2,SEEK_SET );
-    std::cerr << "seeking to nominal middle of " << fileName << " yields " << middle << std::endl;
     if (duration != 0.0) {
         if (length == 0 || rubbersFile->rate() == 0) {
             cerr << "ERROR: File lacks frame count or sample rate in header, cannot use --duration" << endl;
@@ -361,66 +323,43 @@ int main(int argc, char **argv)
         double induration = double(length) / double(rubbersFile->rate());
         if (induration != 0.0) ratio = duration / induration;
     }
-    
-
     auto ibs = 1024;
     auto channels = rubbersFile->channels();
     auto rate = rubbersFile->rate();
-    RubberBandStretcher::Options options = 0;
-    if (realtime)    options |= RubberBandStretcher::OptionProcessRealTime;
-    if (precise)     options |= RubberBandStretcher::OptionStretchPrecise;
-    if (!lamination) options |= RubberBandStretcher::OptionPhaseIndependent;
-    if (longwin)     options |= RubberBandStretcher::OptionWindowLong;
-    if (shortwin)    options |= RubberBandStretcher::OptionWindowShort;
-    if (smoothing)   options |= RubberBandStretcher::OptionSmoothingOn;
-    if (formant)     options |= RubberBandStretcher::OptionFormantPreserved;
-    if (hqpitch)     options |= RubberBandStretcher::OptionPitchHighQuality;
-    if (together)    options |= RubberBandStretcher::OptionChannelsTogether;
-
+    RubbersStretcher::Options options = 0;
+    if (realtime)    options |= RubbersStretcher::OptionProcessRealTime;
+    if (precise)     options |= RubbersStretcher::OptionStretchPrecise;
+    if (!lamination) options |= RubbersStretcher::OptionPhaseIndependent;
+    if (longwin)     options |= RubbersStretcher::OptionWindowLong;
+    if (shortwin)    options |= RubbersStretcher::OptionWindowShort;
+    if (smoothing)   options |= RubbersStretcher::OptionSmoothingOn;
+    if (formant)     options |= RubbersStretcher::OptionFormantPreserved;
+    if (hqpitch)     options |= RubbersStretcher::OptionPitchHighQuality;
+    if (together)    options |= RubbersStretcher::OptionChannelsTogether;
     switch (threading) {
-    case 0:
-        options |= RubberBandStretcher::OptionThreadingAuto;
-        break;
-    case 1:
-        options |= RubberBandStretcher::OptionThreadingNever;
-        break;
-    case 2:
-        options |= RubberBandStretcher::OptionThreadingAlways;
-        break;
+    case 0: options |= RubbersStretcher::OptionThreadingAuto; break;
+    case 1: options |= RubbersStretcher::OptionThreadingNever; break;
+    case 2: options |= RubbersStretcher::OptionThreadingAlways; break;
     }
-
     switch (transients) {
-    case NoTransients:
-        options |= RubberBandStretcher::OptionTransientsSmooth;
-        break;
-    case BandLimitedTransients:
-        options |= RubberBandStretcher::OptionTransientsMixed;
-        break;
-    case Transients:
-        options |= RubberBandStretcher::OptionTransientsCrisp;
-        break;
+    case NoTransients:          options |= RubbersStretcher::OptionTransientsSmooth; break;
+    case BandLimitedTransients: options |= RubbersStretcher::OptionTransientsMixed;  break;
+    case Transients:            options |= RubbersStretcher::OptionTransientsCrisp;  break;
     }
-
     switch (detector) {
-    case CompoundDetector:
-        options |= RubberBandStretcher::OptionDetectorCompound;
-        break;
-    case PercussiveDetector:
-        options |= RubberBandStretcher::OptionDetectorPercussive;
-        break;
-    case SoftDetector:
-        options |= RubberBandStretcher::OptionDetectorSoft;
-        break;
+    case CompoundDetector:      options |= RubbersStretcher::OptionDetectorCompound;   break;
+    case PercussiveDetector:    options |= RubbersStretcher::OptionDetectorPercussive; break;
+    case SoftDetector:          options |= RubbersStretcher::OptionDetectorSoft;       break;
     }
     if (pitchshift != 0.0) {frequencyshift *= std::pow(2.0, pitchshift / 12);}
-    cerr << "Using time ratio " << ratio;
-    cerr << " and frequency ratio " << frequencyshift << endl;
-    timeval tv;
-    (void)gettimeofday(&tv, 0);
-    RubberBandStretcher::setDefaultDebugLevel(debug);
-    RubberBandStretcher ts(rate, channels, options,ratio, frequencyshift);
+    cerr << "Using time ratio " << ratio << " and frequency ratio " << frequencyshift << endl;
+    auto start_time = std::chrono::system_clock::now ();
+
+    RubbersStretcher::setDefaultDebugLevel(debug);
+    RubbersStretcher ts(rate, channels, options,ratio, frequencyshift);
+
     ts.setExpectedInputDuration(length);
-    float **ibuf = new float *[channels];
+    auto ibuf = new float *[channels];
     for (size_t i = 0; i < channels; ++i) ibuf[i] = new float[ibs];
     int frame = 0;
     int percent = 0;
@@ -453,6 +392,7 @@ int main(int argc, char **argv)
             cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << final << endl;
         }
         ts.process(ibuf, count, final);
+        countIn += count;
         int avail = ts.available();
         if (debug > 1) cerr << "available = " << avail << endl;
         if (avail > 0) {
@@ -470,7 +410,6 @@ int main(int argc, char **argv)
                 }
             }
             fwrite ( fobf, sizeof(float), avail * channels, stdout);
-//            sf_writef_float(sndfileOut, fobf, avail);
             delete[] fobf;
             for (size_t i = 0; i < channels; ++i) {delete[] obf[i];}
             delete[] obf;
@@ -485,7 +424,6 @@ int main(int argc, char **argv)
     }
     if (!quiet) {cerr << "\r    " << endl;}
     int avail;
-
     while ((avail = ts.available()) >= 0) {
         if (debug > 1) {cerr << "(completing) available = " << avail << endl;}
         if (avail > 0) {
@@ -504,23 +442,15 @@ int main(int argc, char **argv)
             }
 //            sf_writef_float(sndfileOut, fobf, avail);
             delete[] fobf;
-            for (size_t i = 0; i < channels; ++i) {delete[] obf[i];}
             delete[] obf;
         } else {usleep(10000);}
     }
     if (!quiet) {
-        cerr << "in: " << countIn << ", out: " << countOut << ", ratio: " << float(countOut)/float(countIn) << ", ideal output: " << lrint(countIn * ratio) << ", error: " << abs(lrint(countIn * ratio) - int(countOut)) << endl;
-        timeval etv;
-        (void)gettimeofday(&etv, 0);
-        etv.tv_sec -= tv.tv_sec;
-        if (etv.tv_usec < tv.tv_usec) {
-            etv.tv_usec += 1000000;
-            etv.tv_sec -= 1;
-        }
-        etv.tv_usec -= tv.tv_usec;
-        double sec = double(etv.tv_sec) + (double(etv.tv_usec) / 1000000.0);
-        cerr << "elapsed time: " << sec << " sec, in frames/sec: " << countIn/sec << ", out frames/sec: " << countOut/sec << endl;
+        cerr << "in: " << countIn << ", out: " << countOut << ", ratio: " << double(countOut)/double(countIn) << ", ideal output: " << lrint(countIn * ratio) << ", error: " << abs(lrint(countIn * ratio) - int(countOut)) << endl;
+        auto end_time = std::chrono::system_clock::now ();
+        auto duration = static_cast<std::chrono::duration<double,std::chrono::seconds::period> >( end_time-start_time );
+        cerr << "elapsed time: " << duration.count() << " sec, in frames/sec: " << countIn/duration.count() << ", out frames/sec: " << countOut/duration.count() << endl;
     }
-    RubberBand::Profiler::dump();
+    Rubbers::Profiler::dump();
     return 0;
 }

@@ -25,7 +25,7 @@
 #include <numeric>
 #include <algorithm>
 #include <utility>
-namespace RubberBand
+namespace Rubbers
 {
 
 

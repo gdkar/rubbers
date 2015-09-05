@@ -32,7 +32,7 @@
 #include "system/VectorOps.h"
 #include "system/Allocators.h"
 
-namespace RubberBand {
+namespace Rubbers {
 enum WindowType {
     RectangularWindow,
     BartlettWindow,

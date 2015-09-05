@@ -32,7 +32,7 @@
 
 #include "system/sysutils.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 	
 StretchCalculator::StretchCalculator(size_t sampleRate,

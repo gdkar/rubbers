@@ -42,7 +42,7 @@
 #endif
 #endif
 
-namespace RubberBand {
+namespace Rubbers {
 
 class ResamplerImpl{
 public:

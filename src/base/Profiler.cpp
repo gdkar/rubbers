@@ -35,7 +35,7 @@
 #define snprintf sprintf_s
 #endif
 
-namespace RubberBand {
+namespace Rubbers {
 
 #ifndef NO_TIMING
 

@@ -26,7 +26,7 @@
 
 #include <cassert>
 
-namespace RubberBand
+namespace Rubbers
 {
 
 template <typename T>

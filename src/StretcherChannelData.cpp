@@ -27,27 +27,27 @@
 
 #include "system/Allocators.h"
 
-namespace RubberBand 
+namespace Rubbers 
 {
       
-RubberBandStretcher::Impl::ChannelData::ChannelData(size_t windowSize,
+RubbersStretcher::Impl::ChannelData::ChannelData(size_t windowSize,
                                                     size_t fftSize,
                                                     size_t outbufSize){
     std::set<size_t> s;
     construct(s, windowSize, fftSize, outbufSize);
 }
-RubberBandStretcher::Impl::ChannelData::ChannelData(std::initializer_list<size_t> sizes,
+RubbersStretcher::Impl::ChannelData::ChannelData(std::initializer_list<size_t> sizes,
         size_t initialWindowSize, size_t initialFftSize,size_t initialOutbufSize){
     auto s = std::set<size_t> (sizes.begin(),sizes.end());
     construct(s,initialWindowSize,initialFftSize,initialOutbufSize);
 }
-RubberBandStretcher::Impl::ChannelData::ChannelData(const std::set<size_t> &sizes,
+RubbersStretcher::Impl::ChannelData::ChannelData(const std::set<size_t> &sizes,
                                                     size_t initialWindowSize,
                                                     size_t initialFftSize,
                                                     size_t outbufSize)
 {construct(sizes, initialWindowSize, initialFftSize, outbufSize);}
 void
-RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
+RubbersStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
                                                   size_t initialWindowSize,
                                                   size_t initialFftSize,
                                                   size_t outbufSize){
@@ -79,11 +79,12 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
     ms = allocate_and_zero<float>(maxSize);
     interpolator = allocate_and_zero<float>(maxSize);
     interpolatorScale = 0;
-    for (auto i = sizes.cbegin(); i != sizes.cend(); ++i) {
-        ffts[*i] = new FFT(*i);
-        ffts[*i]->initFloat();
+    for ( auto size : sizes )
+    {
+        ffts[size] = std::make_unique<FFT>(size);
+        ffts[size]->initFloat();
     }
-    fft = ffts[initialFftSize];
+    fft = ffts[initialFftSize].get();
     resampler = 0;
     resamplebuf = 0;
     resamplebufSize = 0;
@@ -92,11 +93,11 @@ RubberBandStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
     windowAccumulator[0] = 1.f;
 }
 void
-RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSize){
+RubbersStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSize){
 //    std::cerr << "ChannelData::setSizes: windowSize = " << windowSize << ", fftSize = " << fftSize << std::endl;
     auto  maxSize = 2 * std::max(windowSize, fftSize);
     auto  realSize = maxSize / 2 + 1;
-    auto  oldMax = static_cast<decltype(maxSize)>(inbuf->getSize());
+    auto  oldMax = static_cast<decltype(maxSize)>(inbuf->size());
     auto  oldReal = oldMax / 2 + 1;
     if (oldMax >= maxSize) {
         // no need to reallocate buffers, just reselect fft
@@ -106,10 +107,10 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSiz
         if (ffts.find(fftSize) == ffts.end()) {
             //!!! this also requires a lock, but it shouldn't occur in
             //RT mode with proper initialisation
-            ffts[fftSize] = new FFT(fftSize);
+            ffts[fftSize] = std::make_unique<FFT>(fftSize);
             ffts[fftSize]->initFloat();
         }
-        fft = ffts[fftSize];
+        fft = ffts[fftSize].get();
         v_zero(fltbuf, maxSize);
         v_zero(dblbuf, maxSize);
         v_zero(mag, realSize);
@@ -145,14 +146,14 @@ RubberBandStretcher::Impl::ChannelData::setSizes(size_t windowSize,size_t fftSiz
     interpolatorScale = 0;
     //!!! and resampler?
     if (ffts.find(fftSize) == ffts.end()) {
-        ffts[fftSize] = new FFT(fftSize);
+        ffts[fftSize] = std::make_unique<FFT>(fftSize);
         ffts[fftSize]->initFloat();
     }
-    fft = ffts[fftSize];
+    fft = ffts[fftSize].get();
 }
 void
-RubberBandStretcher::Impl::ChannelData::setOutbufSize(size_t outbufSize){
-    auto oldSize = static_cast<decltype(outbufSize)>(outbuf->getSize());
+RubbersStretcher::Impl::ChannelData::setOutbufSize(size_t outbufSize){
+    auto oldSize = static_cast<decltype(outbufSize)>(outbuf->size());
 //    std::cerr << "ChannelData::setOutbufSize(" << outbufSize << ") [from " << oldSize << "]" << std::endl;
     if (oldSize < outbufSize) {
         //!!! at this point we need a lock in case a different client
@@ -163,11 +164,11 @@ RubberBandStretcher::Impl::ChannelData::setOutbufSize(size_t outbufSize){
     }
 }
 void
-RubberBandStretcher::Impl::ChannelData::setResampleBufSize(size_t sz){
+RubbersStretcher::Impl::ChannelData::setResampleBufSize(size_t sz){
     resamplebuf = reallocate_and_zero<float>(resamplebuf, resamplebufSize, sz);
     resamplebufSize = sz;
 }
-RubberBandStretcher::Impl::ChannelData::~ChannelData(){
+RubbersStretcher::Impl::ChannelData::~ChannelData(){
     delete resampler;
     deallocate(resamplebuf);
     delete inbuf;
@@ -184,18 +185,15 @@ RubberBandStretcher::Impl::ChannelData::~ChannelData(){
     deallocate(windowAccumulator);
     deallocate(fltbuf);
     deallocate(dblbuf);
-    for (auto i = ffts.begin(); i != ffts.end(); ++i) {delete i->second;}
 }
 void
-RubberBandStretcher::Impl::ChannelData::reset(){
+RubbersStretcher::Impl::ChannelData::reset(){
     inbuf->reset();
     outbuf->reset();
     if (resampler) resampler->reset();
-    auto size = inbuf->getSize();
-    for (auto i = 0; i < size; ++i) {
-        accumulator[i] = 0.f;
-        windowAccumulator[i] = 0.f;
-    }
+    auto size = inbuf->size();
+    std::fill_n ( accumulator, size, 0 );
+    std::fill_n ( windowAccumulator, size, 0 );
     // Avoid dividing opening sample (which will be discarded anyway) by zero
     windowAccumulator[0] = 1.f;
     accumulatorFill = 0;

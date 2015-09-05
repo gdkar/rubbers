@@ -23,7 +23,7 @@
 
 #include "ConstantAudioCurve.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 ConstantAudioCurve::ConstantAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters){}

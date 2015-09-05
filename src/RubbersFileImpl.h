@@ -35,6 +35,8 @@ class RubbersFile::Impl {
   off_t                           m_cache_pts   = 0;
   off_t                           m_offset      = 0;
   bool                            decode_one_frame ( );
+  static std::once_flag           register_once_flag;
+  static void                     register_once ( );
 public:
   Impl ( const char *filename, int channels = -1, int rate = -1);
   Impl ( Impl && other ) = default;

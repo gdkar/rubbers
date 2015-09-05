@@ -30,7 +30,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace RubberBand
+namespace Rubbers
 {
 
 template <typename T>

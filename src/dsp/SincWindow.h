@@ -33,7 +33,7 @@
 #include "system/VectorOps.h"
 #include "system/Allocators.h"
 
-namespace RubberBand {
+namespace Rubbers {
 
 template <typename T>
 class SincWindow{

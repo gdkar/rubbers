@@ -32,6 +32,8 @@ AC_SUBST(FFTS_CFLAGS)
 AC_SUBST(FFTS_LIBS)
 
 
+AC_SEARCH_LIBS( [Pa_Initialize], [portaudio])
+
 AC_CHECK_HEADERS(ladspa.h)
 AC_CHECK_HEADERS(pthread.h)
 

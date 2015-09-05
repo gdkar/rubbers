@@ -21,7 +21,7 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#include "RubberBandVampPlugin.h"
+#include "RubbersVampPlugin.h"
 
 #include "StretchCalculator.h"
 #include "system/sysutils.h"
@@ -34,7 +34,7 @@ using std::vector;
 using std::cerr;
 using std::endl;
 
-class RubberBandVampPlugin::Impl
+class RubbersVampPlugin::Impl
 {
 public:
     size_t m_stepSize;
@@ -85,7 +85,7 @@ public:
 };
 
 
-RubberBandVampPlugin::RubberBandVampPlugin(float inputSampleRate) :
+RubbersVampPlugin::RubbersVampPlugin(float inputSampleRate) :
     Plugin(inputSampleRate)
 {
     m_d = new Impl();
@@ -101,7 +101,7 @@ RubberBandVampPlugin::RubberBandVampPlugin(float inputSampleRate) :
     m_d->m_sampleRate = lrintf(m_inputSampleRate);
 }
 
-RubberBandVampPlugin::~RubberBandVampPlugin()
+RubbersVampPlugin::~RubbersVampPlugin()
 {
     if (m_d->m_outputDump) {
         for (size_t i = 0; i < m_d->m_stretcher->getChannelCount(); ++i) {
@@ -114,43 +114,43 @@ RubberBandVampPlugin::~RubberBandVampPlugin()
 }
 
 string
-RubberBandVampPlugin::getIdentifier() const
+RubbersVampPlugin::getIdentifier() const
 {
     return "rubberband";
 }
 
 string
-RubberBandVampPlugin::getName() const
+RubbersVampPlugin::getName() const
 {
     return "Rubber Band Timestretch Analysis";
 }
 
 string
-RubberBandVampPlugin::getDescription() const
+RubbersVampPlugin::getDescription() const
 {
     return "Carry out analysis phases of time stretcher process";
 }
 
 string
-RubberBandVampPlugin::getMaker() const
+RubbersVampPlugin::getMaker() const
 {
     return "Breakfast Quay";
 }
 
 int
-RubberBandVampPlugin::getPluginVersion() const
+RubbersVampPlugin::getPluginVersion() const
 {
     return 1;
 }
 
 string
-RubberBandVampPlugin::getCopyright() const
+RubbersVampPlugin::getCopyright() const
 {
     return "";//!!!
 }
 
-RubberBandVampPlugin::OutputList
-RubberBandVampPlugin::getOutputDescriptors() const
+RubbersVampPlugin::OutputList
+RubbersVampPlugin::getOutputDescriptors() const
 {
     OutputList list;
 
@@ -231,8 +231,8 @@ RubberBandVampPlugin::getOutputDescriptors() const
     return list;
 }
 
-RubberBandVampPlugin::ParameterList
-RubberBandVampPlugin::getParameterDescriptors() const
+RubbersVampPlugin::ParameterList
+RubbersVampPlugin::getParameterDescriptors() const
 {
     ParameterList list;
 
@@ -333,7 +333,7 @@ RubberBandVampPlugin::getParameterDescriptors() const
 }
 
 float
-RubberBandVampPlugin::getParameter(std::string id) const
+RubbersVampPlugin::getParameter(std::string id) const
 {
     if (id == "timeratio") return m_d->m_timeRatio * 100.f;
     if (id == "pitchratio") return m_d->m_pitchRatio * 100.f;
@@ -346,7 +346,7 @@ RubberBandVampPlugin::getParameter(std::string id) const
 }
 
 void
-RubberBandVampPlugin::setParameter(std::string id, float value)
+RubbersVampPlugin::setParameter(std::string id, float value)
 {
     if (id == "timeratio") {
         m_d->m_timeRatio = value / 100;
@@ -363,7 +363,7 @@ RubberBandVampPlugin::setParameter(std::string id, float value)
 }
 
 bool
-RubberBandVampPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
+RubbersVampPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize)
 {
     if (channels < getMinChannelCount() ||
 	channels > getMaxChannelCount()) return false;
@@ -413,13 +413,13 @@ RubberBandVampPlugin::initialise(size_t channels, size_t stepSize, size_t blockS
 }
 
 void
-RubberBandVampPlugin::reset()
+RubbersVampPlugin::reset()
 {
     if (m_d->m_stretcher) m_d->m_stretcher->reset();
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::process(const float *const *inputBuffers,
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::process(const float *const *inputBuffers,
                               Vamp::RealTime timestamp)
 {
     if (m_d->m_realtime) {
@@ -429,8 +429,8 @@ RubberBandVampPlugin::process(const float *const *inputBuffers,
     }        
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::getRemainingFeatures()
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::getRemainingFeatures()
 {
     if (m_d->m_realtime) {
         return m_d->getRemainingFeaturesRealTime();
@@ -439,13 +439,13 @@ RubberBandVampPlugin::getRemainingFeatures()
     }
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::Impl::processOffline(const float *const *inputBuffers,
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::Impl::processOffline(const float *const *inputBuffers,
                                            Vamp::RealTime timestamp)
 {
     if (!m_stretcher) {
-	cerr << "ERROR: RubberBandVampPlugin::processOffline: "
-	     << "RubberBandVampPlugin has not been initialised"
+	cerr << "ERROR: RubbersVampPlugin::processOffline: "
+	     << "RubbersVampPlugin has not been initialised"
 	     << endl;
 	return FeatureSet();
     }
@@ -454,8 +454,8 @@ RubberBandVampPlugin::Impl::processOffline(const float *const *inputBuffers,
     return FeatureSet();
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::Impl::getRemainingFeaturesOffline()
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::Impl::getRemainingFeaturesOffline()
 {
     m_stretcher->study(0, 0, true);
 
@@ -478,8 +478,8 @@ RubberBandVampPlugin::Impl::getRemainingFeaturesOffline()
     return features;
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::Impl::processRealTime(const float *const *inputBuffers,
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::Impl::processRealTime(const float *const *inputBuffers,
                                             Vamp::RealTime timestamp)
 {
     // This function is not in any way a real-time function (i.e. it
@@ -487,8 +487,8 @@ RubberBandVampPlugin::Impl::processRealTime(const float *const *inputBuffers,
     // stretcher in RT mode.
 
     if (!m_stretcher) {
-	cerr << "ERROR: RubberBandVampPlugin::processRealTime: "
-	     << "RubberBandVampPlugin has not been initialised"
+	cerr << "ERROR: RubbersVampPlugin::processRealTime: "
+	     << "RubbersVampPlugin has not been initialised"
 	     << endl;
 	return FeatureSet();
     }
@@ -520,14 +520,14 @@ RubberBandVampPlugin::Impl::processRealTime(const float *const *inputBuffers,
     return features;
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::Impl::getRemainingFeaturesRealTime()
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::Impl::getRemainingFeaturesRealTime()
 {
     return FeatureSet();
 }
 
-RubberBandVampPlugin::FeatureSet
-RubberBandVampPlugin::Impl::createFeatures(size_t inputIncrement,
+RubbersVampPlugin::FeatureSet
+RubbersVampPlugin::Impl::createFeatures(size_t inputIncrement,
                                            std::vector<int> &outputIncrements,
                                            std::vector<float> &phaseResetDf,
                                            std::vector<int> &exactPoints,

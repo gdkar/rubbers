@@ -27,7 +27,7 @@
 #include "VectorOps.h"
 
 
-namespace RubberBand {
+namespace Rubbers {
 
 
 template<typename T>

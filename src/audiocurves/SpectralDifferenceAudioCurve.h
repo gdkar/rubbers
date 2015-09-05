@@ -27,7 +27,7 @@
 #include "dsp/AudioCurveCalculator.h"
 #include "dsp/Window.h"
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class SpectralDifferenceAudioCurve : public AudioCurveCalculator

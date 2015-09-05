@@ -32,6 +32,8 @@
 #include <atomic>
 #include <new>
 #include <thread>
+#include <chrono>
+#include <utility>
 #include <mutex>
 #include <condition_variable>
 #include <vector>
@@ -40,6 +42,9 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstddef>
+#include <ctime>
+#include <cstring>
+
 #ifndef UNLIKELY 
 #define UNLIKELY(x) __builtin_expect(!!(x),0)
 #endif
@@ -47,16 +52,16 @@
 #define LIKELY(x)  __builtin_expect(!!(x),1)
 #endif
 /**
- * @mainpage RubberBand
+ * @mainpage Rubbers
  * 
  * The Rubber Band API is contained in the single class
- * RubberBand::RubberBandStretcher.
+ * Rubbers::RubbersStretcher.
  * 
  * Threading notes for real-time applications:
  * 
- * Multiple instances of RubberBandStretcher may be created and used
+ * Multiple instances of RubbersStretcher may be created and used
  * in separate threads concurrently.  However, for any single instance
- * of RubberBandStretcher, you may not call process() more than once
+ * of RubbersStretcher, you may not call process() more than once
  * concurrently, and you may not change the time or pitch ratio while
  * a process() call is being executed (if the stretcher was created in
  * "real-time mode"; in "offline mode" you can't change the ratios
@@ -71,10 +76,10 @@
  * even if that is a real-time thread.
  */
 
-namespace RubberBand
+namespace Rubbers
 {
 
-class RubberBandStretcher
+class RubbersStretcher
 {
 public:
     /**
@@ -341,12 +346,12 @@ public:
      * but most of the options may not.  See the option documentation
      * above for more details.
      */
-    RubberBandStretcher(size_t sampleRate,
+    RubbersStretcher(size_t sampleRate,
                         size_t channels,
                         Options options = DefaultOptions,
                         double initialTimeRatio = 1.0,
                         double initialPitchScale = 1.0);
-    virtual ~RubberBandStretcher();
+    virtual ~RubbersStretcher();
     /**
      * Reset the stretcher's internal buffers.  The stretcher should
      * subsequently behave as if it had just been constructed

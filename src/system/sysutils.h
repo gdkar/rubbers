@@ -24,11 +24,6 @@
 #ifndef _RUBBERBAND_SYSUTILS_H_
 #define _RUBBERBAND_SYSUTILS_H_
 
-#ifdef __MSVC__
-#include "float_cast/float_cast.h"
-#define R__ __restrict
-#endif
-
 #ifdef __clang__
 #define R__ __restrict__
 #else
@@ -47,35 +42,13 @@
 #define LIKELY(x)  __builtin_expect(!!(x),1)
 #endif
 
-#ifdef __MINGW32__
-#include <malloc.h>
-#else
-#ifndef __MSVC__
 #include <alloca.h>
-#endif
-#endif
 
-#ifdef __MSVC__
-#include <malloc.h>
-#include <process.h>
-#define alloca _alloca
-#define getpid _getpid
-#endif
+#include <cmath>
+#include <cstdint>
+#include <chrono>
 
-#if defined(__MSVC__) && _MSC_VER < 1700
-#define uint8_t unsigned __int8
-#define uint16_t unsigned __int16
-#define uint32_t unsigned __int32
-#elif defined(__MSVC__)
-#define ssize_t long
-#include <stdint.h>
-#else
-#include <stdint.h>
-#endif
-
-#include <math.h>
-
-namespace RubberBand {
+namespace Rubbers {
 
 extern const char *system_get_platform_tag();
 extern bool system_is_multiprocessor();
@@ -123,7 +96,7 @@ inline float princargf(float a) { return modf(a + (float)M_PI, -2.f * (float)M_P
 
 } // end namespace
 
-// The following should be functions in the RubberBand namespace, really
+// The following should be functions in the Rubbers namespace, really
 
 #ifdef _WIN32
 
@@ -131,10 +104,10 @@ inline float princargf(float a) { return modf(a + (float)M_PI, -2.f * (float)M_P
 #define MUNLOCK(a,b) 1
 #define MUNLOCK_SAMPLEBLOCK(a) 1
 
-namespace RubberBand {
+namespace Rubbers {
 extern void system_memorybarrier();
 }
-#define MBARRIER() RubberBand::system_memorybarrier()
+#define MBARRIER() Rubbers::system_memorybarrier()
 
 #define DLOPEN(a,b)  LoadLibrary((a).toStdWString().c_str())
 #define DLSYM(a,b)   GetProcAddress((HINSTANCE)(a),(b))
@@ -158,10 +131,10 @@ extern void system_memorybarrier();
 #if (__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1)
 #define MBARRIER() __sync_synchronize()
 #else
-namespace RubberBand {
+namespace Rubbers {
 extern void system_memorybarrier();
 }
-#define MBARRIER() ::RubberBand::system_memorybarrier()
+#define MBARRIER() ::Rubbers::system_memorybarrier()
 #endif
 #endif
 

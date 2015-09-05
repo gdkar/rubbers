@@ -91,7 +91,7 @@ extern "C" {
 #endif
 
 
-namespace RubberBand {
+namespace Rubbers {
 
 class FFTImpl
 {

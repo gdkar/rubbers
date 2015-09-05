@@ -39,15 +39,15 @@
 
 #include <set>
 
-using namespace RubberBand;
+using namespace Rubbers;
 
-namespace RubberBand
+namespace Rubbers
 {
 
 class AudioCurveCalculator;
 class StretchCalculator;
 
-class RubberBandStretcher::Impl
+class RubbersStretcher::Impl
 {
 public:
     Impl(size_t sampleRate, size_t channels, Options options,

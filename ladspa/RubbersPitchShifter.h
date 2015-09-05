@@ -28,18 +28,18 @@
 
 #include "base/RingBuffer.h"
 
-namespace RubberBand {
-class RubberBandStretcher;
+namespace Rubbers {
+class RubbersStretcher;
 }
 
-class RubberBandPitchShifter
+class RubbersPitchShifter
 {
 public:
     static const LADSPA_Descriptor *getDescriptor(unsigned long index);
     
 protected:
-    RubberBandPitchShifter(int sampleRate, size_t channels);
-    ~RubberBandPitchShifter();
+    RubbersPitchShifter(int sampleRate, size_t channels);
+    ~RubbersPitchShifter();
 
     enum {
         LatencyPort      = 0,
@@ -104,8 +104,8 @@ protected:
     size_t m_reserve;
     size_t m_minfill;
 
-    RubberBand::RubberBandStretcher *m_stretcher;
-    RubberBand::RingBuffer<float> **m_outputBuffer;
+    Rubbers::RubbersStretcher *m_stretcher;
+    Rubbers::RingBuffer<float> **m_outputBuffer;
     float **m_scratch;
 
     int m_sampleRate;

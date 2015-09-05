@@ -24,7 +24,7 @@
 #include "CompoundAudioCurve.h"
 #include "dsp/MovingMedian.h"
 #include <iostream>
-namespace RubberBand
+namespace Rubbers
 {
 CompoundAudioCurve::CompoundAudioCurve(Parameters parameters) :
     AudioCurveCalculator(parameters),

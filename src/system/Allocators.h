@@ -36,7 +36,7 @@
 #include <sys/mman.h>
 #endif
 
-namespace RubberBand {
+namespace Rubbers {
 
 template <typename T>
 T *allocate(size_t count){

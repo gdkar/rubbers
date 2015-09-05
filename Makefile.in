@@ -13,7 +13,7 @@ JAVA_HOME ?= /usr/
 JAVAC		:= $(JAVA_HOME)/bin/javac
 JAR		:= $(JAVA_HOME)/bin/jar
 
-LIBRARY_LIBS		:= @SRC_LIBS@   @FFTS_LIBS@ @FFTW_LIBS@ @FFTWF_LIBS@ @FFMPEG_LIBS@
+LIBRARY_LIBS		:= @SRC_LIBS@   @FFTS_LIBS@ @FFTW_LIBS@ @FFTWF_LIBS@ @FFMPEG_LIBS@ @LIBS@
 PROGRAM_LIBS		:= @SNDFILE_LIBS@ $(LIBRARY_LIBS) -L/usr/local/lib -lao
 VAMP_PLUGIN_LIBS	:= @Vamp_LIBS@ $(LIBRARY_LIBS)
 LADSPA_PLUGIN_LIBS	:= $(LIBRARY_LIBS)
@@ -110,26 +110,26 @@ LIBRARY_SOURCES := \
 	src/StretcherImpl.cpp
 
 JNI_SOURCE := \
-	src/jni/RubberBandStretcherJNI.cpp
+	src/jni/RubbersStretcherJNI.cpp
 
 JAVA_SOURCE := \
-	com/breakfastquay/rubbers/RubberBandStretcher.java
+	com/breakfastquay/rubbers/RubbersStretcher.java
 
 PROGRAM_SOURCES := \
 	main/main.cpp
 
 VAMP_HEADERS := \
-	vamp/RubberBandVampPlugin.h
+	vamp/RubbersVampPlugin.h
 
 VAMP_SOURCES := \
-	vamp/RubberBandVampPlugin.cpp \
+	vamp/RubbersVampPlugin.cpp \
 	vamp/libmain.cpp
 
 LADSPA_HEADERS := \
-	ladspa/RubberBandPitchShifter.h
+	ladspa/RubbersPitchShifter.h
 
 LADSPA_SOURCES := \
-	ladspa/RubberBandPitchShifter.cpp \
+	ladspa/RubbersPitchShifter.cpp \
 	ladspa/libmain.cpp
 
 LIBRARY_OBJECTS := $(LIBRARY_SOURCES:.cpp=.o)

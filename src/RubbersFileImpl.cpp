@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <iostream>
 #include <string>
+/* static */
+std::once_flag RubbersFile::Impl::register_once_flag{};
 static inline std::string
 ff_err2str ( int ret )
 {
@@ -24,9 +26,17 @@ RubbersFile::Impl::set_rate(int srate )
 {
   m_rate = srate;
 }
+/*static*/void
+RubbersFile::Impl::register_once ( )
+{
+  avcodec_register_all ( );
+  avdevice_register_all ( );
+  avformat_network_init ( );
+  av_register_all ( );
+}
 RubbersFile::Impl::Impl ( const char *filename, int nch, int srate)
 {
-  av_register_all();
+  std::call_once ( register_once_flag, &RubbersFile::Impl::register_once );
   m_format_ctx = avformat_alloc_context ( );
   auto opts = (AVDictionary*)nullptr;
   auto ret = 0;

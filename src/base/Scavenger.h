@@ -28,10 +28,7 @@
 #include <list>
 #include <utility>
 #include <iostream>
-
-#ifndef WIN32
-#include <sys/time.h>
-#endif
+#include <chrono>
 
 #include "system/Thread.h"
 #include "system/sysutils.h"
@@ -60,55 +57,44 @@ class Scavenger
 {
 public:
     Scavenger(int sec = 2, int defaultObjectListSize = 200);
-    ~Scavenger();
-
+    virtual ~Scavenger();
     /**
      * Call from an RT thread etc., to pass ownership of t to us.
      * Only one thread should be calling this on any given scavenger.
      */
     void claim(T *t);
-
     /**
      * Call from a non-RT thread.
      * Only one thread should be calling this on any given scavenger.
      */
     void scavenge(bool clearNow = false);
-
 protected:
     typedef std::pair<T *, int> ObjectTimePair;
     typedef std::vector<ObjectTimePair> ObjectTimeList;
     ObjectTimeList m_objects;
     int m_sec;
-
     typedef std::list<T *> ObjectList;
     ObjectList m_excess;
     int m_lastExcess;
     std::mutex m_excessMutex;
     void pushExcess(T *);
     void clearExcess(int);
-
     unsigned int m_claimed;
     unsigned int m_scavenged;
     unsigned int m_asExcess;
 };
-
-
 /**
  * A wrapper to permit arrays allocated with new[] to be scavenged.
  */
-
 template <typename T>
 class ScavengerArrayWrapper
 {
 public:
     ScavengerArrayWrapper(T *array) : m_array(array) { }
-    ~ScavengerArrayWrapper() { delete[] m_array; }
-
+    virtual ~ScavengerArrayWrapper() { delete[] m_array; }
 private:
     T *m_array;
 };
-
-
 /**
  * A wrapper to permit arrays allocated with the Allocators functions
  * to be scavenged.
@@ -119,8 +105,7 @@ class ScavengerAllocArrayWrapper
 {
 public:
     ScavengerAllocArrayWrapper(T *array) : m_array(array) { }
-    ~ScavengerAllocArrayWrapper() { deallocate<T>(m_array); }
-
+    virtual ~ScavengerAllocArrayWrapper() { deallocate<T>(m_array); }
 private:
     T *m_array;
 };
@@ -136,43 +121,36 @@ Scavenger<T>::Scavenger(int sec, int defaultObjectListSize) :
 template <typename T>
 Scavenger<T>::~Scavenger(){
     if (m_scavenged < m_claimed) {
-	for (size_t i = 0; i < m_objects.size(); ++i) {
-	    ObjectTimePair &pair = m_objects[i];
-	    if (pair.first != 0) {
-		T *ot = pair.first;
-		pair.first = 0;
-		delete ot;
-		++m_scavenged;
-	    }
-	}
+        for ( auto &pair : m_objects )
+        {
+            if ( pair.first ) 
+            {
+                auto ot = std::exchange ( pair.first, nullptr );
+                delete[] ot;
+                ++ m_scavenged;
+            }
+        }
     }
-
     clearExcess(0);
 }
-
 template <typename T>
 void
 Scavenger<T>::claim(T *t){
 //    std::cerr << "Scavenger::claim(" << t << ")" << std::endl;
-    struct timeval tv;
-    (void)gettimeofday(&tv, 0);
-    int sec = tv.tv_sec;
-    for (size_t i = 0; i < m_objects.size(); ++i) {
-	ObjectTimePair &pair = m_objects[i];
-	if (pair.first == 0) {
-	    pair.second = sec;
-	    pair.first = t;
-	    ++m_claimed;
-	    return;
-	}
+    auto tv = std::chrono::high_resolution_clock::now();
+    auto sec = std::chrono::duration_cast<std::chrono::nanoseconds>(tv.time_since_epoch()).count();
+    for ( auto &pair : m_objects )
+    {
+        if ( pair.first == 0 )
+        {
+            pair.second = sec;
+            pair.first  = t;
+            ++ m_claimed;
+            return;
+        }
     }
-#ifdef DEBUG_SCAVENGER
-    std::cerr << "WARNING: Scavenger::claim(" << t << "): run out of slots (at "
-              << m_objects.size() << "), using non-RT-safe method" << std::endl;
-#endif
     pushExcess(t);
 }
-
 template <typename T>
 void
 Scavenger<T>::scavenge(bool clearNow){
@@ -180,17 +158,14 @@ Scavenger<T>::scavenge(bool clearNow){
     std::cerr << "Scavenger::scavenge: claimed " << m_claimed << ", scavenged " << m_scavenged << ", cleared as excess " << m_asExcess << std::endl;
 #endif
     if (m_scavenged >= m_claimed) return;
-    struct timeval tv;
-    (void)gettimeofday(&tv, 0);
-    int sec = tv.tv_sec;
-    bool anything = false;
-
-    for (size_t i = 0; i < m_objects.size(); ++i) {
-	ObjectTimePair &pair = m_objects[i];
+    auto tv = std::chrono::high_resolution_clock::now();
+    auto sec = std::chrono::duration_cast<std::chrono::nanoseconds>(tv.time_since_epoch()).count();
+    auto anything = false;
+    for ( auto &pair : m_objects ){
         if (!pair.first) continue;
-	if (clearNow || pair.second + m_sec < sec) {
-	    T *ot = pair.first;
-	    pair.first = 0;
+	if (clearNow || pair.second + m_sec < sec) 
+        {
+	    auto ot = std::exchange(pair.first,nullptr);
 	    delete ot;
 	    ++m_scavenged;
             anything = true;
@@ -198,17 +173,14 @@ Scavenger<T>::scavenge(bool clearNow){
     }
     if (clearNow || anything || (sec > m_lastExcess + m_sec)) {clearExcess(sec);}
 }
-
 template <typename T>
 void
 Scavenger<T>::pushExcess(T *t){
     std::unique_lock<std::mutex> lock(m_excessMutex);
     m_excess.push_back(t);
-    struct timeval tv;
-    (void)gettimeofday(&tv, 0);
-    m_lastExcess = tv.tv_sec;
+    auto sec = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    m_lastExcess = sec;
 }
-
 template <typename T>
 void
 Scavenger<T>::clearExcess(int sec){
@@ -216,15 +188,13 @@ Scavenger<T>::clearExcess(int sec){
     std::cerr << "Scavenger::clearExcess: Excess now " << m_excess.size() << std::endl;
 #endif
     std::unique_lock<std::mutex> lock(m_excessMutex);
-    for (typename ObjectList::iterator i = m_excess.begin();
-	 i != m_excess.end(); ++i) {
-	delete *i;
-        ++m_asExcess;
+    for ( auto it : m_excess )
+    {
+        delete it;
+        ++ m_asExcess;
     }
     m_excess.clear();
     m_lastExcess = sec;
 }
-
 }
-
 #endif

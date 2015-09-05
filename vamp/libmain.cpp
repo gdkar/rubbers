@@ -24,16 +24,16 @@
 #include <vamp/vamp.h>
 #include <vamp-sdk/PluginAdapter.h>
 
-#include "RubberBandVampPlugin.h"
+#include "RubbersVampPlugin.h"
 
 
 const VampPluginDescriptor *vampGetPluginDescriptor(unsigned int version,
                                                     unsigned int index)
 {
-    static Vamp::PluginAdapter<RubberBandVampPlugin> rubberBandAdapter;
+    static Vamp::PluginAdapter<RubbersVampPlugin> rubbersAdapter;
     if (version < 1) return nullptr;
     switch (index) {
-    case  0: return rubberBandAdapter.getDescriptor();
+    case  0: return rubbersAdapter.getDescriptor();
     default: return nullptr;
     }
 }

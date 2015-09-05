@@ -40,7 +40,6 @@
 
 #ifndef NO_TIMING
 #ifdef PROFILE_CLOCKS
-#include <ctime>
 #else
 #include "system/sysutils.h"
 #ifndef _WIN32
@@ -52,6 +51,10 @@
 #ifndef NO_TIMING
 #include <map>
 #include <string>
+#include <ctime>
+#include <chrono>
+#include <atomic>
+#include <thread>
 #endif
 
 namespace Rubbers {
@@ -62,28 +65,19 @@ class Profiler
 {
 public:
     Profiler(const char *name);
-    ~Profiler();
-
+    virtual ~Profiler();
     void end(); // same action as dtor
-
     static void dump();
-
     // Unlike the other functions, this is only defined if NO_TIMING
     // is not set (because it uses std::string which is otherwise
     // unused here). So, treat this as a tricksy internal function
     // rather than an API call and guard any call to it appropriately.
     static std::string getReport();
-
 protected:
-    const char* m_c;
-#ifdef PROFILE_CLOCKS
-    clock_t m_start;
-#else
-    struct timeval m_start;
-#endif
-    bool m_showOnDestruct;
-    bool m_ended;
-
+    const char* m_c = nullptr;
+    std::chrono::time_point m_start;
+    bool m_showOnDestruct = false;
+    bool m_ended          = false;
     typedef std::pair<int, float> TimePair;
     typedef std::map<const char *, TimePair> ProfileMap;
     typedef std::map<const char *, float> WorstCallMap;
@@ -104,19 +98,17 @@ class Profiler
 {
 public:
     Profiler(const char *) { }
-    ~Profiler() { }
-
+    virtual ~Profiler() { }
     void end() { }
     static void dump() { }
 };
 
 #else
-
 class Profiler
 {
 public:
     Profiler(const char *);
-    ~Profiler();
+    virtual ~Profiler();
 
     void end();
     static void dump();

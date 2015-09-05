@@ -60,7 +60,7 @@ public:
      */
     typedef size_t size_type;
     RingBuffer(size_type  n);
-    virtual ~RingBuffer();
+    virtual ~RingBuffer() = default;
     /**
      * Return the total capacity of the ring buffer in samples.
      * (This is the argument n passed to the constructor.)
@@ -75,11 +75,6 @@ public:
      * size, the contents are undefined.
      */
     virtual RingBuffer<T> *resized(size_type newSize) const;
-    /**
-     * Lock the ring buffer into physical memory.  Returns true
-     * for success.
-     */
-    virtual bool mlock();
     /**
      * Reset read and write pointers, thus emptying the buffer.
      * Should be called from the write thread.
@@ -169,7 +164,6 @@ protected:
     std::unique_ptr<T[]>       m_buffer { nullptr };
     std::atomic<size_type>    m_writer { 0 };
     std::atomic<size_type>    m_reader { 0 };
-    bool                      m_mlocked = false;
     size_type readSpaceFor(size_type w, size_type  r) const {
         return ( w > r ) ? w - r : 0;
     }
@@ -182,10 +176,6 @@ RingBuffer<T>::RingBuffer(typename RingBuffer<T>::size_type n) :
     m_size(n),
     m_buffer(std::make_unique<T[]>(n))
 {}
-template <typename T>
-RingBuffer<T>::~RingBuffer(){
-    if (m_mlocked) { MUNLOCK((void *)&m_buffer[0], m_size * sizeof(T)); }
-}
 template <typename T>
 typename RingBuffer<T>::size_type
 RingBuffer<T>::size() const{return m_size;}
@@ -202,14 +192,6 @@ RingBuffer<T>::resized(typename RingBuffer<T>::size_type newSize) const{
     }
     return newBuffer;
 }
-template <typename T>
-bool
-RingBuffer<T>::mlock(){
-    if (MLOCK((void *)(&m_buffer[0]), m_size * sizeof(T))) return false;
-    m_mlocked = true;
-    return true;
-}
-
 template <typename T>
 void
 RingBuffer<T>::reset(){ m_reader.store(m_writer.load()); }
@@ -263,10 +245,13 @@ RingBuffer<T>::readAdding(S *const  destination, RingBuffer<T>::size_type n){
     auto here = m_size - off;
     auto bufbase = &m_buffer[off];
     if (here >= n) {
-        v_add(destination, bufbase, n);
+        std::transform ( destination, destination + n, bufbase, destination,
+                [](auto x, auto y ){return x+y;});
     } else {
-        v_add(destination, bufbase, here);
-        v_add(destination + here, m_buffer, n - here);
+        std::transform ( destination, destination + here, bufbase, destination,
+                [](auto x, auto y ){return x+y;});
+        std::transform ( destination + here, destination + n, &m_buffer[0], destination+here,
+                [](auto x, auto y ){return x+y;});
     }
     m_reader += n;
     return n;
@@ -361,7 +346,6 @@ RingBuffer<T>::write(const S *const source, typename RingBuffer<T>::size_type n)
     m_writer += n;
     return n;
 }
-
 template <typename T>
 typename RingBuffer<T>::size_type
 RingBuffer<T>::zero(typename RingBuffer<T>::size_type  n){

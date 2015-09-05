@@ -50,7 +50,7 @@ public:
     bool m_phaseIndependent;
     int m_windowLength;
 
-    RubberBand::RubberBandStretcher *m_stretcher;
+    Rubbers::RubbersStretcher *m_stretcher;
 
     int m_incrementsOutput;
     int m_aggregateIncrementsOutput;
@@ -371,34 +371,34 @@ RubbersVampPlugin::initialise(size_t channels, size_t stepSize, size_t blockSize
     m_d->m_stepSize = std::min(stepSize, blockSize);
     m_d->m_blockSize = stepSize;
 
-    RubberBand::RubberBandStretcher::Options options = 0;
+    Rubbers::RubbersStretcher::Options options = 0;
 
     if (m_d->m_realtime)
-         options |= RubberBand::RubberBandStretcher::OptionProcessRealTime;
-    else options |= RubberBand::RubberBandStretcher::OptionProcessOffline;
+         options |= Rubbers::RubbersStretcher::OptionProcessRealTime;
+    else options |= Rubbers::RubbersStretcher::OptionProcessOffline;
 
     if (m_d->m_elasticTiming)
-         options |= RubberBand::RubberBandStretcher::OptionStretchElastic;
-    else options |= RubberBand::RubberBandStretcher::OptionStretchPrecise;
+         options |= Rubbers::RubbersStretcher::OptionStretchElastic;
+    else options |= Rubbers::RubbersStretcher::OptionStretchPrecise;
  
     if (m_d->m_transientMode == 0) 
-         options |= RubberBand::RubberBandStretcher::OptionTransientsMixed;
+         options |= Rubbers::RubbersStretcher::OptionTransientsMixed;
     else if (m_d->m_transientMode == 1) 
-         options |= RubberBand::RubberBandStretcher::OptionTransientsSmooth;
-    else options |= RubberBand::RubberBandStretcher::OptionTransientsCrisp;
+         options |= Rubbers::RubbersStretcher::OptionTransientsSmooth;
+    else options |= Rubbers::RubbersStretcher::OptionTransientsCrisp;
 
     if (m_d->m_phaseIndependent) 
-         options |= RubberBand::RubberBandStretcher::OptionPhaseIndependent;
-    else options |= RubberBand::RubberBandStretcher::OptionPhaseLaminar;
+         options |= Rubbers::RubbersStretcher::OptionPhaseIndependent;
+    else options |= Rubbers::RubbersStretcher::OptionPhaseLaminar;
 
     if (m_d->m_windowLength == 0)
-         options |= RubberBand::RubberBandStretcher::OptionWindowStandard;
+         options |= Rubbers::RubbersStretcher::OptionWindowStandard;
     else if (m_d->m_windowLength == 1)
-         options |= RubberBand::RubberBandStretcher::OptionWindowShort;
-    else options |= RubberBand::RubberBandStretcher::OptionWindowLong;
+         options |= Rubbers::RubbersStretcher::OptionWindowShort;
+    else options |= Rubbers::RubbersStretcher::OptionWindowLong;
 
     delete m_d->m_stretcher;
-    m_d->m_stretcher = new RubberBand::RubberBandStretcher
+    m_d->m_stretcher = new Rubbers::RubbersStretcher
         (m_d->m_sampleRate, channels, options);
     m_d->m_stretcher->setDebugLevel(1);
     m_d->m_stretcher->setTimeRatio(m_d->m_timeRatio);
@@ -463,7 +463,7 @@ RubbersVampPlugin::Impl::getRemainingFeaturesOffline()
 
     int rate = m_sampleRate;
 
-    RubberBand::StretchCalculator sc(rate, m_stretcher->getInputIncrement(), true);
+    Rubbers::StretchCalculator sc(rate, m_stretcher->getInputIncrement(), true);
 
     size_t inputIncrement = m_stretcher->getInputIncrement();
     std::vector<int> outputIncrements = m_stretcher->getOutputIncrements();

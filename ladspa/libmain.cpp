@@ -21,7 +21,7 @@
     you must obtain a valid commercial licence before doing so.
 */
 
-#include "RubberBandPitchShifter.h"
+#include "RubbersPitchShifter.h"
 
 #include <stdio.h>
 
@@ -29,7 +29,7 @@ extern "C" {
 
 const LADSPA_Descriptor *ladspa_descriptor(unsigned long index)
 {
-    return RubberBandPitchShifter::getDescriptor(index);
+    return RubbersPitchShifter::getDescriptor(index);
 }
 
 }

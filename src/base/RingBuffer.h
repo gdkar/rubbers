@@ -353,14 +353,13 @@ RingBuffer<T>::zero(typename RingBuffer<T>::size_type  n){
     auto r = m_reader.load();
     auto available = writeSpaceFor(w, r);
     if (n > available) {
-	std::cerr << "WARNING: RingBuffer::zero: " << n
-                  << " requested, only room for " << available << std::endl;
+	std::cerr << "WARNING: RingBuffer::zero: " << n << " requested, only room for " << available << std::endl;
 	n = available;
     }
     if (n == 0) return n;
     auto off = w %m_size;
     auto here = m_size - off;
-    auto  bufbase = &m_buffer[off];
+    auto bufbase = &m_buffer[off];
     if (here >= n) {std::fill_n(bufbase, n, T{0});}
     else {
         std::fill_n ( bufbase, here, T{0});

@@ -30,9 +30,7 @@
 namespace Rubbers 
 {
       
-RubbersStretcher::Impl::ChannelData::ChannelData(size_t windowSize,
-                                                    size_t fftSize,
-                                                    size_t outbufSize){
+RubbersStretcher::Impl::ChannelData::ChannelData(size_t windowSize,size_t fftSize,size_t outbufSize){
     std::set<size_t> s;
     construct(s, windowSize, fftSize, outbufSize);
 }
@@ -85,7 +83,7 @@ RubbersStretcher::Impl::ChannelData::construct(const std::set<size_t> &sizes,
         ffts[size]->initFloat();
     }
     fft = ffts[initialFftSize].get();
-    resampler = 0;
+    resampler = nullptr;
     resamplebuf = 0;
     resamplebufSize = 0;
     reset();
@@ -169,7 +167,6 @@ RubbersStretcher::Impl::ChannelData::setResampleBufSize(size_t sz){
     resamplebufSize = sz;
 }
 RubbersStretcher::Impl::ChannelData::~ChannelData(){
-    delete resampler;
     deallocate(resamplebuf);
     delete inbuf;
     delete outbuf;

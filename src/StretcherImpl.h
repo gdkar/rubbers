@@ -183,16 +183,14 @@ protected:
 
     ProcessMode m_mode;
 
-    std::map<size_t, Window<float> *> m_windows;
-    std::map<size_t, SincWindow<float> *> m_sincs;
+    std::map<size_t, std::unique_ptr<Window<float> > > m_windows;
+    std::map<size_t, std::unique_ptr<SincWindow<float> > > m_sincs;
     Window<float> *m_awindow;
     SincWindow<float> *m_afilter;
     Window<float> *m_swindow;
-    FFT *m_studyFFT;
-
+    std::unique_ptr<FFT> m_studyFFT;
 #ifndef NO_THREADING
     Condition m_spaceAvailable;
-    
     class ProcessThread : public Thread
     {
     public:
@@ -210,9 +208,7 @@ protected:
     mutable std::mutex m_threadSetMutex;
     typedef std::set<ProcessThread *> ThreadSet;
     ThreadSet m_threadSet;
-    
 #endif
-
     size_t m_inputDuration;
     CompoundAudioCurve::Type m_detectorType;
     std::vector<float> m_phaseResetDf;
@@ -226,10 +222,10 @@ protected:
     mutable RingBuffer<float>     m_lastProcessPhaseResetDf;
     Scavenger<RingBuffer<float> > m_emergencyScavenger;
 
-    CompoundAudioCurve   *m_phaseResetAudioCurve;
-    AudioCurveCalculator *m_stretchAudioCurve;
-    AudioCurveCalculator *m_silentAudioCurve;
-    StretchCalculator    *m_stretchCalculator;
+    CompoundAudioCurve   *m_phaseResetAudioCurve = nullptr;
+    AudioCurveCalculator *m_stretchAudioCurve    = nullptr;
+    AudioCurveCalculator *m_silentAudioCurve     = nullptr;
+    std::unique_ptr<StretchCalculator>    m_stretchCalculator { nullptr } ;
 
     float m_freq0;
     float m_freq1;
@@ -237,8 +233,7 @@ protected:
 
     size_t m_baseFftSize;
     float m_rateMultiple;
-    void writeOutput(RingBuffer<float> &to, float *from,
-                     size_t qty, size_t &outCount, size_t theoreticalOut);
+    void writeOutput(RingBuffer<float> &to, float *from, size_t qty, size_t &outCount, size_t theoreticalOut);
     static int m_defaultDebugLevel;
     static const size_t m_defaultIncrement;
     static const size_t m_defaultFftSize;

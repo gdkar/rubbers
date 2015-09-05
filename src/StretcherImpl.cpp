@@ -83,20 +83,10 @@ RubbersStretcher::Impl::Impl(size_t sampleRate,
     m_options(options),
     m_debugLevel(m_defaultDebugLevel),
     m_mode(JustCreated),
-    m_awindow(0),
-    m_afilter(0),
-    m_swindow(0),
-    m_studyFFT(0),
-    m_inputDuration(0),
     m_detectorType(CompoundAudioCurve::CompoundDetector),
-    m_silentHistory(0),
     m_lastProcessOutputIncrements(16),
     m_lastProcessPhaseResetDf(16),
     m_emergencyScavenger(10, 4),
-    m_phaseResetAudioCurve(0),
-    m_stretchAudioCurve(0),
-    m_silentAudioCurve(0),
-    m_stretchCalculator(0),
     m_freq0(600),
     m_freq1(1200),
     m_freq2(12000),
@@ -141,16 +131,6 @@ RubbersStretcher::Impl::~Impl(){
     delete m_phaseResetAudioCurve;
     delete m_stretchAudioCurve;
     delete m_silentAudioCurve;
-    delete m_stretchCalculator;
-    delete m_studyFFT;
-    for (map<size_t, Window<float> *>::iterator i = m_windows.begin();
-         i != m_windows.end(); ++i) {
-        delete i->second;
-    }
-    for (map<size_t, SincWindow<float> *>::iterator i = m_sincs.begin();
-         i != m_sincs.end(); ++i) {
-        delete i->second;
-    }
 }
 void
 RubbersStretcher::Impl::reset(){
@@ -437,14 +417,13 @@ RubbersStretcher::Impl::configure(){
     windowSizes.insert(m_aWindowSize);
     windowSizes.insert(m_sWindowSize);
     if (windowSizeChanged) {
-        for (set<size_t>::const_iterator i = windowSizes.begin();
-             i != windowSizes.end(); ++i) {
-            if (m_windows.find(*i) == m_windows.end()) {m_windows[*i] = new Window<float>(HanningWindow, *i);}
-            if (m_sincs.find(*i) == m_sincs.end()) {m_sincs[*i] = new SincWindow<float>(*i, *i);}
+        for (auto  i : windowSizes ){
+            if (m_windows.find(i) == m_windows.end()) {m_windows[i] = std::make_unique< Window<float> >(HanningWindow, i);}
+            if (m_sincs.find(i) == m_sincs.end()) {m_sincs[i] = std::make_unique<SincWindow<float> > (i, i);}
         }
-        m_awindow = m_windows[m_aWindowSize];
-        m_afilter = m_sincs[m_aWindowSize];
-        m_swindow = m_windows[m_sWindowSize];
+        m_awindow = m_windows[m_aWindowSize].get();
+        m_afilter = m_sincs[m_aWindowSize].get();
+        m_swindow = m_windows[m_sWindowSize].get();
         if (m_debugLevel > 0) {
             cerr << "Window area: " << m_awindow->getArea() << "; synthesis window area: " << m_swindow->getArea() << endl;
         }
@@ -461,8 +440,7 @@ RubbersStretcher::Impl::configure(){
         }
     }
     if (!m_realtime && fftSizeChanged) {
-        delete m_studyFFT;
-        m_studyFFT = new FFT(m_fftSize, m_debugLevel);
+        m_studyFFT = std::make_unique<FFT>(m_fftSize, m_debugLevel);
         m_studyFFT->initFloat();
     }
     if (m_pitchScale != 1.0 ||
@@ -470,7 +448,7 @@ RubbersStretcher::Impl::configure(){
         m_realtime) {
         for (size_t c = 0; c < m_channels; ++c) {
             if (m_channelData[c]->resampler) continue;
-            m_channelData[c]->resampler = new Resampler(Resampler::FastestTolerable, 1, 4096 * 16, m_debugLevel);
+            m_channelData[c]->resampler = std::make_unique<Resampler>(Resampler::FastestTolerable, 1, 4096 * 16, m_debugLevel);
 
             // rbs is the amount of buffer space we think we'll need
             // for resampling; but allocate a sensible amount in case
@@ -494,12 +472,10 @@ RubbersStretcher::Impl::configure(){
             m_stretchAudioCurve = new SpectralDifferenceAudioCurve
                 (SpectralDifferenceAudioCurve::Parameters(m_sampleRate, m_fftSize));
         } else {
-            m_stretchAudioCurve = new ConstantAudioCurve
-                (ConstantAudioCurve::Parameters(m_sampleRate, m_fftSize));
+            m_stretchAudioCurve = new ConstantAudioCurve (ConstantAudioCurve::Parameters(m_sampleRate, m_fftSize));
         }
     }
-    delete m_stretchCalculator;
-    m_stretchCalculator = new StretchCalculator (m_sampleRate, m_increment,!(m_options & OptionTransientsSmooth));
+    m_stretchCalculator = std::make_unique<StretchCalculator >(m_sampleRate, m_increment,!(m_options & OptionTransientsSmooth));
     m_stretchCalculator->setDebugLevel(m_debugLevel);
     m_inputDuration = 0;
     // Prepare the inbufs with half a chunk of emptiness.  The centre
@@ -549,21 +525,17 @@ RubbersStretcher::Impl::reconfigure(){
         m_sWindowSize != prevSWindowSize) {
         if (m_windows.find(m_aWindowSize) == m_windows.end()) {
             std::cerr << "WARNING: reconfigure(): window allocation (size " << m_aWindowSize << ") required in RT mode" << std::endl;
-            m_windows[m_aWindowSize] = new Window<float>
-                (HanningWindow, m_aWindowSize);
-            m_sincs[m_aWindowSize] = new SincWindow<float>
-                (m_aWindowSize, m_aWindowSize);
+            m_windows[m_aWindowSize] = std::make_unique< Window<float> > (HanningWindow, m_aWindowSize);
+            m_sincs[m_aWindowSize] = std::make_unique< SincWindow<float> > (m_aWindowSize, m_aWindowSize);
         }
         if (m_windows.find(m_sWindowSize) == m_windows.end()) {
             std::cerr << "WARNING: reconfigure(): window allocation (size " << m_sWindowSize << ") required in RT mode" << std::endl;
-            m_windows[m_sWindowSize] = new Window<float>
-                (HanningWindow, m_sWindowSize);
-            m_sincs[m_sWindowSize] = new SincWindow<float>
-                (m_sWindowSize, m_sWindowSize);
+            m_windows[m_sWindowSize] = std::make_unique< Window<float> > (HanningWindow, m_sWindowSize);
+            m_sincs[m_sWindowSize] = std::make_unique< SincWindow<float> > (m_sWindowSize, m_sWindowSize);
         }
-        m_awindow = m_windows[m_aWindowSize];
-        m_afilter = m_sincs[m_aWindowSize];
-        m_swindow = m_windows[m_sWindowSize];
+        m_awindow = m_windows[m_aWindowSize].get();
+        m_afilter = m_sincs[m_aWindowSize].get();
+        m_swindow = m_windows[m_sWindowSize].get();
         for (size_t c = 0; c < m_channels; ++c) {
             m_channelData[c]->setSizes(std::max(m_aWindowSize, m_sWindowSize), m_fftSize);
         }
@@ -573,7 +545,7 @@ RubbersStretcher::Impl::reconfigure(){
         for (size_t c = 0; c < m_channels; ++c) {
             if (m_channelData[c]->resampler) continue;
             std::cerr << "WARNING: reconfigure(): resampler construction required in RT mode" << std::endl;
-            m_channelData[c]->resampler = new Resampler(Resampler::FastestTolerable, 1, m_sWindowSize,m_debugLevel);
+            m_channelData[c]->resampler = std::make_unique<Resampler> (Resampler::FastestTolerable, 1, m_sWindowSize,m_debugLevel);
             size_t rbs =  lrintf(ceil((m_increment * m_timeRatio * 2) / m_pitchScale));
             if (rbs < m_increment * 16) rbs = m_increment * 16;
             m_channelData[c]->setResampleBufSize(rbs);

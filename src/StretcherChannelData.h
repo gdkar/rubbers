@@ -114,7 +114,7 @@ public:
     bool outputComplete;
     FFT *fft;
     std::map<size_t, std::unique_ptr<FFT> > ffts;
-    Resampler *resampler;
+    std::unique_ptr<Resampler> resampler;
     float *resamplebuf;
     size_t resamplebufSize;
 protected:

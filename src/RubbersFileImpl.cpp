@@ -257,8 +257,9 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
   }
   else if ( offset >= av_rescale_q ( m_pkt_array.back().pts, m_stream_tb, m_output_tb ) )
   {
-    m_pkt_index = m_pkt_array.size() - 1;
+    m_pkt_index = m_pkt_array.size() - 2;
     m_packet    = m_pkt_array.at(m_pkt_index);
+    avcodec_flush_buffers(m_codec_ctx);
     decode_one_frame ();
     first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
     m_offset = offset - first_sample;
@@ -269,6 +270,7 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
   {
     m_pkt_index = 0;
     m_packet    = m_pkt_array.at(m_pkt_index );
+    avcodec_flush_buffers(m_codec_ctx);
     decode_one_frame ();
     first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
     if ( offset < first_sample ) offset = first_sample;
@@ -281,7 +283,7 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
   auto lpts   = m_pkt_array.at(lindex).pts;
   auto target_pts = av_rescale_q ( offset, m_output_tb, m_stream_tb );
   auto iteration = 0;
-  auto bail = 0;
+  auto bail = false;
   while ( hindex > lindex + 1 )
   {
     iteration++;
@@ -291,25 +293,22 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
     auto mindex     = decltype(hindex)(( ( time_frac * index_dist ) / time_dist )) + lindex;
     if ( mindex <= lindex ) 
     {
-      if ( bail == 0 )
+      if ( bail )
       {
-        mindex = lindex + 1;
-        bail   = 1;
+        mindex = ( index_dist / 2 ) + lindex;
       }
       else
       {
-        mindex = ( index_dist / 2 ) + lindex;
+        mindex = lindex + 1;
+        bail   = true;
       }
     }
     else
     {
-      bail = 0;
+      bail = false;
     }
     auto mpts = m_pkt_array.at ( mindex ).pts;
     auto npts = m_pkt_array.at ( mindex + 1 ).pts;
-    std::cerr << __FILE__ << " line " << __LINE__ << " in function " << __FUNCTION__ << std::endl;
-    std::cerr << "iteration " << iteration << ": lindex = " << lindex << " , hindex = " << hindex << ", time_dist = " << time_dist << 
-      ", time_frac = " << time_frac << ", mindex = " << mindex << " target_pts = " << target_pts << " mpts = " << mpts << std::endl;
     if ( mpts > target_pts )
     {
       hindex = mindex;
@@ -327,16 +326,11 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
     }
   }
   m_pkt_index = lindex;
+  if(m_pkt_index > 0 ) m_pkt_index--;
+  if(m_pkt_index > 0 ) m_pkt_index--;
   m_packet    = m_pkt_array.at ( m_pkt_index );
+  avcodec_flush_buffers(m_codec_ctx);
   decode_one_frame ();
-  if ( m_frame->pts > target_pts || m_frame->pts + av_rescale_q ( m_frame->nb_samples, m_output_tb, m_stream_tb ) <= target_pts )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error in seek: seeking to " << offset << " with pts " << target_pts << " failed\n";
-  }
   first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
   m_offset = offset - first_sample;
   return offset;

@@ -29,7 +29,7 @@
 //#define DEBUG_RINGBUFFER 1
 
 #include "system/sysutils.h"
-
+#include "system/Math.h"
 #include <atomic>
 #include <algorithm>
 #include <utility>
@@ -173,8 +173,8 @@ protected:
 };
 template <typename T>
 RingBuffer<T>::RingBuffer(typename RingBuffer<T>::size_type n) :
-    m_size(n),
-    m_buffer(std::make_unique<T[]>(n))
+    m_size(roundup(n)),
+    m_buffer(std::make_unique<T[]>(m_size))
 {}
 template <typename T>
 typename RingBuffer<T>::size_type
@@ -182,7 +182,8 @@ RingBuffer<T>::size() const{return m_size;}
 template <typename T>
 RingBuffer<T> *
 RingBuffer<T>::resized(typename RingBuffer<T>::size_type newSize) const{
-    auto newBuffer = new RingBuffer<T>(newSize);
+    newSize = std::max(newSize,size()+1);
+    auto newBuffer = new RingBuffer<T>(roundup(newSize));
     auto w = m_writer.load();
     auto r = m_reader.load();
     while (r != w) {
@@ -330,7 +331,7 @@ RingBuffer<T>::write(const S *const source, typename RingBuffer<T>::size_type n)
     auto available = writeSpaceFor(w, r);
     if (n > available) {
 	std::cerr << "WARNING: RingBuffer::write: " << n
-                  << " requested, only room for " << available << std::endl;
+                  << " requested, only room for " << available  << " out of " << m_size << std::endl;
 	n = available;
     }
     if (n == 0) return n;

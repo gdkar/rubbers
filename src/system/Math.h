@@ -6,8 +6,8 @@
 #include <valarray>
 #include <algorithm>
 #include <memory>
-#include "sys/VectorOps.h"
-#include "sys/VectorOpsComplex.h"
+#include "system/VectorOps.h"
+#include "system/VectorOpsComplex.h"
 
 template<typename T>
 inline constexpr T roundup ( T x )

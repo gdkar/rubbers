@@ -31,7 +31,7 @@
 #include "dsp/FFT.h"
 
 #include "audiocurves/CompoundAudioCurve.h"
-
+#include "StretchCalculator.h"
 #include "base/RingBuffer.h"
 #include "base/Scavenger.h"
 #include "system/Thread.h"
@@ -45,7 +45,6 @@ namespace Rubbers
 {
 
 class AudioCurveCalculator;
-class StretchCalculator;
 
 class RubbersStretcher::Impl
 {

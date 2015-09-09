@@ -29,7 +29,8 @@ extern "C" {
 #include "rubbers/RubbersFile.h"
 #include <iostream>
 #include <cmath>
-#include <time.h>
+#include <random>
+#include <ctime>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -47,7 +48,6 @@ extern "C" {
 #endif
 
 #include "base/Profiler.h"
-
 using namespace std;
 using namespace Rubbers;
 
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
         double induration = double(length) / double(rubbersFile->rate());
         if (induration != 0.0) ratio = duration / induration;
     }
-    auto ibs = 1024;
+    auto ibs = 1<<16;
     auto channels = rubbersFile->channels();
     auto rate = rubbersFile->rate();
     RubbersStretcher::Options options = 0;
@@ -363,6 +363,53 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < channels; ++i) ibuf[i] = new float[ibs];
     int frame = 0;
     int percent = 0;
+    rubbersFile->seek(0,SEEK_SET);
+    {
+        auto obuf = new float *[channels];
+        for ( size_t i = 0; i < channels; i++)obuf[i] = new float[ibs];
+        auto dis = std::bind(std::uniform_int_distribution<>(0,length),std::mt19937(std::random_device{}()));
+        auto dis_off = std::bind(std::uniform_int_distribution<>(-2048,2048),std::mt19937(std::random_device{}()));
+        for ( auto n = 0; n < 64; n++ )
+        {
+            auto loc0 = dis();
+            auto offset = dis_off();
+            auto loc1 = loc0 + offset;
+            rubbersFile->seek(loc0,SEEK_SET);
+            rubbersFile->read(ibuf,ibs);
+            rubbersFile->seek(loc1,SEEK_SET);
+            rubbersFile->read(obuf,ibs);
+            auto diff_acc = 0.f;
+            auto norm_acc = 0.f;
+            auto worst    = 0.f;
+            auto idx0 = 0, idx1 = 0;
+            if ( loc0 < loc1 )
+            {
+                idx0 = std::abs(loc1 - loc0);
+            }
+            else
+            {
+                idx1 = std::abs(loc0 - loc1);
+            }
+            auto stop = std::min(std::min ( loc0+ibs,loc1+ibs) - std::max(loc0,loc1),2048);
+            for(auto i = 0; i < stop; i++){
+                for ( auto c = 0; c < channels; c++)
+                {
+                    auto one = ibuf[c][i+idx0];
+                    auto two = obuf[c][i+idx1];
+                    norm_acc += one*one+two*two;
+                    diff_acc += ( one-two)*(one-two);
+                    worst = std::max(worst,std::abs(one-two));
+                }
+            }
+            norm_acc /= (channels*stop);
+            diff_acc /= (channels*stop);
+            norm_acc = std::sqrt(norm_acc);
+            diff_acc = std::sqrt(diff_acc);
+            std::cerr << "round " << n << " loc0 = " << loc0 << " loc1 = " << loc1 << " stop=" << stop << " norm = " << norm_acc << " diff = " << diff_acc << " diff/norm = " << diff_acc/norm_acc << " worst = " << worst << std::endl;
+        }
+        for(size_t i = 0; i < channels; i ++ ) delete[] obuf[i];
+        delete[] obuf;
+    };
     rubbersFile->seek(0,SEEK_SET);
     if (!realtime) {
         if (!quiet) {cerr << "Pass 1: Studying..." << endl;}

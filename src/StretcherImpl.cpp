@@ -337,9 +337,7 @@ RubbersStretcher::Impl::calculateSizes(){
             if (r > 5) while (windowSize < 8192) windowSize *= 2;
         }
     }
-    if (m_expectedInputDuration > 0) {
-        while (inputIncrement * 4 > m_expectedInputDuration && inputIncrement > 1) {inputIncrement /= 2;}
-    }
+    if (m_expectedInputDuration > 0) {while (inputIncrement * 4 > m_expectedInputDuration && inputIncrement > 1) {inputIncrement /= 2;}}
     // m_fftSize can be almost anything, but it can't be greater than
     // 4 * m_baseFftSize unless ratio is less than 1/1024.
     m_fftSize = windowSize;
@@ -446,15 +444,16 @@ RubbersStretcher::Impl::configure(){
     if (m_pitchScale != 1.0 ||
         (m_options & OptionPitchHighConsistency) ||
         m_realtime) {
+        auto rbs =  static_cast<size_t>(lrintf(ceil((m_increment * m_timeRatio * 2) / m_pitchScale)));
+        if (rbs < m_increment * 16) rbs = m_increment * 16;
+
         for (size_t c = 0; c < m_channels; ++c) {
-            if (m_channelData[c]->resampler) continue;
+            if (!m_channelData[c]->resampler) ;
             m_channelData[c]->resampler = std::make_unique<Resampler>(Resampler::FastestTolerable, 1, 4096 * 16, m_debugLevel);
 
             // rbs is the amount of buffer space we think we'll need
             // for resampling; but allocate a sensible amount in case
             // the pitch scale changes during use
-            auto rbs =  static_cast<size_t>(lrintf(ceil((m_increment * m_timeRatio * 2) / m_pitchScale)));
-            if (rbs < m_increment * 16) rbs = m_increment * 16;
             m_channelData[c]->setResampleBufSize(rbs);
         }
     }

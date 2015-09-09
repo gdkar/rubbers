@@ -120,7 +120,5 @@ public:
 protected:
     virtual void construct(const std::set<size_t> &sizes,size_t initialWindowSize, size_t initialFftSize,size_t outbufSize);
 };        
-
 }
-
 #endif

@@ -320,7 +320,7 @@ int main(int argc, char **argv)
             cerr << "ERROR: File lacks frame count or sample rate in header, cannot use --duration" << endl;
             return 1;
         }
-        double induration = double(length) / double(rubbersFile->rate());
+        auto induration = double(length) / double(rubbersFile->rate());
         if (induration != 0.0) ratio = duration / induration;
     }
     auto ibs = 1<<16;
@@ -359,69 +359,28 @@ int main(int argc, char **argv)
     RubbersStretcher ts(rate, channels, options,ratio, frequencyshift);
 
     ts.setExpectedInputDuration(length);
-    auto ibuf = new float *[channels];
-    for (size_t i = 0; i < channels; ++i) ibuf[i] = new float[ibs];
+    auto ibufr = std::make_unique<std::unique_ptr<float[]>[] >(channels);
+    auto ibuf = std::make_unique<float*[]>(channels);
+    for (size_t i = 0; i < channels; ++i) {
+        ibufr[i] = std::make_unique<float[]>(ibs);
+        ibuf[i] = ibufr[i].get();
+    }
     int frame = 0;
     int percent = 0;
-    rubbersFile->seek(0,SEEK_SET);
-    {
-        auto obuf = new float *[channels];
-        for ( size_t i = 0; i < channels; i++)obuf[i] = new float[ibs];
-        auto dis = std::bind(std::uniform_int_distribution<>(0,length),std::mt19937(std::random_device{}()));
-        auto dis_off = std::bind(std::uniform_int_distribution<>(-2048,2048),std::mt19937(std::random_device{}()));
-        for ( auto n = 0; n < 64; n++ )
-        {
-            auto loc0 = dis();
-            auto offset = dis_off();
-            auto loc1 = loc0 + offset;
-            rubbersFile->seek(loc0,SEEK_SET);
-            rubbersFile->read(ibuf,ibs);
-            rubbersFile->seek(loc1,SEEK_SET);
-            rubbersFile->read(obuf,ibs);
-            auto diff_acc = 0.f;
-            auto norm_acc = 0.f;
-            auto worst    = 0.f;
-            auto idx0 = 0, idx1 = 0;
-            if ( loc0 < loc1 )
-            {
-                idx0 = std::abs(loc1 - loc0);
-            }
-            else
-            {
-                idx1 = std::abs(loc0 - loc1);
-            }
-            auto stop = std::min(std::min ( loc0+ibs,loc1+ibs) - std::max(loc0,loc1),2048);
-            for(auto i = 0; i < stop; i++){
-                for ( auto c = 0; c < channels; c++)
-                {
-                    auto one = ibuf[c][i+idx0];
-                    auto two = obuf[c][i+idx1];
-                    norm_acc += one*one+two*two;
-                    diff_acc += ( one-two)*(one-two);
-                    worst = std::max(worst,std::abs(one-two));
-                }
-            }
-            norm_acc /= (channels*stop);
-            diff_acc /= (channels*stop);
-            norm_acc = std::sqrt(norm_acc);
-            diff_acc = std::sqrt(diff_acc);
-            std::cerr << "round " << n << " loc0 = " << loc0 << " loc1 = " << loc1 << " stop=" << stop << " norm = " << norm_acc << " diff = " << diff_acc << " diff/norm = " << diff_acc/norm_acc << " worst = " << worst << std::endl;
-        }
-        for(size_t i = 0; i < channels; i ++ ) delete[] obuf[i];
-        delete[] obuf;
-    };
     rubbersFile->seek(0,SEEK_SET);
     if (!realtime) {
         if (!quiet) {cerr << "Pass 1: Studying..." << endl;}
         while (frame < length) {
             int count = -1;
-            count = rubbersFile->read(ibuf,ibs );
+            count = rubbersFile->read(ibuf.get(),ibs );
             bool final = (frame + ibs >= length);
-            ts.study(ibuf, count, final);
+            ts.study(ibuf.get(), count, final);
             int p = int((double(frame) * 100.0) / length);
             if (p > percent || frame == 0) {
                 percent = p;
-                if (!quiet) {cerr << "\r" << percent << "% ";}
+                if (!quiet) {
+                    cerr << "\r" << percent << "% ";
+                }
             }
             frame += count;
         }
@@ -433,12 +392,12 @@ int main(int argc, char **argv)
     if (!mapping.empty()) {ts.setKeyFrameMap(mapping);}
     size_t countIn = 0, countOut = 0;
     while (frame < length) {
-        int count = rubbersFile->read(ibuf,ibs);
+        int count = rubbersFile->read(ibuf.get(),ibs);
         bool final = (frame + ibs >= length);
         if (debug > 2) {
             cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << final << endl;
         }
-        ts.process(ibuf, count, final);
+        ts.process(ibuf.get(), count, final);
         countIn += count;
         int avail = ts.available();
         if (debug > 1) cerr << "available = " << avail << endl;

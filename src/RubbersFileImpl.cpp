@@ -5,17 +5,25 @@
 #include <string>
 /* static */
 std::once_flag RubbersFile::Impl::register_once_flag{};
-static inline std::string
-ff_err2str ( int ret )
-{
-  char str[256];
-  av_strerror ( ret, str, sizeof(str) );
-  return std::string(str);
+namespace {
+    inline std::string
+    ff_err2str ( int ret )
+    {
+        char str[256];
+        av_strerror ( ret, str, sizeof(str) );
+        return std::string(str);
+    }
 }
 int
-RubbersFile::Impl::channels() const{return m_channels;}
+RubbersFile::Impl::channels() const
+{
+    return m_channels;
+}
 int
-RubbersFile::Impl::rate() const { return m_rate;}
+RubbersFile::Impl::rate() const
+{
+    return m_rate;
+}
 void
 RubbersFile::Impl::set_channels(int nch )
 {
@@ -37,299 +45,173 @@ RubbersFile::Impl::register_once ( )
 RubbersFile::Impl::Impl ( const char *filename, int nch, int srate)
 {
   std::call_once ( register_once_flag, &RubbersFile::Impl::register_once );
-  m_format_ctx = avformat_alloc_context ( );
-  auto opts = (AVDictionary*)nullptr;
   auto ret = 0;
-  if ( ( ret = avformat_open_input ( &m_format_ctx, filename, nullptr, &opts ) ) < 0 )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error opening file " << filename 
-      << ", " << ff_err2str(ret) << std::endl;
-    return;
+  auto dump_msg = [&](const auto &msg){
+    std::cerr << __FILE__ << " line " << __LINE__ << " in function " << __FUNCTION__
+              << "(for file " << filename << "):\terror " << ret << " ( " << ff_err2str(ret) <<")\t" << msg << std::endl;
+    return std::ref(std::cerr);
+  };
+  if ( ( ret = m_format_ctx.open_input(filename, nullptr, nullptr) ) < 0 ) {
+      dump_msg("error opening file.");
+      return;
   }
-  av_dict_free ( &opts );
-  if ( ( ret = avformat_find_stream_info ( m_format_ctx, nullptr ) ) < 0 )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error finding stream info for file " << filename 
-      << ", " << ff_err2str(ret) << std::endl;
+  if ( ( ret = m_format_ctx.find_stream_info(nullptr)) < 0 ){
+    dump_msg("error finding stream info");
     return;
   }
   std::for_each ( &m_format_ctx->streams[0],
                   &m_format_ctx->streams[m_format_ctx->nb_streams],
-                  ([=](auto &s ){ s->discard = AVDISCARD_ALL;})
+                  ([](auto &s ){ s->discard = AVDISCARD_ALL;})
     );
-  if ( ( ret = av_find_best_stream ( m_format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &m_codec, 0 ) ) < 0 )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error finding audio stream for file " << filename 
-      << ", " << ff_err2str(ret) << std::endl;
+  if ( ( m_stream_index = ret = m_format_ctx.find_best_stream( AVMEDIA_TYPE_AUDIO, -1, -1, &m_codec, 0 ) ) < 0 ){
+    dump_msg("error finding audio stream.");
     return;
   }
-  m_stream_index = ret;
   std::cerr << "found stream " << m_stream_index << " for " << filename << std::endl;
   m_stream       = m_format_ctx->streams[m_stream_index];
   m_stream_tb    = m_stream->time_base;
   m_stream->discard = AVDISCARD_NONE;
-  av_dump_format ( m_format_ctx, 0, filename, false );
-  if ( ! m_codec && !(m_codec = avcodec_find_decoder ( m_stream->codec->codec_id ) ) )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error finding codec for file " << filename 
-      << ", " << ff_err2str(ret) << std::endl;
+  m_format_ctx.dump(0, filename, false );
+  if ( ! m_codec && !(m_codec = avcodec_find_decoder ( m_stream->codecpar->codec_id ) ) ) {
+    ret=AVERROR(ENOENT);dump_msg("error finding codec.");
     return;
   }
-  if ( !(m_codec_ctx       = avcodec_alloc_context3 ( m_codec ) ) )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error allocating codec context for file " << filename 
-      << " with codec " << m_codec->long_name
-      << ", " << ff_err2str(AVERROR(ENOMEM)) << std::endl;
+  m_codec_ctx.alloc(m_stream->codecpar);
+  if ( !(m_codec_ctx )) {
+    ret = AVERROR(ENOMEM);dump_msg("error allocating codec context.");
     return;
 
   }
-  if( (ret = avcodec_copy_context ( m_codec_ctx, m_stream->codec ) ) < 0 )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error copying codec context for " << filename 
-      << " with codec " << m_codec->long_name
-      << ", " << ff_err2str(ret) << std::endl;
-    return;
-  }
-  av_dict_set(&opts,"refcounted_frames","1",0);
-  if( (ret = avcodec_open2( m_codec_ctx, m_codec, &opts) ) < 0 )
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error opening codec context for " << filename 
-      << " with codec " << m_codec->long_name
-      << ", " << ff_err2str(ret) << std::endl;
+  m_codec_ctx.open();
+  if( (ret = m_codec_ctx.open(m_codec, nullptr) ) < 0 ) {
+    dump_msg("error opening codec context.");
     return;
   }
   m_codec_tb = m_codec_ctx->time_base;
-  av_init_packet ( &m_packet );
-  m_packet.data = nullptr;
-  m_packet.size = 0;
+  auto pkt = packet_ptr();
+  pkt.alloc();
   auto discarded = size_t{0};
-  while(ret != AVERROR_EOF)
-  {
-    ret = av_read_frame ( m_format_ctx, &m_packet);
-    if ( ret < 0 )
-    {
+  while(ret != AVERROR_EOF) {
+    ret = m_format_ctx.read_frame(pkt);
+    if ( ret < 0 ) {
       if ( ret != AVERROR_EOF && ret != AVERROR(EAGAIN) ){
-      std::cerr 
-        << __FILE__ 
-        << " line " << __LINE__ 
-        << " in " << __FUNCTION__ 
-        << ": error reading packet for " << filename 
-        << " with codec " << m_codec->long_name
-        << ", " << ff_err2str(ret) << std::endl;
+          dump_msg("error reading packet, codec=" + std::string(m_codec->long_name));
       }
-      av_free_packet ( &m_packet );
-      m_packet.data = nullptr;
-      m_packet.size = 0;
+      pkt.unref();
       if ( ret == AVERROR(EAGAIN) )
-      {
         ret = 0;
-      }
       continue;
     }
-    if ( m_packet.stream_index != m_stream_index )
-    {
+    if ( pkt->stream_index != m_stream_index ) {
       discarded ++;
-      av_free_packet ( &m_packet );
-    }
-    else
-    {
-      av_dup_packet ( &m_packet);
-      m_pkt_array.push_back(m_packet);
-      av_init_packet ( &m_packet );
+      pkt.unref();
+    } else {
+      m_pkt_array.push_back(pkt);
+      pkt.unref();
     }
   }
-  if ( !(m_swr         = swr_alloc ( ) )
-    || !(m_orig_frame  = av_frame_alloc ( ) )
-    || !(m_frame       = av_frame_alloc ( ) ))
-  {
-    std::cerr 
-      << __FILE__ 
-      << " line " << __LINE__ 
-      << " in " << __FUNCTION__ 
-      << ": error allocating codec context for file " << filename 
-      << " with codec " << m_codec->long_name
-      << ", " << ff_err2str(AVERROR(ENOMEM)) << std::endl;
-    return;
-
-  }
+  m_swr.alloc();
+  m_frame.alloc();
+  m_orig_frame.alloc();
   if ( discarded )
-  {
     std::cerr << "discarded " << discarded << " packets from non-audio streams for " << filename << std::endl;
-  }
   if ( m_pkt_array.size() )
-  {
     std::cerr << "accepted " << m_pkt_array.size() << " packets for audio stream " << m_stream_index << " for file " << filename << std::endl;
-  }
-  av_init_packet ( &m_packet );
-  m_packet.data = nullptr;
-  m_packet.size = 0;
-  if ( nch <= 0 )
-  {
+  if ( nch <= 0 ) {
     m_channels = m_codec_ctx->channels;
-  }
-  else
-  {
+  } else {
     m_channels = nch;
   }
-  if ( srate <= 0 )
-  {
+  if ( srate <= 0 ) {
     m_rate = m_codec_ctx->sample_rate;
-  }
-  else
-  {
+  } else {
     m_rate = srate;
   }
   m_output_tb = AVRational{1,m_rate };
   m_pkt_index = 0;
-  if ( m_pkt_index < m_pkt_array.size () )
-  {
-    m_packet = m_pkt_array.at ( m_pkt_index );
-  }
   decode_one_frame ( );
   m_offset    = 0;
   std::cerr << "demuxed " << m_pkt_array.size() << " packets for " << filename;
   std::cerr << filename << " " << channels() << " channels, " << rate() << " rate, " << m_pkt_array.size() << " packets, " << length() << " samples\n";
 }
 
-RubbersFile::Impl::~Impl ( )
-{
-  av_frame_free ( &m_orig_frame  );
-  av_frame_free ( &m_frame       );
-  swr_free      ( &m_swr         );
-  for ( auto & pkt : m_pkt_array )
-  {
-    av_free_packet ( &pkt        );
-  }
-  m_pkt_array.clear ( );
-  avcodec_close ( m_codec_ctx );
-  avcodec_free_context ( &m_codec_ctx );
-  avformat_close_input ( &m_format_ctx );
-}
+RubbersFile::Impl::~Impl ( ) = default;
 size_t RubbersFile::Impl::length ( ) const {
-  return av_rescale_q ( m_pkt_array.back().pts + m_pkt_array.back().duration, m_stream_tb, m_output_tb );
+  return av_rescale_q ( m_pkt_array.back()->pts + m_pkt_array.back()->duration, m_stream_tb, m_output_tb );
 }
 off_t RubbersFile::Impl::seek ( off_t offset, int whence )
 {
-  if ( m_frame->pts == AV_NOPTS_VALUE && !decode_one_frame() ) return -1;
+  if ( m_frame->pts == AV_NOPTS_VALUE && !decode_one_frame() )
+      return -1;
   auto first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
-  if ( whence == SEEK_CUR )
-  {
+  if ( whence == SEEK_CUR ) {
     offset += first_sample + m_offset;
-  }else if ( whence == SEEK_END )
-  {
+  }else if ( whence == SEEK_END ) {
     offset += length();
-  }else if ( whence != SEEK_SET )
-  {
+  }else if ( whence != SEEK_SET ) {
     return first_sample + m_offset;
   }
-  if ( first_sample <= offset && first_sample + m_frame->nb_samples > offset )
-  {
+  if ( first_sample <= offset && first_sample + m_frame->nb_samples > offset ) {
     m_offset = offset - first_sample;
     return offset;
-  }
-  else if ( offset >= av_rescale_q ( m_pkt_array.back().pts, m_stream_tb, m_output_tb ) )
-  {
+  }else if ( offset >= av_rescale_q ( m_pkt_array.back()->pts, m_stream_tb, m_output_tb ) ) {
     m_pkt_index = m_pkt_array.size() - 2;
-    m_packet    = m_pkt_array.at(m_pkt_index);
-    avcodec_flush_buffers(m_codec_ctx);
+    m_codec_ctx.flush();
     decode_one_frame ();
     first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
     m_offset = offset - first_sample;
-    if ( m_offset < 0 ) m_offset = 0;
+    if ( m_offset < 0 )
+        m_offset = 0;
     return offset;
-  }
-  else if ( offset < av_rescale_q ( m_pkt_array.front().pts + m_pkt_array.front().duration, m_stream_tb, m_output_tb ) )
-  {
+  } else if ( offset < av_rescale_q ( m_pkt_array.front()->pts + m_pkt_array.front()->duration, m_stream_tb, m_output_tb ) ) {
     m_pkt_index = 0;
-    m_packet    = m_pkt_array.at(m_pkt_index );
-    avcodec_flush_buffers(m_codec_ctx);
+    m_codec_ctx.flush();
     decode_one_frame ();
     first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
-    if ( offset < first_sample ) offset = first_sample;
+    if ( offset < first_sample )
+        offset = first_sample;
     m_offset = offset - first_sample;
     return offset;
   }
   auto hindex = m_pkt_array.size() - 1;
   auto lindex = decltype(hindex){0};
-  auto hpts   = m_pkt_array.at(hindex).pts;
-  auto lpts   = m_pkt_array.at(lindex).pts;
+  auto hpts   = m_pkt_array.at(hindex)->pts;
+  auto lpts   = m_pkt_array.at(lindex)->pts;
   auto target_pts = av_rescale_q ( offset, m_output_tb, m_stream_tb );
-  auto iteration = 0;
   auto bail = false;
-  while ( hindex > lindex + 1 )
-  {
-    iteration++;
+  while ( hindex > lindex + 1 ) {
     auto time_dist  = hpts       - lpts;
     auto index_dist = hindex     - lindex;
     auto time_frac  = target_pts - lpts;
     auto mindex     = decltype(hindex)(( ( time_frac * index_dist ) / time_dist )) + lindex;
-    if ( mindex <= lindex ) 
-    {
-      if ( bail )
-      {
+    if ( mindex <= lindex )  {
+      if ( bail ) {
         mindex = ( index_dist / 2 ) + lindex;
-      }
-      else
-      {
+      } else {
         mindex = lindex + 1;
         bail   = true;
       }
-    }
-    else
-    {
+    } else {
       bail = false;
     }
-    auto mpts = m_pkt_array.at ( mindex ).pts;
-    auto npts = m_pkt_array.at ( mindex + 1 ).pts;
-    if ( mpts > target_pts )
-    {
+    auto mpts = m_pkt_array.at ( mindex )->pts;
+    auto npts = m_pkt_array.at ( mindex + 1 )->pts;
+    if ( mpts > target_pts ) {
       hindex = mindex;
       hpts   = mpts;
-    }
-    else if ( npts <= target_pts )
-    {
+    } else if ( npts <= target_pts ) {
       lindex = mindex + 1;
       lpts   = npts;
-    }
-    else
-    {
+    } else {
       lindex = mindex;
-      hindex = mindex + 1;
+      break;
     }
   }
   m_pkt_index = lindex;
-  if(m_pkt_index > 0 ) m_pkt_index--;
-  if(m_pkt_index > 0 ) m_pkt_index--;
-  m_packet    = m_pkt_array.at ( m_pkt_index );
-  avcodec_flush_buffers(m_codec_ctx);
+  if(m_pkt_index > 0 )
+      m_pkt_index--;
+  m_codec_ctx.flush();
+  avcodec_flush_buffers(m_codec_ctx.get());
   decode_one_frame ();
   first_sample = av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb );
   m_offset = offset - first_sample;
@@ -338,94 +220,41 @@ off_t RubbersFile::Impl::seek ( off_t offset, int whence )
 bool
 RubbersFile::Impl::decode_one_frame ( )
 {
-  while ( true )
-  {
-    if ( m_packet.size <= 0  )
-    {
-      m_pkt_index++;
-      if ( m_pkt_index >= m_pkt_array.size() )
-      {
-        m_pkt_index    = m_pkt_array.size();
-        av_init_packet ( &m_packet );
-        m_packet.data = nullptr;
-        m_packet.size = 0;
-        return false;
-      }
-      m_packet = m_pkt_array.at ( m_pkt_index );
-      continue;
-    }
-    else
-    {
-      auto ret = int{0}, got_frame = int{0};
-      av_frame_unref ( m_orig_frame );
-      ret = avcodec_decode_audio4 ( m_codec_ctx, m_orig_frame, &got_frame, &m_packet );
-      if ( ret < 0 )
-      {
-        std::cerr 
-          << __FILE__ 
-          << " line " << __LINE__ 
-          << " in " << __FUNCTION__ 
-          << ": error decoding packet"
-          << ", " << ff_err2str(ret) << std::endl;
-        m_packet.size = 0;
-        m_packet.data = nullptr;
-        continue;
-      }
-      else
-      {
-        if ( ret == 0 || ret > m_packet.size )
-        {
-          ret = m_packet.size;
-        }
-        m_packet.size -= ret;
-        m_packet.data += ret;
-        if ( got_frame )
-        {
-          m_orig_frame->pts = av_frame_get_best_effort_timestamp ( m_orig_frame );
-          av_frame_unref ( m_frame );
-          m_frame->format         = AV_SAMPLE_FMT_FLTP;
-          m_frame->channel_layout = av_get_default_channel_layout ( channels () );
-          m_frame->sample_rate    = rate();
-          if ( !swr_is_initialized ( m_swr ) )
-          {
-            if ( ( ret = swr_config_frame ( m_swr, m_frame, m_orig_frame ) ) < 0 
-              || ( ret = swr_init (  m_swr ) ) < 0 )
-            {
-              std::cerr 
-                << __FILE__ 
-                << " line " << __LINE__ 
-                << " in " << __FUNCTION__ 
-                << ": error configuring SwrContext"
-                << ", " << ff_err2str(ret) << std::endl;
-              return false;
+    while(auto ret = m_codec_ctx.receive_frame(m_orig_frame)) {
+        if(ret == AVERROR(EAGAIN)) {
+            m_pkt_index++;
+            if ( size_t(m_pkt_index) >= m_pkt_array.size() ) {
+                m_pkt_index    = m_pkt_array.size();
+                if(m_codec_ctx.send_packet(nullptr))
+                    return false;
+            }else{
+                if(m_codec_ctx.send_packet(m_pkt_array.at(m_pkt_index)))
+                    return false;
             }
-          }
-          auto delay = swr_get_delay ( m_swr, rate () );
-          m_frame->pts = m_orig_frame->pts - av_rescale_q ( delay, m_output_tb, m_stream_tb );
-          if ( ( ret = swr_convert_frame ( m_swr, m_frame, m_orig_frame ) ) < 0 )
-          {
-            if ( ( ret = swr_config_frame ( m_swr, m_frame, m_orig_frame ) ) < 0 
-              || ( ret = swr_convert_frame ( m_swr, m_frame, m_orig_frame ) ) < 0 )
-            {
-              std::cerr 
-                << __FILE__ 
-                << " line " << __LINE__ 
-                << " in " << __FUNCTION__ 
-                << ": error converting frame"
-                << ", " << ff_err2str(ret) << std::endl;
-              return false;
-            }
-          }
-          return true;
+        }else{
+            return false;
         }
-        else
-        {
-          std::cerr << __FILE__ << " line " << __LINE__ << " in function " << __FUNCTION__ << " failed to get a frame. " << std::endl;
-        }
-      }
     }
-  }
-  return false;
+    m_orig_frame->pts = m_orig_frame.get_best_effort_timestamp();
+    m_frame.unref();
+    m_frame->format         = AV_SAMPLE_FMT_FLTP;
+    m_frame->channel_layout = av_get_default_channel_layout ( channels () );
+    m_frame->sample_rate    = rate();
+    if ( !m_swr.initialized()) {
+        if ( !m_swr.config(m_frame,m_orig_frame)
+           ||!m_swr.init()) {
+            return false;
+        }
+    }
+    auto delay = m_swr.delay(rate());
+    m_frame->pts = m_orig_frame.get_pts()- av_rescale_q ( delay, m_output_tb, m_stream_tb );
+    if ( !m_swr.convert(m_frame,m_orig_frame) ) {
+        if ( !m_swr.config(m_frame,m_orig_frame)
+         ||  !m_swr.convert(m_frame,m_orig_frame)) {
+            return false;
+        }
+    }
+    return true;
 }
 off_t 
 RubbersFile::Impl::tell ( ) const
@@ -436,30 +265,19 @@ size_t
 RubbersFile::Impl::read ( float **buf, size_t req )
 {
   auto number_done = decltype(req){0};
-  while ( number_done < req )
-  {
-    if ( m_offset >= m_frame->nb_samples )
-    {
-      m_offset -= m_frame->nb_samples;
-      if ( !decode_one_frame () ) break;
-    }
-    else
-    {
-      auto available_here = m_frame->nb_samples - m_offset;
+  while ( number_done < req ) {
+    if ( m_offset >= m_frame.get_samples()) {
+      m_offset -= m_frame.get_samples();
+      if ( !decode_one_frame () )
+          break;
+    } else {
+      auto available_here = m_frame.get_samples() - m_offset;
       auto needed_here    = req - number_done;
       auto this_chunk     = std::min<off_t>(available_here, needed_here );
-      if ( this_chunk <= 0 ) break;
-      if ( buf && buf[0])
-      {
-        av_samples_copy (
-            reinterpret_cast<uint8_t**>(buf),
-            m_frame->data,
-            number_done,
-            m_offset,
-            this_chunk,
-            channels(),
-            AV_SAMPLE_FMT_FLTP
-            );
+      if ( this_chunk <= 0 )
+          break;
+      if ( buf && buf[0]) {
+        m_frame.copy_to(reinterpret_cast<uint8_t**>(buf), number_done, m_offset, this_chunk);
       }
       number_done += this_chunk;
       m_offset    += this_chunk;

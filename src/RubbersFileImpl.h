@@ -13,11 +13,22 @@ extern "C" {
 #include <vector>
 #include <memory>
 #include <map>
+
+#include "frame_ptr.h"
+#include "packet_ptr.h"
+#include "swr_ptr.h"
+#include "avformat_ctx_ptr.h"
+#include "avcodec_ctx_ptr.h"
+//inline operator AVFrame *(const frame_ptr &ptr) { return ptr.get();}
+//inline operator AVPacket*(const packet_ptr &ptr) { return ptr.get();}
+//inline operator SwrContext*(const swr_ptr &ptr) { return ptr.get();}
+//inline operator AVCodecContext*(const avcc_ptr &ptr) { return ptr.get();}
 class RubbersFile::Impl {
-  AVFormatContext                *m_format_ctx  = nullptr;
+
+  avformat_ctx_ptr                m_format_ctx;
   AVStream                       *m_stream      = nullptr;
   int                             m_stream_index= -1;
-  AVCodecContext                 *m_codec_ctx   = nullptr;
+  avcodec_ctx_ptr                 m_codec_ctx;
   AVCodec                        *m_codec       = nullptr;
   AVRational                      m_stream_tb { 0, 1 };
   double                          m_stream_tb_d = 0;
@@ -26,12 +37,11 @@ class RubbersFile::Impl {
   AVRational                      m_output_tb { 0, 1 };
   int                             m_channels;
   int                             m_rate;
-  SwrContext                     *m_swr         = nullptr;
-  AVPacket                        m_packet;
-  std::vector<AVPacket>           m_pkt_array;
+  swr_ptr                         m_swr;
+  std::vector<packet_ptr>         m_pkt_array;
   off_t                           m_pkt_index   = 0;
-  AVFrame                        *m_orig_frame  = nullptr;
-  AVFrame                        *m_frame       = nullptr;
+  frame_ptr                       m_orig_frame;
+  frame_ptr                       m_frame;
   off_t                           m_cache_pts   = 0;
   off_t                           m_offset      = 0;
   bool                            decode_one_frame ( );

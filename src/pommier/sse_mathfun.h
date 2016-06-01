@@ -39,7 +39,7 @@
 
   (this is the zlib license)
 */
-
+#include <x86intrin.h>
 #include <xmmintrin.h>
 # include <emmintrin.h>
 

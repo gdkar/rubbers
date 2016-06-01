@@ -14,11 +14,7 @@ extern "C" {
 #include <memory>
 #include <map>
 
-#include "frame_ptr.h"
-#include "packet_ptr.h"
-#include "swr_ptr.h"
-#include "avformat_ctx_ptr.h"
-#include "avcodec_ctx_ptr.h"
+#include "rubbers/libff/libff.h"
 //inline operator AVFrame *(const frame_ptr &ptr) { return ptr.get();}
 //inline operator AVPacket*(const packet_ptr &ptr) { return ptr.get();}
 //inline operator SwrContext*(const swr_ptr &ptr) { return ptr.get();}
@@ -37,7 +33,7 @@ class RubbersFile::Impl {
   AVRational                      m_output_tb { 0, 1 };
   int                             m_channels;
   int                             m_rate;
-  swr_ptr                         m_swr;
+  swr_ctx_ptr                     m_swr;
   std::vector<packet_ptr>         m_pkt_array;
   off_t                           m_pkt_index   = 0;
   frame_ptr                       m_orig_frame;
@@ -52,13 +48,14 @@ public:
   Impl ( Impl && other ) = default;
   Impl &operator = ( Impl&& other ) = default;
   virtual ~Impl ( );
-  virtual void   set_channels(int nch);
+  virtual void   channels(int nch);
   virtual int    channels () const;
-  virtual void   set_rate(int srate);
+  virtual void   rate(int srate);
   virtual int    rate() const;
   virtual off_t  seek ( off_t offset, int whence );
   virtual off_t  tell ( ) const;
   virtual size_t read ( float **buf, size_t req );
+  virtual size_t pread ( float **buf, size_t req, off_t pts);
   virtual size_t length ( ) const;
 };
 

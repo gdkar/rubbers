@@ -1,11 +1,11 @@
 
-OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math -fwrapv\
-	-march=native -ftree-vectorize -funsafe-math-optimizations
+OPTFLAGS  := -g -ggdb -O3 -ffast-math -fassociative-math -fwrapv -march=native -ftree-vectorize -funsafe-math-optimizations
 PREFIX		:= @prefix@
 CXX		:= @CXX@
 CC		:= @CC@
 CXXFLAGS	:= -g -ggdb -O3 -DHAVE_LIBSAMPLERATE  -UFFTW_DOUBLES_ONLY -DFFTW_SINGLE_ONLY -DHAVE_FFTS -DNO_THREAD_CHECKS -DMALLOC_IS_ALIGNED -DUSE_POMMIER_MATHFUN -DUSE_PTHREADS -DNO_TIMING -DUSE_APPROXIMATE_ATAN2 -DFFT_MEASURE -UNDEBUG -I. -Isrc -Irubbers @CXXFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@   @Vamp_CFLAGS@ @FFTS_CFLAGS@ @FFTW_CFLAGS@ @FFTWF_CFLAGS@ @FFMPEG_CFLAGS@ $(OPTFLAGS)
-CFLAGS		:= @CFLAGS@ $(OPTFLAGS)
+CFLAGS		:= -std=gnu11 @CFLAGS@ @SRC_CFLAGS@ @SNDFILE_CFLAGS@   @Vamp_CFLAGS@ @FFTS_CFLAGS@ @FFTW_CFLAGS@ @FFTWF_CFLAGS@ @FFMPEG_CFLAGS@ $(OPTFLAGS)
+
 LDFLAGS		:= @LDFLAGS@ -lpthread $(LDFLAGS)
 BUILD_DIR := .build
 JNI_CXXFLAGS	:= -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux

@@ -25,12 +25,12 @@ RubbersFile::Impl::rate() const
     return m_rate;
 }
 void
-RubbersFile::Impl::set_channels(int nch )
+RubbersFile::Impl::channels(int nch )
 {
   m_channels = nch;
 }
 void
-RubbersFile::Impl::set_rate(int srate )
+RubbersFile::Impl::rate(int srate )
 {
   m_rate = srate;
 }
@@ -241,8 +241,7 @@ RubbersFile::Impl::decode_one_frame ( )
     m_frame->channel_layout = av_get_default_channel_layout ( channels () );
     m_frame->sample_rate    = rate();
     if ( !m_swr.initialized()) {
-        if ( !m_swr.config(m_frame,m_orig_frame)
-           ||!m_swr.init()) {
+        if ( !m_swr.config(m_frame,m_orig_frame) ||!m_swr.init()) {
             return false;
         }
     }
@@ -261,6 +260,17 @@ RubbersFile::Impl::tell ( ) const
 {
   return av_rescale_q ( m_frame->pts, m_stream_tb, m_output_tb ) + m_offset;
 }
+size_t
+RubbersFile::Impl::pread ( float **buf, size_t req, off_t pts)
+{
+    auto off = seek(pts,SEEK_SET);
+    if(off > pts)
+        return 0;
+    else if(off < pts) {
+        read(nullptr, pts - off);
+    }
+    return read(buf,req);
+}
 size_t 
 RubbersFile::Impl::read ( float **buf, size_t req )
 {
@@ -276,9 +286,8 @@ RubbersFile::Impl::read ( float **buf, size_t req )
       auto this_chunk     = std::min<off_t>(available_here, needed_here );
       if ( this_chunk <= 0 )
           break;
-      if ( buf && buf[0]) {
+      if ( buf && buf[0])
         m_frame.copy_to(reinterpret_cast<uint8_t**>(buf), number_done, m_offset, this_chunk);
-      }
       number_done += this_chunk;
       m_offset    += this_chunk;
     }

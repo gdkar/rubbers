@@ -9,9 +9,9 @@ RubbersFile::~RubbersFile ( )
   delete m_d;
 }
 void 
-RubbersFile::set_channels ( int nch )
+RubbersFile::channels ( int nch )
 {
-  m_d->set_channels ( nch );
+  m_d->channels ( nch );
 }
 int
 RubbersFile::channels ( ) const
@@ -19,9 +19,9 @@ RubbersFile::channels ( ) const
   return m_d->channels ();
 }
 void
-RubbersFile::set_rate ( int srate )
+RubbersFile::rate ( int srate )
 {
-  m_d->set_rate ( srate );
+  m_d->rate ( srate );
 }
 int
 RubbersFile::rate ( ) const
@@ -35,6 +35,10 @@ off_t RubbersFile::seek ( off_t offset, int whence )
 off_t RubbersFile::tell ( ) const
 {
   return m_d->tell ( );
+}
+size_t RubbersFile::pread(float **buf, size_t req, off_t off)
+{
+    return m_d->pread( buf, req, off);
 }
 size_t RubbersFile::read ( float **buf, size_t req )
 {

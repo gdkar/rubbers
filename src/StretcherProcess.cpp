@@ -143,7 +143,7 @@ RubbersStretcher::Impl::processChunks(size_t c, bool &any, bool &last){
         }
         any = true;
         if (!cd.draining) {
-            size_t ready = cd.inbuf->getReadSpace();
+            auto ready = cd.inbuf->getReadSpace();
             assert(ready >= m_aWindowSize || cd.inputSize >= 0);
             cd.inbuf->peek(cd.fltbuf, std::min(ready, m_aWindowSize));
             cd.inbuf->skip(m_increment);
@@ -162,9 +162,9 @@ RubbersStretcher::Impl::processChunks(size_t c, bool &any, bool &last){
             if (!tmp) tmp = allocate<float>(m_aWindowSize);
             analyseChunk(c);
             std::copy_n ( cd.fltbuf, m_aWindowSize, tmp );
-            for (size_t i = 0; i < shiftIncrement; i += bit) {
+            for (auto i = size_t{0}; i < shiftIncrement; i += bit) {
                 std::copy_n ( tmp, m_aWindowSize, cd.fltbuf );
-                size_t thisIncrement = bit;
+                auto thisIncrement = bit;
                 if (i + thisIncrement > shiftIncrement) {thisIncrement = shiftIncrement - i;}
                 last = processChunkForChannel(c, phaseIncrement + i, thisIncrement, phaseReset);
                 phaseReset = false;
@@ -182,14 +182,14 @@ RubbersStretcher::Impl::processOneChunk(){
     // enough data on each channel for at least one chunk.  This is
     // able to calculate increments as it goes along.
     // This is the normal process method in RT mode.
-    for (size_t c = 0; c < m_channels; ++c) {
+    for (auto c = size_t{0}; c < m_channels; ++c) {
         if (!testInbufReadSpace(c)) {
             if (m_debugLevel > 2) {cerr << "processOneChunk: out of input" << endl;}
             return false;
         }
         auto &cd = *m_channelData[c];
         if (!cd.draining) {
-            size_t ready = cd.inbuf->getReadSpace();
+            auto ready = cd.inbuf->getReadSpace();
             assert(ready >= m_aWindowSize || cd.inputSize >= 0);
             cd.inbuf->peek(cd.fltbuf, std::min(ready, m_aWindowSize));
             cd.inbuf->skip(m_increment);
@@ -201,7 +201,7 @@ RubbersStretcher::Impl::processOneChunk(){
     if (!getIncrements(0, phaseIncrement, shiftIncrement, phaseReset)) 
     {calculateIncrements(phaseIncrement, shiftIncrement, phaseReset);}
     auto last = false;
-    for (size_t c = 0; c < m_channels; ++c) {
+    for (auto c = size_t{0}; c < m_channels; ++c) {
         last = processChunkForChannel(c, phaseIncrement, shiftIncrement, phaseReset);
         m_channelData[c]->chunkCount++;
     }
@@ -320,7 +320,7 @@ RubbersStretcher::Impl::calculateIncrements(size_t &phaseIncrementRtn,size_t &sh
     if (m_channels == 0) return;
     auto &cd = *m_channelData[0];
     auto bc = cd.chunkCount;
-    for (size_t c = 1; c < m_channels; ++c) {
+    for (auto c = size_t{1}; c < m_channels; ++c) {
         if (m_channelData[c]->chunkCount != bc) {
             cerr << "ERROR: RubbersStretcher::Impl::calculateIncrements: Channels are not in sync" << endl;
             return;
@@ -560,7 +560,7 @@ RubbersStretcher::Impl::formantShiftChunk(size_t channel){
 //    cerr <<"cutoff = "<< cutoff << ", m_sampleRate/cutoff = " << m_sampleRate/cutoff << endl;
     dblbuf[0] /= 2;
     dblbuf[cutoff-1] /= 2;
-    for (auto i = cutoff; i < sz; ++i) {dblbuf[i] = 0.0;}
+    std::fill(&dblbuf[cutoff],&dblbuf[sz],0.);
     v_scale(dblbuf, factor, cutoff);
     auto spare = (float *)alloca((hs + 1) * sizeof(float));
     cd.fft->forward(dblbuf, envelope, spare);
@@ -575,9 +575,9 @@ RubbersStretcher::Impl::formantShiftChunk(size_t channel){
         }
     } else {
         // scaling down, we want a new envelope that is higher by the pitch factor
-        for (int target = hs; target > 0; ) {
+        for (auto target = hs; target > 0; ) {
             --target;
-            int source = lrint(target * m_pitchScale);
+            auto source = lrint(target * m_pitchScale);
             envelope[target] = envelope[source];
         }
     }
@@ -756,7 +756,7 @@ RubbersStretcher::Impl::available() const{
     auto min = size_t{0};
     auto consumed = true;
     auto haveResamplers = false;
-    for (size_t i = 0; i < m_channels; ++i) {
+    for (auto i = size_t{0}; i < m_channels; ++i) {
         auto availIn = static_cast<size_t>(m_channelData[i]->inbuf->getReadSpace());
         auto availOut = static_cast<size_t>(m_channelData[i]->outbuf->getReadSpace());
         if (m_debugLevel > 2) {cerr << "available on channel " << i << ": " << availOut << " (waiting: " << availIn << ")" << endl;}
@@ -773,7 +773,7 @@ size_t
 RubbersStretcher::Impl::retrieve(float *const *output, size_t samples) const{
     Profiler profiler("RubbersStretcher::Impl::retrieve");
     auto got = samples;
-    for (size_t c = 0; c < m_channels; ++c) {
+    for (auto c = size_t{0}; c < m_channels; ++c) {
         auto gotHere = static_cast<size_t>(m_channelData[c]->outbuf->read(output[c], got));
         if (gotHere < got) {
             if (c > 0) {
@@ -785,7 +785,7 @@ RubbersStretcher::Impl::retrieve(float *const *output, size_t samples) const{
         }
     }
     if ((m_options & OptionChannelsTogether) && (m_channels >= 2)) {
-        for (size_t i = 0; i < got; ++i) {
+        for (auto i = size_t{0}; i < got; ++i) {
             auto mid = output[0][i];
             auto side = output[1][i];
             auto left = mid + side;
@@ -797,4 +797,3 @@ RubbersStretcher::Impl::retrieve(float *const *output, size_t samples) const{
     return got;
 }
 }
-

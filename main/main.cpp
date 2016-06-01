@@ -274,25 +274,27 @@ int main(int argc, char **argv)
     if (!quiet) {
         cerr << "Using crispness level: " << crispness << " (";
         switch (crispness) {
-        case 0: cerr << "Mushy"; break;
-        case 1: cerr << "Piano"; break;
-        case 2: cerr << "Smooth"; break;
-        case 3: cerr << "Balanced multitimbral mixture"; break;
-        case 4: cerr << "Unpitched percussion with stable notes"; break;
-        case 5: cerr << "Crisp monophonic instrumental"; break;
-        case 6: cerr << "Unpitched solo percussion"; break;
+            case 0: cerr << "Mushy"; break;
+            case 1: cerr << "Piano"; break;
+            case 2: cerr << "Smooth"; break;
+            case 3: cerr << "Balanced multitimbral mixture"; break;
+            case 4: cerr << "Unpitched percussion with stable notes"; break;
+            case 5: cerr << "Crisp monophonic instrumental"; break;
+            case 6: cerr << "Unpitched solo percussion"; break;
         }
         cerr << ")" << endl;
     }
     std::map<size_t, size_t> mapping;
     if (mapfile != "") {
         std::ifstream ifile(mapfile.c_str());
-        if (!ifile.is_open()) { cerr << "ERROR: Failed to open time map file \"" << mapfile << "\"" << endl; return 1; }
+        if (!ifile.is_open())
+        { cerr << "ERROR: Failed to open time map file \"" << mapfile << "\"" << endl; return 1;}
         std::string line;
-        int lineno = 0;
+        auto lineno = 0;
         while (!ifile.eof()) {
             std::getline(ifile, line);
-            while (line.length() > 0 && line[0] == ' ') line = line.substr(1);
+            while (line.length() && line[0] == ' ')
+                line = line.substr(1);
             if (line == "") {
                 ++lineno;
                 continue;
@@ -302,30 +304,32 @@ int main(int argc, char **argv)
                 cerr << "ERROR: Time map file \"" << mapfile << "\" is malformed at line " << lineno << endl;
                 return 1;
             }
-            size_t source = atoi(line.substr(0, i).c_str());
-            while (i < line.length() && line[i] == ' ') ++i;
-            size_t target = atoi(line.substr(i).c_str());
+            auto source = atoi(line.substr(0, i).c_str());
+            while (i < line.length() && line[i] == ' ')
+                ++i;
+            auto target = atoi(line.substr(i).c_str());
             mapping[source] = target;
-            if (debug > 0) { cerr << "adding mapping from " << source << " to " << target << endl; }
+            if (debug > 0)
+                cerr << "adding mapping from " << source << " to " << target << endl;
             ++lineno;
         }
         ifile.close();
-        if (!quiet) { cerr << "Read " << mapping.size() << " line(s) from map file" << endl; }
+        if (!quiet)
+            cerr << "Read " << mapping.size() << " line(s) from map file" << endl;
     }
-    char *fileName = strdup(argv[optind++]);
-    auto rubbersFile = new RubbersFile ( fileName );
-    auto length = rubbersFile->length();
-    if (duration != 0.0) {
-        if (length == 0 || rubbersFile->rate() == 0) {
+    auto rubbersFile = RubbersFile ( argv[optind++]);
+    auto length = rubbersFile.length();
+    if (duration) {
+        if (!length || !rubbersFile.rate()) {
             cerr << "ERROR: File lacks frame count or sample rate in header, cannot use --duration" << endl;
             return 1;
         }
-        auto induration = double(length) / double(rubbersFile->rate());
-        if (induration != 0.0) ratio = duration / induration;
+        if(auto induration = double(length) / double(rubbersFile.rate()))
+            ratio = duration / induration;
     }
-    auto ibs = 1<<16;
-    auto channels = rubbersFile->channels();
-    auto rate = rubbersFile->rate();
+    auto ibs = 1<<12;
+    auto channels = rubbersFile.channels();
+    auto rate = rubbersFile.rate();
     RubbersStretcher::Options options = 0;
     if (realtime)    options |= RubbersStretcher::OptionProcessRealTime;
     if (precise)     options |= RubbersStretcher::OptionStretchPrecise;
@@ -337,45 +341,44 @@ int main(int argc, char **argv)
     if (hqpitch)     options |= RubbersStretcher::OptionPitchHighQuality;
     if (together)    options |= RubbersStretcher::OptionChannelsTogether;
     switch (threading) {
-    case 0: options |= RubbersStretcher::OptionThreadingAuto; break;
-    case 1: options |= RubbersStretcher::OptionThreadingNever; break;
-    case 2: options |= RubbersStretcher::OptionThreadingAlways; break;
+        case 0: options |= RubbersStretcher::OptionThreadingAuto; break;
+        case 1: options |= RubbersStretcher::OptionThreadingNever; break;
+        case 2: options |= RubbersStretcher::OptionThreadingAlways; break;
     }
     switch (transients) {
-    case NoTransients:          options |= RubbersStretcher::OptionTransientsSmooth; break;
-    case BandLimitedTransients: options |= RubbersStretcher::OptionTransientsMixed;  break;
-    case Transients:            options |= RubbersStretcher::OptionTransientsCrisp;  break;
+        case NoTransients:          options |= RubbersStretcher::OptionTransientsSmooth; break;
+        case BandLimitedTransients: options |= RubbersStretcher::OptionTransientsMixed;  break;
+        case Transients:            options |= RubbersStretcher::OptionTransientsCrisp;  break;
     }
     switch (detector) {
-    case CompoundDetector:      options |= RubbersStretcher::OptionDetectorCompound;   break;
-    case PercussiveDetector:    options |= RubbersStretcher::OptionDetectorPercussive; break;
-    case SoftDetector:          options |= RubbersStretcher::OptionDetectorSoft;       break;
+        case CompoundDetector:      options |= RubbersStretcher::OptionDetectorCompound;   break;
+        case PercussiveDetector:    options |= RubbersStretcher::OptionDetectorPercussive; break;
+        case SoftDetector:          options |= RubbersStretcher::OptionDetectorSoft;       break;
     }
-    if (pitchshift != 0.0) {frequencyshift *= std::pow(2.0, pitchshift / 12);}
+    frequencyshift *= std::pow(2.0, pitchshift / 12);
+
     cerr << "Using time ratio " << ratio << " and frequency ratio " << frequencyshift << endl;
     auto start_time = std::chrono::system_clock::now ();
 
     RubbersStretcher::setDefaultDebugLevel(debug);
-    RubbersStretcher ts(rate, channels, options,ratio, frequencyshift);
+    auto ts = RubbersStretcher(rate, channels, options,ratio, frequencyshift);
 
     ts.setExpectedInputDuration(length);
-    auto ibufr = std::make_unique<std::unique_ptr<float[]>[] >(channels);
+    auto ibufr = std::make_unique<float[]>(channels * ibs);
     auto ibuf = std::make_unique<float*[]>(channels);
-    for (size_t i = 0; i < channels; ++i) {
-        ibufr[i] = std::make_unique<float[]>(ibs);
-        ibuf[i] = ibufr[i].get();
-    }
-    int frame = 0;
-    int percent = 0;
-    rubbersFile->seek(0,SEEK_SET);
+    for (auto i = 0; i < channels; ++i)
+        ibuf[i] = ibufr.get() + i * ibs;
+    auto frame = 0;
+    auto percent = 0;
+    rubbersFile.seek(0,SEEK_SET);
     if (!realtime) {
-        if (!quiet) {cerr << "Pass 1: Studying..." << endl;}
-        while (frame < length) {
-            int count = -1;
-            count = rubbersFile->read(ibuf.get(),ibs );
-            bool final = (frame + ibs >= length);
-            ts.study(ibuf.get(), count, final);
-            int p = int((double(frame) * 100.0) / length);
+        if (!quiet)
+            cerr << "Pass 1: Studying..." << endl;
+        while (size_t(frame) < length) {
+            auto count = rubbersFile.read(ibuf.get(),ibs );
+            auto eof= (size_t(frame + ibs) >= length);
+            ts.study(ibuf.get(), count, eof);
+            auto p = int((double(frame) * 100.0) / length);
             if (p > percent || frame == 0) {
                 percent = p;
                 if (!quiet) {
@@ -384,61 +387,71 @@ int main(int argc, char **argv)
             }
             frame += count;
         }
-        if (!quiet) {cerr << "\rCalculating profile..." << endl;}
-        rubbersFile->seek(0,SEEK_SET);
+        if (!quiet)
+            cerr << "\rCalculating profile..." << endl;
+        rubbersFile.seek(0,SEEK_SET);
     }
     frame = 0;
     percent = 0;
-    if (!mapping.empty()) {ts.setKeyFrameMap(mapping);}
-    size_t countIn = 0, countOut = 0;
-    while (frame < length) {
-        int count = rubbersFile->read(ibuf.get(),ibs);
-        bool final = (frame + ibs >= length);
-        if (debug > 2) {
-            cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << final << endl;
-        }
-        ts.process(ibuf.get(), count, final);
+    if (!mapping.empty())
+        ts.setKeyFrameMap(mapping);
+    auto countIn = size_t{0}, countOut = size_t{0};
+    while (size_t(frame) < length) {
+        auto count = rubbersFile.read(ibuf.get(),ibs);
+        auto eof = (size_t(frame + ibs) >= length);
+        if (debug > 2)
+            cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << eof << endl;
+        ts.process(ibuf.get(), count, eof);
         countIn += count;
-        int avail = ts.available();
-        if (debug > 1) cerr << "available = " << avail << endl;
+        auto avail = ts.available();
+        if (debug > 1)
+            cerr << "available = " << avail << endl;
         if (avail > 0) {
-            float **obf = new float *[channels];
-            for (auto i = 0; i < channels; ++i) {obf[i] = new float[avail];}
-            ts.retrieve(obf, avail);
+            auto obfr = std::make_unique<float[]>(channels * avail );
+            auto fobf  = std::make_unique<float[]>(channels * avail );
+            auto obf = std::make_unique<float*[]>(channels);
+            for (auto i = 0; i < channels; ++i)
+                obf[i] = obfr.get() + i * avail;
+
+            ts.retrieve(obf.get(), avail);
             countOut += avail;
-            float *fobf = new float[channels * avail];
-            for (size_t c = 0; c < channels; ++c) {
-                for (int i = 0; i < avail; ++i) {
-                    float value = obf[c][i];
-                    if (value > 1.f) value = 1.f;
+            for (auto c = 0; c < channels; ++c) {
+                for (auto i = 0; i < avail; ++i) {
+                    auto value = obf[c][i];
+                    if (value > 1.f)  value = 1.f;
                     if (value < -1.f) value = -1.f;
                     fobf[i * channels + c] = value;
                 }
             }
-            fwrite ( fobf, sizeof(float), avail * channels, stdout);
-            delete[] fobf;
-            for (size_t i = 0; i < channels; ++i) {delete[] obf[i];}
-            delete[] obf;
+            fwrite ( fobf.get(), sizeof(float), avail * channels, stdout);
         }
-        if (frame == 0 && !realtime && !quiet) {cerr << "Pass 2: Processing..." << endl;}
+        if (frame == 0 && !realtime && !quiet) {
+            cerr << "Pass 2: Processing..." << endl;
+        }
 	int p = int((double(frame) * 100.0) / length);
 	if (p > percent || frame == 0) {
 	    percent = p;
-            if (!quiet) {cerr << "\r" << percent << "% ";}
+            if (!quiet) {
+                cerr << "\r" << percent << "% ";
+            }
 	}
         frame += ibs;
     }
-    if (!quiet) {cerr << "\r    " << endl;}
-    int avail;
+    if (!quiet)
+        cerr << "\r    " << endl;
+    auto avail = 0;
     while ((avail = ts.available()) >= 0) {
-        if (debug > 1) {cerr << "(completing) available = " << avail << endl;}
+        if (debug > 1)
+            cerr << "(completing) available = " << avail << endl;
         if (avail > 0) {
-            auto obf = new float *[channels];
-            for (auto i = 0; i < channels; ++i) {obf[i] = new float[avail];}
-            ts.retrieve(obf, avail);
+            auto obfr = std::make_unique<float[]>(channels * avail );
+            auto fobf  = std::make_unique<float[]>(channels * avail );
+            auto obf = std::make_unique<float*[]>(channels);
+            for (auto i = 0; i < channels; ++i)
+                obf[i] = obfr.get() + i * avail;
+            ts.retrieve(obf.get(), avail);
             countOut += avail;
-            float *fobf = new float[channels * avail];
-            for (size_t c = 0; c < channels; ++c) {
+            for (auto c = 0; c < channels; ++c) {
                 for (int i = 0; i < avail; ++i) {
                     float value = obf[c][i];
                     if (value > 1.f) value = 1.f;
@@ -446,9 +459,7 @@ int main(int argc, char **argv)
                     fobf[i * channels + c] = value;
                 }
             }
-//            sf_writef_float(sndfileOut, fobf, avail);
-            delete[] fobf;
-            delete[] obf;
+            fwrite ( fobf.get(), sizeof(float), avail * channels, stdout);
         } else {usleep(10000);}
     }
     if (!quiet) {

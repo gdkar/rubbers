@@ -36,6 +36,9 @@
 #include <Accelerate/Accelerate.h>
 #endif
 #include "pommier/sse_mathfun.h"
+extern "C" {
+#    include <x86intrin.h>
+}
 #include <string.h>
 #include <cstring>
 #include <cmath>

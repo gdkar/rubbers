@@ -1,15 +1,6 @@
 _Pragma("once")
 
-extern "C" {
-  #include <libavutil/avutil.h>
-  #include <libavformat/avformat.h>
-  #include <libavcodec/avcodec.h>
-  #include <libavdevice/avdevice.h>
-  #include <libswresample/swresample.h>
-};
-#include <vector>
-#include <memory>
-#include <map>
+#include "ffcommon.h"
 
 struct avcodec_ctx_ptr {
     AVCodecContext     *m_d{nullptr};

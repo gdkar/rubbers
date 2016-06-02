@@ -1,16 +1,7 @@
 _Pragma("once")
 
-extern "C" {
-  #include <libavutil/avutil.h>
-  #include <libavformat/avformat.h>
-  #include <libavcodec/avcodec.h>
-  #include <libavdevice/avdevice.h>
-  #include <libswresample/swresample.h>
-};
-#include <vector>
-#include <utility>
-#include <memory>
-#include <map>
+#include "ffcommon.h"
+
 struct avframe_ptr {
     AVFrame     *m_d{nullptr};
     avframe_ptr() = default;

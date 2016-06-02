@@ -88,7 +88,7 @@ RubbersFile::Impl::Impl ( const char *filename, int nch, int srate)
     return;
   }
   m_codec_tb = m_codec_ctx->time_base;
-  auto pkt = packet_ptr();
+  auto pkt = avpacket_ptr();
   pkt.alloc();
   auto discarded = size_t{0};
   while(ret != AVERROR_EOF) {
@@ -110,7 +110,6 @@ RubbersFile::Impl::Impl ( const char *filename, int nch, int srate)
       pkt.unref();
     }
   }
-  m_swr.alloc();
   m_frame.alloc();
   m_orig_frame.alloc();
   if ( discarded )
@@ -241,15 +240,15 @@ RubbersFile::Impl::decode_one_frame ( )
     m_frame->channel_layout = av_get_default_channel_layout ( channels () );
     m_frame->sample_rate    = rate();
     if ( !m_swr.initialized()) {
-        if ( !m_swr.config(m_frame,m_orig_frame) ||!m_swr.init()) {
+        if ( m_swr.config(m_frame,m_orig_frame) < 0||m_swr.init() < 0) {
             return false;
         }
     }
     auto delay = m_swr.delay(rate());
     m_frame->pts = m_orig_frame.pts()- av_rescale_q ( delay, m_output_tb, m_stream_tb );
-    if ( !m_swr.convert(m_frame,m_orig_frame) ) {
-        if ( !m_swr.config(m_frame,m_orig_frame)
-         ||  !m_swr.convert(m_frame,m_orig_frame)) {
+    if ( m_swr.convert(m_frame,m_orig_frame) < 0) {
+        if ( m_swr.config(m_frame,m_orig_frame) < 0
+         ||  m_swr.convert(m_frame,m_orig_frame) < 0) {
             return false;
         }
     }
@@ -271,7 +270,7 @@ RubbersFile::Impl::pread ( float **buf, size_t req, off_t pts)
     }
     return read(buf,req);
 }
-frame_ptr
+avframe_ptr
 RubbersFile::Impl::read_frame()
 {
     while(m_offset >= m_frame.samples()) {
@@ -289,10 +288,10 @@ RubbersFile::Impl::read_frame()
     return std::move(frm);
 
 }
-frame_ptr
+avframe_ptr
 RubbersFile::Impl::read_frame(size_t req)
 {
-    auto frm = frame_ptr();
+    auto frm = avframe_ptr();
     frm.alloc();
     av_frame_copy_props(frm,m_frame);
     frm->nb_samples = req;

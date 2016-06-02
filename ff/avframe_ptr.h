@@ -11,27 +11,27 @@ extern "C" {
 #include <utility>
 #include <memory>
 #include <map>
-struct frame_ptr {
+struct avframe_ptr {
     AVFrame     *m_d{nullptr};
-    frame_ptr() = default;
-    frame_ptr(AVFrame *f)
+    avframe_ptr() = default;
+    avframe_ptr(AVFrame *f)
         : m_d(f) { }
-    frame_ptr(frame_ptr &&o)
+    avframe_ptr(avframe_ptr &&o)
         : m_d(o.release()) { }
-    frame_ptr(const frame_ptr &o)
+    avframe_ptr(const avframe_ptr &o)
         : m_d(av_frame_clone(o)) { }
-    frame_ptr &operator = (AVFrame *f)
+    avframe_ptr &operator = (AVFrame *f)
     {
         reset(f);
         return *this;
     }
-    frame_ptr &operator = (const AVFrame *f)
+    avframe_ptr &operator = (const AVFrame *f)
     {
         if(f != m_d)
             reset(av_frame_clone(f));
         return *this;
     }
-    frame_ptr &operator =(frame_ptr &&o)
+    avframe_ptr &operator =(avframe_ptr &&o)
     {
         if(m_d) {
             ref(o);
@@ -40,16 +40,16 @@ struct frame_ptr {
         }
         return *this;
     }
-    frame_ptr &operator = (const frame_ptr &o)
+    avframe_ptr &operator = (const avframe_ptr &o)
     {
         reset(av_frame_clone(o.m_d));
         return *this;
     }
-    void swap(frame_ptr &o) noexcept { std::swap(m_d,o.m_d);}
+    void swap(avframe_ptr &o) noexcept { std::swap(m_d,o.m_d);}
     void reset(AVFrame *f = nullptr) { av_frame_free(&m_d); m_d = f;}
     AVFrame *release() { auto ret = static_cast<AVFrame*>(nullptr);std::swap(m_d,ret);return ret;}
     AVFrame *get() const { return m_d;}
-   ~frame_ptr() { reset();}
+   ~avframe_ptr() { reset();}
     AVFrame *operator ->() { return m_d; }
     AVFrame *operator ->() const { return m_d;}
     AVFrame &operator *() { return *m_d;}
@@ -67,7 +67,7 @@ struct frame_ptr {
     {
         av_frame_unref(m_d);
     }
-    void ref(frame_ptr &o)
+    void ref(avframe_ptr &o)
     {
         if(o.m_d != m_d && o.m_d) {
             alloc();
@@ -241,4 +241,4 @@ struct frame_ptr {
         return cap / stride();
     }
 };
-inline void swap(frame_ptr &lhs, frame_ptr &rhs){ lhs.swap(rhs);}
+inline void swap(avframe_ptr &lhs, avframe_ptr &rhs){ lhs.swap(rhs);}

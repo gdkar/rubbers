@@ -6,7 +6,7 @@
 #include <iterator>
 
 #include "rubbers/RubbersStretcher.h"
-#include "rubbers/libff/libff.h"
+#include "ff/ff.h"
 class RubbersFile {
   class Impl;
   Impl *m_d;

@@ -464,8 +464,8 @@ RubbersStretcher::Impl::modifyChunk(size_t channel,size_t outputIncrement,bool p
     auto fullReset = phaseReset;
     auto laminar = !(m_options & OptionPhaseIndependent);
     auto bandlimited = (m_options & OptionTransientsMixed);
-    auto bandlow = static_cast<decltype(count)>(lrint((150 * m_fftSize) / rate));
-    auto bandhigh = static_cast<decltype(count)>(lrint((1000 * m_fftSize) / rate));
+    auto bandlow = static_cast<int>(lrint((150 * m_fftSize) / rate));
+    auto bandhigh = static_cast<int>(lrint((1000 * m_fftSize) / rate));
     auto freq0 = m_freq0;
     auto freq1 = m_freq1;
     auto freq2 = m_freq2;
@@ -480,9 +480,9 @@ RubbersStretcher::Impl::modifyChunk(size_t channel,size_t outputIncrement,bool p
             freq2 = freq0 * f2ratio;
         }
     }
-    auto limit0 = static_cast<decltype(count)>(lrint((freq0 * m_fftSize) / rate));
-    auto limit1 = static_cast<decltype(count)>(lrint((freq1 * m_fftSize) / rate));
-    auto limit2 = static_cast<decltype(count)>(lrint((freq2 * m_fftSize) / rate));
+    auto limit0 = static_cast<int>(lrint((freq0 * m_fftSize) / rate));
+    auto limit1 = static_cast<int>(lrint((freq1 * m_fftSize) / rate));
+    auto limit2 = static_cast<int>(lrint((freq2 * m_fftSize) / rate));
     if (limit1 < limit0) limit1 = limit0;
     if (limit2 < limit1) limit2 = limit1;
     auto prevInstability = 0.0f;

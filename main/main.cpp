@@ -375,9 +375,14 @@ int main(int argc, char **argv)
         if (!quiet)
             cerr << "Pass 1: Studying..." << endl;
         while (size_t(frame) < length) {
-            auto count = rubbersFile.read(ibuf.get(),ibs );
-            auto eof= (size_t(frame + ibs) >= length);
-            ts.study(ibuf.get(), count, eof);
+            auto frm  = rubbersFile.read_frame();
+            if(!frm) {
+                ts.study(ibuf.get(), 0, true);
+            }else {
+//            auto count = rubbersFile.read(ibuf.get(),ibs );
+//            auto eof= (size_t(frame + ibs) >= length);
+                ts.study(frm.data(), frm.samples(), false);
+            }
             auto p = int((double(frame) * 100.0) / length);
             if (p > percent || frame == 0) {
                 percent = p;
@@ -385,7 +390,8 @@ int main(int argc, char **argv)
                     cerr << "\r" << percent << "% ";
                 }
             }
-            frame += count;
+            if(frm)
+                frame += frm.samples();
         }
         if (!quiet)
             cerr << "\rCalculating profile..." << endl;
@@ -397,12 +403,15 @@ int main(int argc, char **argv)
         ts.setKeyFrameMap(mapping);
     auto countIn = size_t{0}, countOut = size_t{0};
     while (size_t(frame) < length) {
-        auto count = rubbersFile.read(ibuf.get(),ibs);
-        auto eof = (size_t(frame + ibs) >= length);
-        if (debug > 2)
-            cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << eof << endl;
-        ts.process(ibuf.get(), count, eof);
-        countIn += count;
+        {
+            auto frm  = rubbersFile.read_frame();
+            auto count = frm.samples();//rubbersFile.read(ibuf.get(),ibs);
+            auto eof = !frm;//(size_t(frame + ibs) >= length);
+            if (debug > 2)
+                cerr << "count = " << count << ", ibs = " << ibs << ", frame = " << frame << ", frames = " << length << ", final = " << eof << endl;
+            ts.process(frm ? frm.data() : ibuf.get(), count, eof);
+            countIn += count;
+        }
         auto avail = ts.available();
         if (debug > 1)
             cerr << "available = " << avail << endl;

@@ -17,7 +17,7 @@ AC_SUBST(SNDFILE_LIBS)
 
 PKG_CHECK_MODULES([FFMPEG], [libavutil, libavformat, libavcodec, libavdevice, libavfilter, libswresample])
 AC_SUBST(FFMPEG_CFLAGS)
-AC_SUBST(FFMPEG_LIBS)c
+AC_SUBST(FFMPEG_LIBS)
 
 PKG_CHECK_MODULES([FFTW],[fftw3])
 AC_SUBST(FFTW_CFLAGS)
@@ -52,6 +52,7 @@ if test "x$GCC" = "xyes"; then
     *) CXXFLAGS="$CXXFLAGS -fPIC -Wall" ;;
   esac
 fi
+CXXFLAGS="$CXXFLAGS -std=gnu++14"
 changequote([,])dnl
 
 AC_OUTPUT([Makefile])

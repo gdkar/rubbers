@@ -246,7 +246,7 @@ RubbersFile::Impl::decode_one_frame ( )
         }
     }
     auto delay = m_swr.delay(rate());
-    m_frame->pts = m_orig_frame.get_pts()- av_rescale_q ( delay, m_output_tb, m_stream_tb );
+    m_frame->pts = m_orig_frame.pts()- av_rescale_q ( delay, m_output_tb, m_stream_tb );
     if ( !m_swr.convert(m_frame,m_orig_frame) ) {
         if ( !m_swr.config(m_frame,m_orig_frame)
          ||  !m_swr.convert(m_frame,m_orig_frame)) {
@@ -271,23 +271,57 @@ RubbersFile::Impl::pread ( float **buf, size_t req, off_t pts)
     }
     return read(buf,req);
 }
+frame_ptr
+RubbersFile::Impl::read_frame()
+{
+    while(m_offset >= m_frame.samples()) {
+        m_offset -= m_frame.samples();
+        if(!decode_one_frame()) {
+            auto frm = m_frame;
+            frm.unref();
+            return std::move(frm);
+        }
+    }
+    auto frm = m_frame;
+    decode_one_frame();
+    frm.skip_samples(m_offset, m_stream_tb);
+    m_offset = 0;
+    return std::move(frm);
+
+}
+frame_ptr
+RubbersFile::Impl::read_frame(size_t req)
+{
+    auto frm = frame_ptr();
+    frm.alloc();
+    av_frame_copy_props(frm,m_frame);
+    frm->nb_samples = req;
+    if(!frm.get_buffer()) {
+        frm.unref();
+    }else{
+        frm->pts = m_frame.pts() + av_rescale_q(m_offset, m_output_tb,m_stream_tb);
+        frm->nb_samples = read(frm.data(), req);
+        frm->pkt_duration = av_rescale_q(frm.samples(), m_output_tb, m_stream_tb);
+    }
+    return std::move(frm);
+}
 size_t 
 RubbersFile::Impl::read ( float **buf, size_t req )
 {
   auto number_done = decltype(req){0};
   while ( number_done < req ) {
-    if ( m_offset >= m_frame.get_samples()) {
-      m_offset -= m_frame.get_samples();
+    if ( m_offset >= m_frame.samples()) {
+      m_offset -= m_frame.samples();
       if ( !decode_one_frame () )
           break;
     } else {
-      auto available_here = m_frame.get_samples() - m_offset;
+      auto available_here = m_frame.samples() - m_offset;
       auto needed_here    = req - number_done;
       auto this_chunk     = std::min<off_t>(available_here, needed_here );
       if ( this_chunk <= 0 )
           break;
       if ( buf && buf[0])
-        m_frame.copy_to(reinterpret_cast<uint8_t**>(buf), number_done, m_offset, this_chunk);
+        m_frame.copy_to(buf, number_done, m_offset, this_chunk);
       number_done += this_chunk;
       m_offset    += this_chunk;
     }

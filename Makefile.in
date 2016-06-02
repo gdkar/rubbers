@@ -61,7 +61,13 @@ ladspa:		$(LADSPA_TARGET)
 PUBLIC_INCLUDES := \
 	rubbers/rubbers-c.h \
 	rubbers/RubbersStretcher.h \
-	rubbers/RubbersFile.h
+	rubbers/RubbersFile.h \
+	rubbers/libff/frame_ptr.h \
+	rubbers/libff/packet_ptr.h \
+	rubbers/libff/avformat_ctx_ptr.h \
+	rubbers/libff/avcodec_ctx_ptr.h \
+	rubbers/libff/swr_ctx_ptr.h \
+	rubbers/libff/libff.h \
 
 LIBRARY_INCLUDES := \
 	src/StretcherChannelData.h \
@@ -211,7 +217,7 @@ distclean:	clean
 	rm -f $(PROGRAM_TARGET) $(STATIC_TARGET) $(DYNAMIC_TARGET) $(JNI_TARGET) $(JAR_TARGET) $(VAMP_TARGET) $(LADSPA_TARGET)
 
 depend:
-	makedepend -Y $(LIBRARY_SOURCES) $(PROGRAM_SOURCES)
+	makedepend  -Y $(LIBRARY_SOURCES) $(PROGRAM_SOURCES)
 
 
 # DO NOT DELETE

@@ -36,6 +36,14 @@ off_t RubbersFile::tell ( ) const
 {
   return m_d->tell ( );
 }
+frame_ptr RubbersFile::read_frame()
+{
+    return m_d->read_frame();
+}
+frame_ptr RubbersFile::read_frame(size_t req)
+{
+    return m_d->read_frame(req);
+}
 size_t RubbersFile::pread(float **buf, size_t req, off_t off)
 {
     return m_d->pread( buf, req, off);

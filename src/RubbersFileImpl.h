@@ -55,6 +55,8 @@ public:
   virtual off_t  seek ( off_t offset, int whence );
   virtual off_t  tell ( ) const;
   virtual size_t read ( float **buf, size_t req );
+  virtual frame_ptr read_frame ( );
+  virtual frame_ptr  read_frame ( size_t req);
   virtual size_t pread ( float **buf, size_t req, off_t pts);
   virtual size_t length ( ) const;
 };

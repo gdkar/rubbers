@@ -1,10 +1,12 @@
 #ifndef _RUBBERS_RUBBERSFILE_H_
 #define _RUBBERS_RUBBERSFILE_H_
 
-#include "rubbers/RubbersStretcher.h"
 #include <cstdio>
 #include <algorithm>
 #include <iterator>
+
+#include "rubbers/RubbersStretcher.h"
+#include "rubbers/libff/libff.h"
 class RubbersFile {
   class Impl;
   Impl *m_d;
@@ -20,6 +22,8 @@ public:
   virtual off_t   seek ( off_t offset, int whence = SEEK_SET );
   virtual off_t   tell ( ) const;
   virtual size_t  read       ( float **buf, size_t req  );
+  virtual frame_ptr read_frame();
+  virtual frame_ptr read_frame(size_t req);
   virtual size_t  pread      ( float **buf, size_t req, off_t off);
   virtual size_t  length () const;
 };
